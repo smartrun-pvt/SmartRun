@@ -18,6 +18,7 @@ import { API_BASE_URL } from '../lib/apiBase';
 import { showToast } from '../utils/toast';
 import { purgeAllUserCacheAndStorage, signOutUser } from '../services/supabaseService';
 import { SEOHead } from './SEOHead';
+import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack';
 
 interface AccountDeletionPageProps {
   userProfile?: UserProfile | null;
@@ -62,6 +63,20 @@ export const AccountDeletionPage = ({
       setWebEmail(userProfile.email);
     }
   }, [userProfile]);
+
+  // Swipe from left edge on touch screens to return to profile
+  useEdgeSwipeBack({
+    onBack: () => {
+      if (onBack) {
+        onBack();
+      } else if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+        navigate(-1);
+      } else {
+        navigate('/profile');
+      }
+    },
+    disabled: false
+  });
 
   // Handler to copy "DELETE" confirmation text like GitHub/Vercel
   const handleCopyDeleteText = async (e: React.MouseEvent) => {
@@ -200,7 +215,7 @@ export const AccountDeletionPage = ({
               } else if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
                 navigate(-1);
               } else {
-                navigate('/');
+                navigate('/profile');
               }
             }}
             className="p-1 -ml-1 rounded-full hover:bg-slate-300/50 active:bg-slate-300 text-slate-800 hover:text-black transition-colors cursor-pointer flex items-center justify-center shrink-0"

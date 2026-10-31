@@ -41,6 +41,7 @@ import {
 import { getFavoriteProductIds, toggleProductFavorite, clearAllFavorites } from '../services/favorites';
 import { SEOHead } from './SEOHead';
 import { HowToUseAppPage } from './HowToUseAppPage';
+import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack';
 
 // Sub-page component modules for each button in Profile
 import { FavoritesSubPage } from './profile/FavoritesSubPage';
@@ -198,7 +199,11 @@ export const ProfileView = ({
   useEffect(() => {
     if (subPage !== 'main') {
       const handlePopState = () => {
-        setSubPage('main');
+        if (subPage === 'passkeys' || subPage === 'update-mobile' || subPage === 'update-email') {
+          setSubPage('security');
+        } else {
+          setSubPage('main');
+        }
       };
       window.history.pushState({ isProfileSubPage: true }, '');
       window.addEventListener('popstate', handlePopState);
@@ -208,13 +213,67 @@ export const ProfileView = ({
     }
   }, [subPage]);
 
+  // Listen for phone native back button (Capacitor Android back button or native back navigation)
+  useEffect(() => {
+    const handleHardwareBack = (e: Event) => {
+      // 1. If edit profile modal is open, close it
+      if (isEditModalOpen) {
+        e.preventDefault();
+        setIsEditModalOpen(false);
+        return;
+      }
+
+      // 2. If inside a nested security sub-page (passkeys, update-mobile, update-email), return to security
+      if (subPage === 'passkeys' || subPage === 'update-mobile' || subPage === 'update-email') {
+        e.preventDefault();
+        setSubPage('security');
+        return;
+      }
+
+      // 3. If inside any profile individual sub-page, return to main profile
+      if (subPage !== 'main') {
+        e.preventDefault();
+        setSubPage('main');
+        return;
+      }
+
+      // 4. If at main profile (subPage === 'main'), we do NOT prevent default,
+      // so App.tsx proceeds with normal back navigation (returns to home storefront '/')!
+    };
+
+    window.addEventListener('smartrun:hardware-back', handleHardwareBack);
+    return () => {
+      window.removeEventListener('smartrun:hardware-back', handleHardwareBack);
+    };
+  }, [subPage, isEditModalOpen]);
+
   const handleSubPageBack = () => {
+    if (subPage === 'passkeys' || subPage === 'update-mobile' || subPage === 'update-email') {
+      setSubPage('security');
+      return;
+    }
     if (typeof window !== 'undefined' && window.history.state?.isProfileSubPage) {
       window.history.back();
     } else {
       setSubPage('main');
     }
   };
+
+  // Swipe from left edge to go back on mobile touch screens
+  useEdgeSwipeBack({
+    onBack: () => {
+      if (isEditModalOpen) {
+        setIsEditModalOpen(false);
+        return;
+      }
+      if (subPage !== 'main') {
+        handleSubPageBack();
+        return;
+      }
+      onBack();
+    },
+    disabled: false
+  });
 
   const handleOpenEdit = () => {
     setIsEditModalOpen(true);
@@ -775,7 +834,7 @@ export const ProfileView = ({
           {/* FAQ */}
           <button
             id="btn-profile-faq"
-            onClick={() => navigate('/faq')}
+            onClick={() => setSubPage('faq')}
             className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
             <div className="flex items-center gap-3.5 sm:gap-4">

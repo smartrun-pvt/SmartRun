@@ -1157,6 +1157,17 @@ export default function App() {
         setIsInstallModalOpen(false);
         return;
       }
+      if (isDeviceLocationPromptOpen) {
+        setIsDeviceLocationPromptOpen(false);
+        return;
+      }
+
+      // Check if active view (such as ProfileView individual sub-page or EditProfileModal) handles back
+      const backEvent = new CustomEvent('smartrun:hardware-back', { cancelable: true });
+      const wasPrevented = !window.dispatchEvent(backEvent);
+      if (wasPrevented) {
+        return; // Handled by active child component (e.g. Profile sub-page returned to main Profile menu)!
+      }
 
       const currentPath = location.pathname;
       // If at home root, exit app smoothly
@@ -1192,7 +1203,17 @@ export default function App() {
         return;
       }
 
-      // If user is on profile, returning back goes directly to home storefront
+      // If user is on account deletion or FAQs, return to profile
+      if (currentPath === '/delete' || currentPath === '/account-deletion' || currentPath === '/faq' || currentPath === '/faqs') {
+        if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+          navigate(-1);
+        } else {
+          navigate(isAuthenticated ? '/profile' : '/');
+        }
+        return;
+      }
+
+      // If user is on profile main menu, returning back goes directly to home storefront
       if (currentPath === '/profile') {
         navigate('/');
         return;
@@ -1215,6 +1236,7 @@ export default function App() {
     selectedProductQuickView,
     isLiveOrderModalOpen,
     isLocationModalOpen,
+    isDeviceLocationPromptOpen,
     addressToEdit,
     isAiAssistantOpen,
     isInstallModalOpen,
@@ -2103,7 +2125,7 @@ export default function App() {
                   if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
                     navigate(-1);
                   } else {
-                    navigate('/');
+                    navigate(isAuthenticated ? '/profile' : '/');
                   }
                 }}
               />
@@ -2120,7 +2142,7 @@ export default function App() {
                   if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
                     navigate(-1);
                   } else {
-                    navigate('/');
+                    navigate(isAuthenticated ? '/profile' : '/');
                   }
                 }}
               />
