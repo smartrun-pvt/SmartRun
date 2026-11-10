@@ -30,6 +30,7 @@ import { hapticLight, hapticSelection } from '../utils/haptics';
 import { PullToRefresh } from './PullToRefresh';
 import { isElectricalProduct, isConstructionProduct } from '../utils/categoryHelper';
 import { SEOHead } from './SEOHead';
+import { Footer } from './Footer';
 
 export interface HomePageProps {
   onAddToCart: (product: Product) => void;
@@ -1135,6 +1136,9 @@ export const HomePage = ({
         )}
 
       </div>
+
+      {/* Global Transparency & Merchant Center Compliant Footer */}
+      <Footer />
     </div>
   </PullToRefresh>
   );

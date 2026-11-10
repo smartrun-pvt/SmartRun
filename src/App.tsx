@@ -2118,6 +2118,8 @@ export default function App() {
           />
           <Route path="/refund-policy" element={<LegalView onBack={() => navigate('/')} type="refund" />} />
           <Route path="/refunds" element={<LegalView onBack={() => navigate('/')} type="refund" />} />
+          <Route path="/return-policy" element={<LegalView onBack={() => navigate('/')} type="refund" />} />
+          <Route path="/returns" element={<LegalView onBack={() => navigate('/')} type="refund" />} />
           <Route path="/shipping-policy" element={<LegalView onBack={() => navigate('/')} type="shipping" />} />
           <Route path="/shipping" element={<LegalView onBack={() => navigate('/')} type="shipping" />} />
           <Route path="/privacy" element={<LegalView onBack={() => navigate('/')} type="privacy" />} />

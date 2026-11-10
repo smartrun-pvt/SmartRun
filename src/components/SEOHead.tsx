@@ -10,9 +10,13 @@ export interface SEOHeadProps {
   noIndex?: boolean;
   breadcrumbs?: Array<{ name: string; path: string }>;
   productData?: {
+    id?: string;
+    sku?: string;
+    mpn?: string;
     name: string;
     description?: string;
     price: number;
+    originalPrice?: number;
     brand?: string;
     image?: string;
     inStock?: boolean;
@@ -277,11 +281,18 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
       itemListElement: breadcrumbItems
     });
 
-    // Specific Product Schema
+    // Specific Product Schema (Full Google Merchant Center & Google Shopping compliance)
     if (productData) {
+      const prodId = productData.id || productData.sku || 'PRD';
+      const prodSku = productData.sku || `SMARTRUN-${prodId.slice(0, 8).toUpperCase()}`;
+      const prodMpn = productData.mpn || prodSku;
+
       schemaGraph.push({
         '@context': 'https://schema.org/',
         '@type': 'Product',
+        productID: prodId,
+        sku: prodSku,
+        mpn: prodMpn,
         name: productData.name,
         image: computedImage,
         description: productData.description || `${productData.name} available at SmartRun Kolkata with 60-min express delivery.`,
@@ -294,6 +305,7 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
           url: canonicalUrl,
           priceCurrency: 'INR',
           price: productData.price,
+          priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           availability: productData.inStock !== false ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
           itemCondition: 'https://schema.org/NewCondition',
           seller: {
@@ -301,6 +313,45 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
             name: 'SmartRun',
             legalName: 'SmartRun materials pvt. ltd',
             url: 'https://www.smartrun.in/'
+          },
+          hasMerchantReturnPolicy: {
+            '@type': 'MerchantReturnPolicy',
+            applicableCountry: 'IN',
+            returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+            merchantReturnDays: 7,
+            returnMethod: 'https://schema.org/ReturnAtKiosk',
+            returnFees: 'https://schema.org/FreeReturn',
+            refundType: 'https://schema.org/FullRefund'
+          },
+          shippingDetails: {
+            '@type': 'OfferShippingDetails',
+            shippingRate: {
+              '@type': 'MonetaryAmount',
+              value: '49',
+              currency: 'INR'
+            },
+            shippingDestination: {
+              '@type': 'DefinedRegion',
+              addressCountry: 'IN',
+              postalCodeRange: {
+                postalCode: '700001-700160'
+              }
+            },
+            deliveryTime: {
+              '@type': 'ShippingDeliveryTime',
+              handlingTime: {
+                '@type': 'QuantitativeValue',
+                minValue: 0,
+                maxValue: 1,
+                unitCode: 'DAY'
+              },
+              transitTime: {
+                '@type': 'QuantitativeValue',
+                minValue: 0,
+                maxValue: 1,
+                unitCode: 'DAY'
+              }
+            }
           }
         },
         aggregateRating: {

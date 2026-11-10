@@ -47,6 +47,7 @@ import { checkKolkataDeliveryService, getUserLocationPincode } from '../../data/
 import { trackProductView } from '../../utils/analytics';
 import { hapticLight, hapticMedium } from '../../utils/haptics';
 import { SEOHead } from '../SEOHead';
+import { Footer } from '../Footer';
 import { shareProductDetails } from '../../utils/shareProduct';
 import { ZoomableImage } from '../ZoomableImage';
 import { FullscreenImageViewer } from '../FullscreenImageViewer';
@@ -668,9 +669,13 @@ export const ProductDetailPage = ({
         keywords={`${product.name}, ${product.brand}, ${product.subcategory}, buy ${product.name} Kolkata, wholesale electrical shop near me`}
         image={currentImage}
         productData={{
+          id: product.id,
+          sku: `SMARTRUN-${String(product.id).slice(0, 8).toUpperCase()}`,
+          mpn: `SR-${product.brand ? product.brand.replace(/\s+/g, '').toUpperCase() : 'GEN'}-${String(product.id).slice(0, 8).toUpperCase()}`,
           name: product.name,
           description: product.description,
           price: effectivePrice,
+          originalPrice: effectiveMrp,
           brand: product.brand,
           image: currentImage,
           inStock: product.stock_quantity > 0,
@@ -921,11 +926,17 @@ export const ProductDetailPage = ({
             
             {/* Title, Brand & Telegram-Style Share Button */}
             <div>
-              {product.brand && (
-                <p className="text-xs font-black text-amber-600 uppercase tracking-wider mb-1">
-                  {product.brand}
-                </p>
-              )}
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                {product.brand && (
+                  <span className="text-xs font-black text-amber-600 uppercase tracking-wider">
+                    {product.brand}
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                  <span className="text-slate-400 font-sans font-semibold">SKU:</span>
+                  SMARTRUN-{String(product.id).slice(0, 8).toUpperCase()}
+                </span>
+              </div>
               
               <div className="flex items-start justify-between gap-4">
                 <h1 className="text-lg sm:text-2xl font-black text-slate-900 leading-tight flex-1">
@@ -1712,6 +1723,9 @@ export const ProductDetailPage = ({
           handleThumbnailClick(thumb, idx);
         }}
       />
+
+      {/* Global Transparency & Merchant Center Compliant Footer */}
+      <Footer />
     </div>
   );
 };

@@ -44,7 +44,7 @@ export const RefundPolicy = ({
             </button>
           )}
           <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight whitespace-nowrap">
-            Refund policy
+            Return &amp; Refund Policy
           </h1>
         </div>
       </div>
@@ -186,22 +186,25 @@ export const RefundPolicy = ({
           </ul>
         </section>
 
-        {/* Article 5: 7-Day Return & Replacement for Damaged/Defective Goods */}
+        {/* Article 5: 7-Day Return & Replacement Policy */}
         <section className="space-y-3 pt-6 border-t border-slate-100">
           <div className="flex items-center gap-2">
             <h2 className="text-base sm:text-lg font-bold text-slate-900">
-              5. 7-Day Replacement for Damaged Items
+              5. 7-Day Return &amp; Replacement Policy
             </h2>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold whitespace-nowrap shrink-0">
-              Doorstep Verification
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold whitespace-nowrap shrink-0">
+              7-Day Window
             </span>
           </div>
           <p className="text-sm text-slate-600 leading-relaxed">
-            If you receive defective, wrong, or transit-damaged materials, please report it within <strong>7 days of delivery</strong>:
+            Customers have up to <strong>7 calendar days from the date of delivery</strong> to return or replace products. If you receive an item that is defective, damaged during transit, or incorrect compared to your order:
           </p>
           <ul className="list-disc pl-5 space-y-1.5 text-sm text-slate-600">
-            <li>Unused products with manufacturer packaging, seals, and tags intact are eligible for immediate doorstep replacement or refund.</li>
-            <li>Custom-cut wire coils or opened chemical buckets cannot be accepted once altered.</li>
+            <li><strong>Eligibility Criteria:</strong> Unused products with original manufacturer packaging, tags, barcodes, and accessories intact are 100% eligible for return or replacement.</li>
+            <li><strong>How to Initiate a Return:</strong> Contact our Kolkata dispatch desk via phone/WhatsApp at <strong>+91 87774 00280</strong> or email <strong>support@smartrun.in</strong> with your 8-digit Order ID (e.g. <code className="bg-slate-100 text-slate-800 px-1 py-0.5 rounded font-mono text-xs">#DE7A0E6C</code>).</li>
+            <li><strong>Doorstep Pickup:</strong> Our delivery partner will pick up the item directly from your address at zero additional courier cost for verified defects or wrong items.</li>
+            <li><strong>Refund Timeline:</strong> Once the returned item is verified at our Kasba hub, your full refund is processed within <strong>24 to 48 hours</strong> back to your original payment method (bank account, UPI, or card) via Razorpay, with zero restocking fees.</li>
+            <li><strong>Non-Returnable Exceptions:</strong> Custom cut-to-length wires or opened paint/chemical buckets cannot be returned once unsealed or altered.</li>
           </ul>
         </section>
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { RefundPolicy } from './RefundPolicy';
+import { ShippingPolicy } from './ShippingPolicyPage';
 import { PrivacyPolicyPage } from './PrivacyPolicyPage';
 import { TermsOfServicePage } from './TermsOfServicePage';
 import { FAQPage } from './FAQPage';
@@ -90,6 +91,10 @@ export const LegalView = ({ onBack, type }: LegalViewProps) => {
 
   if (type === 'refund') {
     return <RefundPolicy onBack={onBack} />;
+  }
+
+  if (type === 'shipping') {
+    return <ShippingPolicy onBack={onBack} />;
   }
 
   if (type === 'faqs') {
@@ -211,38 +216,6 @@ export const LegalView = ({ onBack, type }: LegalViewProps) => {
                     </p>
                   </div>
                 </div>
-              </section>
-            </div>
-          )}
-
-          {/* =========================================================================
-              2. SHIPPING POLICY VIEW
-              ========================================================================= */}
-          {type === 'shipping' && (
-            <div className="space-y-6">
-              <section className="space-y-2">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#00875a]"></span>
-                  1. Delivery Timelines &amp; Dispatch Modes
-                </h3>
-                <p>
-                  SmartRun operates a multi-modal logistics network centered around our Kasba Warehouse Hub in Kolkata:
-                </p>
-                <ul className="list-disc pl-5 space-y-1.5 text-slate-600">
-                  <li><strong>60-Minute Express Bike Dispatch:</strong> Applicable to standard electrical items (wires, switches, lighting, circuit breakers, tools) weighing up to 20 kg. Dispatched immediately via delivery partners.</li>
-                  <li><strong>Same-Day / Scheduled Site Truck Freight:</strong> Applicable to heavy bulk materials (cement bags, sand, TMT steel rebars, plumbing pipes). Dispatched in heavy commercial vehicles adhering to municipal Kolkata traffic movement windows.</li>
-                  <li><strong>Site Accessibility Requirement:</strong> Customers must ensure vehicular access to the unloading point. For multi-storey buildings without freight elevators, delivery is completed at the ground floor unloading zone.</li>
-                </ul>
-              </section>
-
-              <section className="space-y-2 pt-4 border-t border-slate-100">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#00875a]"></span>
-                  2. Calibrated Shipping &amp; Surcharge Structure
-                </h3>
-                <p>
-                  Delivery fees are calculated transparently prior to checkout based on radial distance from Kasba depot, total volumetric weight, and statutory weather or peak surcharges. Orders qualifying for promotional thresholds receive free express delivery.
-                </p>
               </section>
             </div>
           )}

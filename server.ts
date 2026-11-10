@@ -2333,6 +2333,95 @@ async function startServer() {
   });
 
   // =========================================================================
+  // GOOGLE MERCHANT CENTER (GMC) XML PRODUCT FEED (RSS 2.0 / GOOGLE SHOPPING)
+  // Compliant with Google Merchant Center feed specifications & policies
+  // =========================================================================
+  const handleGoogleMerchantFeed = async (req: express.Request, res: express.Response) => {
+    try {
+      res.setHeader("Content-Type", "application/xml; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=7200");
+
+      const { products } = await getCachedCatalog();
+
+      const escapeXml = (unsafe: string | null | undefined): string => {
+        if (!unsafe) return "";
+        return String(unsafe)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&apos;");
+      };
+
+      const nowRfc822 = new Date().toUTCString();
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+  <channel>
+    <title>SmartRun Kolkata - Wholesale Electrical &amp; Construction Supplies</title>
+    <link>https://www.smartrun.in</link>
+    <description>Official product catalog for SmartRun (SmartRun materials pvt. ltd) delivering genuine electricals, wires, modular switches, and building supplies in Kolkata.</description>
+    <lastBuildDate>${nowRfc822}</lastBuildDate>
+`;
+
+      for (const p of products) {
+        if (!p || !p.id) continue;
+        const idStr = String(p.id);
+        const shortId = idStr.slice(0, 8).toUpperCase();
+        const sku = `SMARTRUN-${shortId}`;
+        const title = escapeXml(p.name || 'SmartRun Product');
+        const rawDesc = p.description || `${p.name} with 60-minute express delivery in Kolkata. 100% genuine with warranty at SmartRun.`;
+        const description = escapeXml(rawDesc.slice(0, 5000));
+        const category = p.category === 'construction' ? 'construction' : 'electrical';
+        const link = `https://www.smartrun.in/${category}/product/${idStr}`;
+        const imageLink = escapeXml(
+          (Array.isArray(p.image_urls) && p.image_urls[0]) ||
+          p.image ||
+          'https://www.smartrun.in/SmartRun.png'
+        );
+        const price = Number(p.price || 0).toFixed(2);
+        const availability = (p.stock_quantity ?? p.stock_count ?? 1) > 0 ? 'in_stock' : 'out_of_stock';
+        const brand = escapeXml(p.brand || 'SmartRun');
+        const mpn = escapeXml(`SR-${p.brand ? p.brand.replace(/\s+/g, '').toUpperCase() : 'GEN'}-${shortId}`);
+        const productType = escapeXml(`${category} > ${p.subcategory || p.sub_category || 'General'}`);
+
+        xml += `    <item>
+      <g:id>${sku}</g:id>
+      <g:title>${title}</g:title>
+      <g:description>${description}</g:description>
+      <g:link>${link}</g:link>
+      <g:image_link>${imageLink}</g:image_link>
+      <g:condition>new</g:condition>
+      <g:availability>${availability}</g:availability>
+      <g:price>${price} INR</g:price>
+      <g:brand>${brand}</g:brand>
+      <g:mpn>${mpn}</g:mpn>
+      <g:product_type>${productType}</g:product_type>
+      <g:identifier_exists>yes</g:identifier_exists>
+      <g:shipping>
+        <g:country>IN</g:country>
+        <g:service>60-Minute Express Delivery</g:service>
+        <g:price>49.00 INR</g:price>
+      </g:shipping>
+    </item>
+`;
+      }
+
+      xml += `  </channel>
+</rss>`;
+
+      return res.status(200).send(xml);
+    } catch (err: any) {
+      console.error("[Google Merchant Feed] Failed to generate XML feed:", err);
+      return res.status(500).send("<error>Failed to generate Google Merchant feed</error>");
+    }
+  };
+
+  app.get("/api/feeds/google-merchant.xml", handleGoogleMerchantFeed);
+  app.get("/feeds/google-merchant.xml", handleGoogleMerchantFeed);
+  app.get("/google-merchant.xml", handleGoogleMerchantFeed);
+
+  // =========================================================================
   // VERSION CHECK & DEPLOYMENT SYNCHRONIZATION ENDPOINTS
   // =========================================================================
   const SERVER_BOOT_TIME = new Date().toISOString();
