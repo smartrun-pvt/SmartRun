@@ -839,7 +839,10 @@ export const ProductDetailPage = ({
             </div>
 
             {/* Floating Action Buttons at Bottom of Screen */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] py-3 px-4 sm:px-6">
+            <div
+              style={{ paddingBottom: 'calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 0.75rem)' }}
+              className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] py-3 px-4 sm:px-6"
+            >
               <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 sm:gap-6">
                 
                 {/* Left Product Quick Info (Shown on tablets and desktop) */}

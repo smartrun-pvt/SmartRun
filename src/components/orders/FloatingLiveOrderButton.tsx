@@ -54,7 +54,8 @@ export const FloatingLiveOrderButton = ({
   return (
     <div
       id="floating-live-order-tracker"
-      className="fixed bottom-24 sm:bottom-26 right-4 sm:right-5 z-40 flex flex-col items-center select-none animate-in fade-in zoom-in duration-300"
+      style={{ bottom: 'calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 5.5rem)' }}
+      className="fixed right-4 sm:right-5 z-40 flex flex-col items-center select-none animate-in fade-in zoom-in duration-300"
     >
       {/* Compact Circular Map Path Button (White Theme with White Border) */}
       <button

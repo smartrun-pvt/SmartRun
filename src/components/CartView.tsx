@@ -1689,7 +1689,10 @@ export const CartView = ({
       </div>
 
       {/* 9. STICKY BOTTOM BAR (Clean single Place Order button with Total Price) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200/90 px-4 py-3 shadow-[0_-4px_25px_rgba(0,0,0,0.08)]">
+      <div
+        style={{ paddingBottom: 'calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 0.75rem)' }}
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200/90 px-4 py-3 shadow-[0_-4px_25px_rgba(0,0,0,0.08)]"
+      >
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
           
           <div className="min-w-0">
@@ -1903,7 +1906,10 @@ export const CartView = ({
           </div>
 
           {/* Simple Sticky Bottom Bar */}
-          <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200/90 px-4 py-3 shadow-[0_-4px_25px_rgba(0,0,0,0.08)]">
+          <div
+            style={{ paddingBottom: 'calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 0.75rem)' }}
+            className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200/90 px-4 py-3 shadow-[0_-4px_25px_rgba(0,0,0,0.08)]"
+          >
             <div className="max-w-md mx-auto">
               {!isDeliveryServiceable ? (
                 <div className="space-y-2">

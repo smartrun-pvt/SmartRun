@@ -68,7 +68,7 @@ export const FloatingBottomNav = ({
     <nav
       id="floating-liquid-bottom-navbar"
       aria-label="Bottom Navigation"
-      style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}
+      style={{ bottom: 'calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 0.85rem)' }}
       className="fixed left-1/2 -translate-x-1/2 z-40 w-[93vw] max-w-[390px] sm:max-w-[430px]"
     >
       {/* Transparent glassmorphism floating navbar container */}

@@ -103,6 +103,12 @@ export default function App() {
       StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
       StatusBar.setStyle({ style: Style.Light }).catch(() => {});
       StatusBar.setBackgroundColor({ color: '#ffffff' }).catch(() => {});
+
+      // In Android native app, ensure bottom navbar is elevated above system navigation buttons (Back/Home/Recents)
+      const currentBottom = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-bottom');
+      if (!currentBottom || currentBottom.trim() === '' || currentBottom.trim() === '0px' || currentBottom.trim() === '0') {
+        document.documentElement.style.setProperty('--safe-area-bottom', '52px');
+      }
     }
 
     // Ensure --safe-area-top is 0px because the APK starts directly below WiFi, network & battery status bar
@@ -1213,8 +1219,14 @@ export default function App() {
         return;
       }
 
-      // If user is on profile main menu, returning back goes directly to home storefront
+      // If user is on profile
       if (currentPath === '/profile') {
+        // If user is inside an individual profile subpage (e.g. ?sub=addresses), return to main profile menu
+        if (location.search && (location.search.includes('sub=') || location.search.includes('page='))) {
+          navigate('/profile', { replace: false });
+          return;
+        }
+        // If on main profile menu, returning back goes directly to home storefront
         navigate('/');
         return;
       }

@@ -495,3 +495,15 @@
     - Updated Schema.org structured data graph: added `alternateName: ["Smart Run", "SmartRun", "Smart Run App", "SmartRun App", "Smart Run Kolkata", "SmartRun materials pvt. ltd"]`, `legalName: "SmartRun materials pvt. ltd"`, and official registered address `Kheyadah Village, Bhagabanpur, Kolkata 700150`.
     - Updated `src/components/SEOHead.tsx` with `"Smart Run"` keyword density and legal seller entity.
     - Enhanced `PLAYSTORE_AI_SEARCH_LISTING.md` with Play Store title options (`SmartRun (Smart Run): Supplies`), short description (`Smart Run (SmartRun): 60-min express electricals, wires, switches & electricians`), and query matching for both "Smart Run" and "SmartRun".
+- [x] **Android Bottom Navbar Navigation Bar Elevation & Profile Sub-pages Back Fix**:
+  - **Android Navigation Bar Clearance (`--safe-area-bottom`)**:
+    - Identified that on Android devices with 3-button navigation (Back, Home, Recents) or gesture bar, `env(safe-area-inset-bottom)` evaluates to `0px` in Android WebView, causing the floating bottom navbar at `bottom: 1rem` to be hidden behind the phone's navigation buttons.
+    - Added `ViewCompat.setOnApplyWindowInsetsListener` in `MainActivity.java` to measure real navigation bar insets and inject `--safe-area-bottom` into the WebView.
+    - In `src/App.tsx`, initialized default `--safe-area-bottom` to `52px` for native Android platforms.
+    - In `FloatingBottomNav.tsx`, updated bottom style to `calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 0.85rem)`.
+    - Elevated `FloatingLiveOrderButton.tsx` (`+ 5.5rem`), `ProductDetailPage.tsx` action bar, and `CartView.tsx` sticky checkout bar above phone navigation buttons.
+  - **Profile Sub-pages Back Navigation & Gesture Isolation**:
+    - Identified that `ProfileView.tsx` was calling manual `window.history.pushState` on subpages, which desynchronized React Router's internal history index and caused phone back gestures and buttons to jump straight to `/` (Home).
+    - Switched `subPage` in `ProfileView.tsx` to synchronize with React Router search parameters (`useSearchParams({ sub: ... })`), creating tracked, router-native history entries.
+    - Handled hardware/software back button: `smartrun:hardware-back` returns to main profile (`setSubPage('main')`), and in `App.tsx`, if `currentPath === '/profile'` with active `sub=`, it returns to `/profile` instead of `/`.
+    - When on the main profile page (`/profile` without subpage), pressing Back or gesture back cleanly returns to Home (`/`).

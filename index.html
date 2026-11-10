@@ -53,9 +53,11 @@
       if (typeof window !== 'undefined' && window.WebSocket) {
         const RealWebSocket = window.WebSocket;
         function MockWebSocket(url, protocols) {
-          if (typeof url === 'string' && (url.includes('ais-dev') || url.includes('run.app') || url.includes('/@vite/client') || url.includes('localhost:3000'))) {
-            this.readyState = 1; // OPEN (prevents Vite client from rejecting connection promise)
+          if (typeof url === 'string' && (url.includes('/@vite/client') || url.includes('vite') || url.includes(':3000'))) {
+            this.readyState = 1; // OPEN
+            this.CONNECTING = 0;
             this.OPEN = 1;
+            this.CLOSING = 2;
             this.CLOSED = 3;
             this.url = url;
             this.close = function() {};
@@ -75,8 +77,11 @@
           }
           return new RealWebSocket(url, protocols);
         }
+        MockWebSocket.CONNECTING = 0;
         MockWebSocket.OPEN = 1;
+        MockWebSocket.CLOSING = 2;
         MockWebSocket.CLOSED = 3;
+        MockWebSocket.prototype = RealWebSocket.prototype;
         window.WebSocket = MockWebSocket;
       }
 

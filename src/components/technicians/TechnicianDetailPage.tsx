@@ -754,7 +754,10 @@ export const TechnicianDetailPage = ({
       {/* ========================================================================= */}
       {/* BOTTOM SCREEN NAVBAR: Shows price, Book button & WhatsApp when booked     */}
       {/* ========================================================================= */}
-      <footer className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-4 sm:px-8 py-3 z-40 shadow-lg">
+      <footer
+        style={{ paddingBottom: 'calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 0.75rem)' }}
+        className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-4 sm:px-8 py-3 z-40 shadow-lg"
+      >
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
           {/* Price display */}
           <div>

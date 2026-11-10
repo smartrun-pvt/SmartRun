@@ -2138,10 +2138,11 @@ async function startServer() {
   // 1c. HTTP Security Hardening Headers (Defense-in-Depth)
   app.use((req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    // Do NOT set X-Frame-Options SAMEORIGIN to allow embedding in AI Studio and preview iframes
+    res.removeHeader("X-Frame-Options");
     res.setHeader("X-XSS-Protection", "1; mode=block");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("Permissions-Policy", "camera=(), microphone=(), payment=(self 'https://api.razorpay.com')");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), payment=(self 'https://api.razorpay.com'), geolocation=*");
     if (req.secure || req.headers["x-forwarded-proto"] === "https") {
       res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     }

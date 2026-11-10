@@ -53,6 +53,26 @@ public class MainActivity extends BridgeActivity {
             });
         }
 
+        // Measure system navigation bar insets (3-button navigation, gesture bar, etc.)
+        // and set --safe-area-bottom in WebView so floating bottom nav is positioned cleanly above navigation buttons
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(getWindow().getDecorView(), (v, windowInsets) -> {
+            androidx.core.graphics.Insets insets = windowInsets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.navigationBars()
+            );
+            float density = getResources().getDisplayMetrics().density;
+            int bottomDp = density > 0 ? Math.round(insets.bottom / density) : insets.bottom;
+            final int finalBottomDp = Math.max(bottomDp, 48);
+            if (getBridge() != null && getBridge().getWebView() != null) {
+                getBridge().getWebView().post(() -> {
+                    getBridge().getWebView().evaluateJavascript(
+                        "document.documentElement.style.setProperty('--safe-area-bottom', '" + finalBottomDp + "px');",
+                        null
+                    );
+                });
+            }
+            return windowInsets;
+        });
+
         if (getBridge() != null && getBridge().getWebView() != null) {
             getBridge().getWebView().setWebViewClient(new BridgeWebViewClient(getBridge()) {
                 @Override

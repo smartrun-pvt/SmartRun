@@ -28,7 +28,7 @@ import { PasskeysSubPage } from './profile/PasskeysSubPage';
 import { SecuritySubPage } from './profile/SecuritySubPage';
 import { UpdateMobileSubPage } from './profile/UpdateMobileSubPage';
 import { UpdateEmailSubPage } from './profile/UpdateEmailSubPage';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Order, SavedAddress, UserProfile, CartItem, Product, WalletTransaction } from '../types';
 import { OrderHistoryView } from './OrderHistoryView';
 import {
@@ -103,9 +103,46 @@ export const ProfileView = ({
   }, []);
 
   // Current active sub-page view: 'main' | 'orders' | 'addresses' | 'payments' | 'wallet' | 'services' | 'membership' | 'help' | 'faq' | 'notifications' | 'privacy' | 'terms' | 'favorites' | 'refund-policy' | 'how-to-use' | 'security' | 'passkeys' | 'update-mobile' | 'update-email'
-  const [subPage, setSubPage] = useState<
-    'main' | 'orders' | 'addresses' | 'payments' | 'wallet' | 'services' | 'membership' | 'help' | 'faq' | 'notifications' | 'privacy' | 'terms' | 'favorites' | 'refund-policy' | 'how-to-use' | 'security' | 'passkeys' | 'update-mobile' | 'update-email'
-  >('main');
+  type ProfileSubPage =
+    | 'main'
+    | 'orders'
+    | 'addresses'
+    | 'payments'
+    | 'wallet'
+    | 'services'
+    | 'membership'
+    | 'help'
+    | 'faq'
+    | 'notifications'
+    | 'privacy'
+    | 'terms'
+    | 'favorites'
+    | 'refund-policy'
+    | 'how-to-use'
+    | 'security'
+    | 'passkeys'
+    | 'update-mobile'
+    | 'update-email';
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const subPageParam = (searchParams.get('sub') || 'main') as ProfileSubPage;
+  const [localSubPage, setLocalSubPage] = useState<ProfileSubPage>(subPageParam);
+
+  // Synchronize state when URL changes (such as Android back button or gesture navigation)
+  useEffect(() => {
+    setLocalSubPage(subPageParam);
+  }, [subPageParam]);
+
+  const subPage = localSubPage;
+
+  const setSubPage = (nextSub: ProfileSubPage) => {
+    setLocalSubPage(nextSub);
+    if (nextSub === 'main') {
+      setSearchParams({}, { replace: false });
+    } else {
+      setSearchParams({ sub: nextSub }, { replace: false });
+    }
+  };
 
   // Favorites state
   const [favoriteProductIds, setFavoriteProductIds] = useState<string[]>(() => getFavoriteProductIds());
@@ -195,24 +232,6 @@ export const ProfileView = ({
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [subPage]);
 
-  // Synchronize history so browser/Android hardware back button returns from subpage to profile menu
-  useEffect(() => {
-    if (subPage !== 'main') {
-      const handlePopState = () => {
-        if (subPage === 'passkeys' || subPage === 'update-mobile' || subPage === 'update-email') {
-          setSubPage('security');
-        } else {
-          setSubPage('main');
-        }
-      };
-      window.history.pushState({ isProfileSubPage: true }, '');
-      window.addEventListener('popstate', handlePopState);
-      return () => {
-        window.removeEventListener('popstate', handlePopState);
-      };
-    }
-  }, [subPage]);
-
   // Listen for phone native back button (Capacitor Android back button or native back navigation)
   useEffect(() => {
     const handleHardwareBack = (e: Event) => {
@@ -252,11 +271,7 @@ export const ProfileView = ({
       setSubPage('security');
       return;
     }
-    if (typeof window !== 'undefined' && window.history.state?.isProfileSubPage) {
-      window.history.back();
-    } else {
-      setSubPage('main');
-    }
+    setSubPage('main');
   };
 
   // Swipe from left edge to go back on mobile touch screens
