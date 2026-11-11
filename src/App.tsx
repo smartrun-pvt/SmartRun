@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Product, CartItem, KolkataArea, SavedAddress, Order, WiringServiceBooking, UserProfile } from './types';
@@ -75,6 +75,7 @@ import {
 } from './services/supabaseService';
 import { sendLoginNotificationEmail } from './services/securityNotificationService';
 import { useVersionCheck } from './hooks/useVersionCheck';
+import { useEdgeSwipeBack } from './hooks/useEdgeSwipeBack';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
@@ -104,10 +105,11 @@ export default function App() {
       StatusBar.setStyle({ style: Style.Light }).catch(() => {});
       StatusBar.setBackgroundColor({ color: '#ffffff' }).catch(() => {});
 
-      // In Android native app, ensure bottom navbar is elevated above system navigation buttons (Back/Home/Recents)
+      // Respect measured Android navigation bar insets from MainActivity.
+      // If unset, default gracefully to CSS safe-area-inset-bottom
       const currentBottom = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-bottom');
-      if (!currentBottom || currentBottom.trim() === '' || currentBottom.trim() === '0px' || currentBottom.trim() === '0') {
-        document.documentElement.style.setProperty('--safe-area-bottom', '52px');
+      if (!currentBottom || currentBottom.trim() === '') {
+        document.documentElement.style.setProperty('--safe-area-bottom', 'env(safe-area-inset-bottom, 0px)');
       }
     }
 
@@ -1130,131 +1132,171 @@ export default function App() {
     };
   }, [navigate]);
 
-  // Android hardware back button handler for native platform
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
+  // Unified Smart Back Navigation (shared between hardware back button, Android gesture navigation, and touch edge swipe)
+  const handleSmartBackNavigation = useCallback(() => {
+    // 1. Modals Priority (close top-most overlay first)
+    if (isAddProductOpen) {
+      setIsAddProductOpen(false);
+      return;
+    }
+    if (selectedProductQuickView) {
+      setSelectedProductQuickView(null);
+      return;
+    }
+    if (isLiveOrderModalOpen) {
+      setIsLiveOrderModalOpen(false);
+      return;
+    }
+    if (isLocationModalOpen) {
+      setIsLocationModalOpen(false);
+      return;
+    }
+    if (addressToEdit) {
+      setAddressToEdit(null);
+      return;
+    }
+    if (isAiAssistantOpen) {
+      setIsAiAssistantOpen(false);
+      return;
+    }
+    if (isInstallModalOpen) {
+      setIsInstallModalOpen(false);
+      return;
+    }
+    if (isDeviceLocationPromptOpen) {
+      setIsDeviceLocationPromptOpen(false);
+      return;
+    }
 
-    const backListenerPromise = CapApp.addListener('backButton', () => {
-      if (isAddProductOpen) {
-        setIsAddProductOpen(false);
-        return;
-      }
-      if (selectedProductQuickView) {
-        setSelectedProductQuickView(null);
-        return;
-      }
-      if (isLiveOrderModalOpen) {
-        setIsLiveOrderModalOpen(false);
-        return;
-      }
-      if (isLocationModalOpen) {
-        setIsLocationModalOpen(false);
-        return;
-      }
-      if (addressToEdit) {
-        setAddressToEdit(null);
-        return;
-      }
-      if (isAiAssistantOpen) {
-        setIsAiAssistantOpen(false);
-        return;
-      }
-      if (isInstallModalOpen) {
-        setIsInstallModalOpen(false);
-        return;
-      }
-      if (isDeviceLocationPromptOpen) {
-        setIsDeviceLocationPromptOpen(false);
-        return;
-      }
+    // 2. Dispatch custom event for child components (such as ProfileView individual sub-pages or modal drawers)
+    const backEvent = new CustomEvent('smartrun:hardware-back', { cancelable: true });
+    const wasPrevented = !window.dispatchEvent(backEvent);
+    if (wasPrevented) {
+      return; // Handled by active child component (e.g. Profile sub-page returned to main Profile menu)
+    }
 
-      // Check if active view (such as ProfileView individual sub-page or EditProfileModal) handles back
-      const backEvent = new CustomEvent('smartrun:hardware-back', { cancelable: true });
-      const wasPrevented = !window.dispatchEvent(backEvent);
-      if (wasPrevented) {
-        return; // Handled by active child component (e.g. Profile sub-page returned to main Profile menu)!
-      }
+    const currentPath = location.pathname;
 
-      const currentPath = location.pathname;
-      // If at home root, exit app smoothly
-      if (currentPath === '/' || currentPath === '' || currentPath === '/home') {
+    // 3. Home Root: If at home root on native platform, exit app smoothly
+    if (currentPath === '/' || currentPath === '' || currentPath === '/home') {
+      if (Capacitor.isNativePlatform()) {
+        CapApp.exitApp();
+      }
+      return;
+    }
+
+    // 4. Login Page: Return to previous browsing page or exit app if unauthenticated
+    if (currentPath === '/login' || currentPath === '/auth') {
+      if (!isAuthenticated && Capacitor.isNativePlatform()) {
         CapApp.exitApp();
         return;
       }
-
-      // If on login page and user arrived from browsing, go back to previous page
-      if (currentPath === '/login' || currentPath === '/auth') {
-        if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-          navigate(-1);
-        } else {
-          navigate('/');
-        }
-        return;
-      }
-
-      // If user is on product details
-      if (currentPath.includes('/product/')) {
-        if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-          navigate(-1);
-        } else {
-          const isConst = currentPath.includes('/construction');
-          navigate(isConst ? '/construction' : '/electrical');
-        }
-        return;
-      }
-
-      // In native app on /login when unauthenticated: gracefully exit app on back press
-      if (currentPath === '/login' && !isAuthenticated) {
-        CapApp.exitApp();
-        return;
-      }
-
-      // If user is on account deletion or FAQs, return to profile
-      if (currentPath === '/delete' || currentPath === '/account-deletion' || currentPath === '/faq' || currentPath === '/faqs') {
-        if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-          navigate(-1);
-        } else {
-          navigate(isAuthenticated ? '/profile' : '/');
-        }
-        return;
-      }
-
-      // If user is on profile
-      if (currentPath === '/profile') {
-        // If user is inside an individual profile subpage (e.g. ?sub=addresses), return to main profile menu
-        if (location.search && (location.search.includes('sub=') || location.search.includes('page='))) {
-          navigate('/profile', { replace: false });
-          return;
-        }
-        // If on main profile menu, returning back goes directly to home storefront
-        navigate('/');
-        return;
-      }
-
-      // All other pages: navigate back if history exists, otherwise return to home
       if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
         navigate(-1);
       } else {
         navigate('/');
       }
+      return;
+    }
+
+    // 5. Product Detail Pages: Return to previous list or appropriate catalog
+    if (currentPath.includes('/product/')) {
+      if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+        navigate(-1);
+      } else {
+        const isConst = currentPath.includes('/construction');
+        navigate(isConst ? '/construction' : '/electrical');
+      }
+      return;
+    }
+
+    // 6. Policy & Info Sub-pages (Return to Profile if authenticated, else to Storefront)
+    if (
+      currentPath === '/shipping' ||
+      currentPath === '/shipping-policy' ||
+      currentPath === '/return' ||
+      currentPath === '/return-policy' ||
+      currentPath === '/refund' ||
+      currentPath === '/refund-policy' ||
+      currentPath === '/privacy' ||
+      currentPath === '/privacy-policy' ||
+      currentPath === '/terms' ||
+      currentPath === '/terms-of-service' ||
+      currentPath === '/faq' ||
+      currentPath === '/faqs' ||
+      currentPath === '/delete' ||
+      currentPath === '/account-deletion'
+    ) {
+      if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+        navigate(-1);
+      } else {
+        navigate(isAuthenticated ? '/profile' : '/');
+      }
+      return;
+    }
+
+    // 7. Profile Menu: Return to main menu if on subpage, else return to Storefront
+    if (currentPath === '/profile') {
+      if (location.search && (location.search.includes('sub=') || location.search.includes('page='))) {
+        navigate('/profile', { replace: false });
+        return;
+      }
+      navigate('/');
+      return;
+    }
+
+    // 8. Technicians Detail Page: Return to Technicians list
+    if (currentPath.startsWith('/technicians/') && currentPath !== '/technicians') {
+      if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+        navigate(-1);
+      } else {
+        navigate('/technicians');
+      }
+      return;
+    }
+
+    // 9. All other views (Cart, Orders, Listings)
+    if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  }, [
+    isAddProductOpen,
+    selectedProductQuickView,
+    isLiveOrderModalOpen,
+    isLocationModalOpen,
+    addressToEdit,
+    isAiAssistantOpen,
+    isInstallModalOpen,
+    isDeviceLocationPromptOpen,
+    location.pathname,
+    location.search,
+    isAuthenticated,
+    navigate
+  ]);
+
+  // Universal Edge Swipe Back Gesture for all individual pages & modals
+  const isHomeRoot = location.pathname === '/' || location.pathname === '' || location.pathname === '/home';
+  const hasActiveModal = isAddProductOpen || !!selectedProductQuickView || isLiveOrderModalOpen || isLocationModalOpen || isDeviceLocationPromptOpen || !!addressToEdit || isAiAssistantOpen || isInstallModalOpen;
+
+  useEdgeSwipeBack({
+    disabled: isHomeRoot && !hasActiveModal,
+    onBack: handleSmartBackNavigation
+  });
+
+  // Android hardware back button handler for native platform
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const backListenerPromise = CapApp.addListener('backButton', () => {
+      handleSmartBackNavigation();
     });
 
     return () => {
       backListenerPromise.then((handle) => handle.remove()).catch(() => {});
     };
-  }, [
-    isAuthenticated,
-    isAddProductOpen,
-    selectedProductQuickView,
-    isLiveOrderModalOpen,
-    isLocationModalOpen,
-    isDeviceLocationPromptOpen,
-    addressToEdit,
-    isAiAssistantOpen,
-    isInstallModalOpen,
-    location.pathname,
-    navigate,
-  ]);
+  }, [handleSmartBackNavigation]);
 
   // Initialize @capacitor/push-notifications for real-time order status updates & alerts
   useEffect(() => {

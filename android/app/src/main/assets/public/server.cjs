@@ -4,6 +4,10 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -20,8 +24,14 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // server.ts
+var server_exports = {};
+__export(server_exports, {
+  generateWelcomeEmailHtml: () => generateWelcomeEmailHtml
+});
+module.exports = __toCommonJS(server_exports);
 var import_express = __toESM(require("express"), 1);
 var import_path = __toESM(require("path"), 1);
 var import_fs = __toESM(require("fs"), 1);
@@ -34,6 +44,8 @@ var import_zod = require("zod");
 var import_crypto = __toESM(require("crypto"), 1);
 var import_supabase_js = require("@supabase/supabase-js");
 var import_razorpay = __toESM(require("razorpay"), 1);
+var import_jspdf = require("jspdf");
+var import_server = require("@simplewebauthn/server");
 var import_app = require("firebase/app");
 var import_firestore = require("firebase/firestore");
 import_dotenv.default.config();
@@ -89,6 +101,16 @@ async function syncUserToBackendFirestore(userId, profile) {
         updated_at: (/* @__PURE__ */ new Date()).toISOString()
       }, { merge: true });
     }
+    const cleanEmail = (profile.email || "").trim().toLowerCase();
+    if (cleanEmail && cleanEmail.includes("@") && !cleanEmail.includes("@girirajpower.internal")) {
+      const emailKey = cleanEmail.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+      const emailIndexRef = (0, import_firestore.doc)(serverFirestore, "users_by_email", emailKey);
+      await (0, import_firestore.setDoc)(emailIndexRef, {
+        user_id: userId,
+        email: cleanEmail,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }, { merge: true });
+    }
     console.log(`[Firebase Backend] User ${userId} successfully synced to Firestore`);
   } catch (err) {
     console.warn(`[Firebase Backend] Firestore sync notice for ${userId}:`, err?.message || err);
@@ -101,15 +123,25 @@ function getResendApiKey() {
   }
   return apiKey;
 }
-function getSenderFromEmail() {
+function getSenderFromEmail(type) {
   const envFrom = process.env.RESEND_FROM_EMAIL?.trim();
-  if (envFrom && envFrom.includes("@") && !envFrom.includes("team@girirajpower.in") && !envFrom.includes("oieldiakir.resend.app") && !envFrom.includes("example.com")) {
+  if (envFrom && envFrom.includes("@") && !envFrom.includes("oieldiakir.resend.app") && !envFrom.includes("example.com") && !envFrom.includes("girirajpower.in")) {
     if (!envFrom.includes("<")) {
       return `SmartRun <${envFrom}>`;
     }
     return envFrom;
   }
-  return "SmartRun <onboarding@resend.dev>";
+  const cleanType = String(type || "").toLowerCase().trim();
+  if (cleanType === "welcome" || cleanType === "welcome_email") {
+    return "SmartRun <welcome@smartrun.in>";
+  }
+  if (cleanType === "alert" || cleanType === "security_alert" || cleanType === "login_alert" || cleanType === "login_notification") {
+    return "SmartRun Security <alert@smartrun.in>";
+  }
+  if (cleanType === "order" || cleanType === "order_delivered" || cleanType === "order_confirmation" || cleanType === "invoice" || cleanType === "tax_invoice") {
+    return "SmartRun Orders <order@smartrun.in>";
+  }
+  return "SmartRun <team@smartrun.in>";
 }
 async function callResendApi(apiKey, payload) {
   try {
@@ -153,24 +185,25 @@ async function dispatchResendEmail(options) {
       messageId: `sim_${Date.now()}`
     };
   }
-  let fromEmail = options.from || getSenderFromEmail();
-  if (fromEmail.includes("team@girirajpower.in") || fromEmail.includes("oieldiakir.resend.app") || fromEmail.includes("example.com")) {
-    fromEmail = "SmartRun <onboarding@resend.dev>";
+  let fromEmail = options.from || getSenderFromEmail(options.type);
+  if (fromEmail.includes("oieldiakir.resend.app") || fromEmail.includes("example.com") || fromEmail.includes("girirajpower.in")) {
+    fromEmail = getSenderFromEmail(options.type);
   }
   let deliveredIds = [];
   let hadSandboxRestriction = false;
   const sendSingle = async (recipient, sender) => {
     try {
       let effectiveSender = sender;
-      if (!effectiveSender || effectiveSender.includes("team@girirajpower.in") || effectiveSender.includes("oieldiakir.resend.app") || effectiveSender.includes("example.com")) {
-        effectiveSender = "SmartRun <onboarding@resend.dev>";
+      if (!effectiveSender || effectiveSender.includes("oieldiakir.resend.app") || effectiveSender.includes("example.com") || effectiveSender.includes("girirajpower.in")) {
+        effectiveSender = "SmartRun <team@smartrun.in>";
       }
       let res = await callResendApi(apiKey, {
         from: effectiveSender,
         to: [recipient],
         subject: options.subject,
         html: options.html,
-        text: options.text
+        text: options.text,
+        attachments: options.attachments
       });
       if (!res.ok && res.error) {
         const errName = res.error.name || "";
@@ -182,7 +215,8 @@ async function dispatchResendEmail(options) {
             to: [recipient],
             subject: options.subject,
             html: options.html,
-            text: options.text
+            text: options.text,
+            attachments: options.attachments
           });
         }
         const errMsgNow = (res.error?.message || "").toLowerCase();
@@ -223,7 +257,147 @@ async function dispatchResendEmail(options) {
     message: deliveredIds.length > 0 ? `Email delivered to ${deliveredIds.length} recipient(s) via Resend!` : "Email notification processed and recorded successfully."
   };
 }
-function generateOrderEmailHtml(order, customerName) {
+function getShortOrderCode(orderIdInput) {
+  if (!orderIdInput) return "ORD10001";
+  const str = String(orderIdInput).trim();
+  const hexMatch = str.match(/[0-9a-fA-F]{8}/);
+  if (hexMatch) return hexMatch[0].toUpperCase();
+  const clean = str.replace(/[^a-zA-Z0-9]/g, "");
+  return clean.slice(0, 8).toUpperCase() || "ORD10001";
+}
+function generateInvoicePdfBuffer(order) {
+  try {
+    const doc = new import_jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const shortId = getShortOrderCode(order.id || order.order_id || order.orderId);
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, 210, 32, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.text("Smart", 14, 18);
+    doc.setTextColor(0, 135, 90);
+    doc.text("Run", 35, 18);
+    doc.setFontSize(9);
+    doc.setTextColor(203, 213, 225);
+    doc.setFont("helvetica", "normal");
+    doc.text("Express Electrical & Quick Commerce \u2022 Kolkata", 14, 25);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.text("TAX INVOICE", 196, 17, { align: "right" });
+    doc.setFontSize(9);
+    doc.setTextColor(0, 135, 90);
+    doc.text("ORIGINAL FOR RECIPIENT", 196, 24, { align: "right" });
+    let y = 40;
+    doc.setDrawColor(226, 232, 240);
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(14, y, 88, 32, 2, 2, "FD");
+    doc.roundedRect(108, y, 88, 32, 2, 2, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.text("INVOICE DETAILS", 18, y + 6);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Invoice No: INV-${shortId}`, 18, y + 12);
+    doc.text(`Order ID: #${shortId}`, 18, y + 17);
+    const dateStr = order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-IN") : (/* @__PURE__ */ new Date()).toLocaleDateString("en-IN");
+    doc.text(`Date: ${dateStr}`, 18, y + 22);
+    doc.text(`Status: DELIVERED`, 18, y + 27);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.text("DELIVERED TO", 112, y + 6);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    const custName = (order.customerName || order.recipient_name || "Valued Customer").slice(0, 32);
+    doc.text(`Customer: ${custName}`, 112, y + 12);
+    doc.text(`Phone: ${order.phone || order.recipient_phone || "+91"}`, 112, y + 17);
+    const addr = `${order.address || order.address_line1 || ""}, ${order.area || "Kolkata"}`.slice(0, 45);
+    doc.text(`Address: ${addr}`, 112, y + 22);
+    doc.text(`PIN: ${order.pincode || "700001"}`, 112, y + 27);
+    y = 80;
+    doc.setFillColor(241, 245, 249);
+    doc.rect(14, y, 182, 8, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(30, 41, 59);
+    doc.text("ITEM DESCRIPTION", 18, y + 5.5);
+    doc.text("QTY", 130, y + 5.5, { align: "center" });
+    doc.text("UNIT PRICE", 160, y + 5.5, { align: "right" });
+    doc.text("TOTAL", 192, y + 5.5, { align: "right" });
+    y += 8;
+    const rawItems = order.items && order.items.length > 0 ? order.items : order.services && order.services.length > 0 ? order.services.map((s) => ({
+      product: { name: s.serviceTitle || "Electrical Wiring Service", brand: "SmartRun Pro", price: s.estimatedPrice || order.totalAmount || 0, unit: "service" },
+      quantity: 1
+    })) : [{ product: { name: "Standard Electrical & Hardware Supplies", brand: "SmartRun Genuine", price: order.totalAmount || 0, unit: "pkg" }, quantity: 1 }];
+    doc.setFont("helvetica", "normal");
+    rawItems.slice(0, 10).forEach((item, idx) => {
+      const pName = (item.product?.name || "Electrical Item").slice(0, 48);
+      const brand = item.product?.brand || "SmartRun Genuine";
+      const color = item.selectedColor || item.product?.selectedColor;
+      const desc = color ? `${pName} (${color})` : pName;
+      const qty = item.quantity || 1;
+      const price = item.product?.price || 0;
+      const total = price * qty;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(30, 41, 59);
+      doc.text(`${idx + 1}. ${desc}`, 18, y + 5);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Brand: ${brand} \u2022 Unit: ${item.product?.unit || "1 pc"}`, 18, y + 9);
+      doc.setFontSize(8);
+      doc.setTextColor(30, 41, 59);
+      doc.text(`${qty}`, 130, y + 6, { align: "center" });
+      doc.text(`Rs. ${price.toLocaleString("en-IN")}`, 160, y + 6, { align: "right" });
+      doc.text(`Rs. ${total.toLocaleString("en-IN")}`, 192, y + 6, { align: "right" });
+      y += 12;
+      doc.setDrawColor(226, 232, 240);
+      doc.line(14, y, 196, y);
+    });
+    y += 6;
+    const summaryX = 118;
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(summaryX, y, 78, 36, 2, 2, "FD");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Subtotal:", summaryX + 4, y + 7);
+    doc.setTextColor(30, 41, 59);
+    doc.text(`Rs. ${(order.itemTotal || order.totalAmount || 0).toLocaleString("en-IN")}`, 192, y + 7, { align: "right" });
+    doc.setTextColor(100, 116, 139);
+    doc.text("Delivery Fee:", summaryX + 4, y + 14);
+    doc.setTextColor(0, 135, 90);
+    doc.text((order.deliveryFee || 0) === 0 ? "FREE" : `Rs. ${order.deliveryFee}`, 192, y + 14, { align: "right" });
+    doc.setTextColor(100, 116, 139);
+    doc.text("Payment Mode:", summaryX + 4, y + 21);
+    doc.setTextColor(30, 41, 59);
+    doc.text(order.paymentMethod === "cod" ? "COD" : "Prepaid (Online)", 192, y + 21, { align: "right" });
+    doc.setDrawColor(226, 232, 240);
+    doc.line(summaryX + 4, y + 25, 192, y + 25);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.text("Grand Total:", summaryX + 4, y + 31);
+    doc.text(`Rs. ${(order.totalAmount || 0).toLocaleString("en-IN")}`, 192, y + 31, { align: "right" });
+    const footerY = 270;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text("This is a computer-generated tax invoice. No signature is required.", 105, footerY, { align: "center" });
+    doc.text("SmartRun materials pvt. ltd \u2022 Kheyadah Village, Bhagabanpur, Kolkata 700150 \u2022 Helpline: +91 87774 00280", 105, footerY + 5, { align: "center" });
+    const arrayBuf = doc.output("arraybuffer");
+    return Buffer.from(arrayBuf).toString("base64");
+  } catch (pdfErr) {
+    console.error("[generateInvoicePdfBuffer Error]:", pdfErr);
+    return "";
+  }
+}
+function generateOrderEmailHtml(order, customerName, isDelivered = false) {
+  const shortId = getShortOrderCode(order.id || order.order_id || order.orderId);
   const itemsListHtml = (order.items || []).map(
     (item) => {
       const color = item.selectedColor || item.product?.selectedColor;
@@ -247,12 +421,24 @@ function generateOrderEmailHtml(order, customerName) {
     `;
     }
   ).join("");
+  const headerTitle = isDelivered ? "Express Order Delivered!" : "Express Order Confirmed!";
+  const headerSubtitle = isDelivered ? "Your Kolkata Rapid Electrical &amp; Construction supplies have been successfully delivered" : "Kolkata 60-Minute Rapid Electrical &amp; Construction Delivery";
+  const deliveredStatusRow = isDelivered ? `
+          <tr>
+            <td style="font-size: 13px; color: #854d0e; font-weight: bold; padding-top: 6px;">Status:</td>
+            <td style="font-size: 13px; color: #16a34a; font-weight: 800; text-align: right; padding-top: 6px;">
+              DELIVERED &#10004;
+            </td>
+          </tr>` : "";
+  const attachedPdfNote = isDelivered ? `<div style="margin-top: 14px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #166534;">
+        <strong>\u{1F4C4} Attached Tax Invoice:</strong> Official PDF invoice <strong>SmartRun-Invoice-${shortId}.pdf</strong> is attached to this email.
+      </div>` : "";
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>SmartRun Order Confirmation</title>
+  <title>${isDelivered ? "SmartRun Order Delivered" : "SmartRun Order Confirmation"}</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
   <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
@@ -263,10 +449,10 @@ function generateOrderEmailHtml(order, customerName) {
         <span>Smart</span><span style="color: #00875a;">Run</span>
       </div>
       <h1 style="color: #ffffff; font-size: 22px; font-weight: 800; margin: 6px 0 2px 0;">
-        Express Order Confirmed!
+        ${headerTitle}
       </h1>
       <p style="color: #cbd5e1; font-size: 13px; margin: 0;">
-        Kolkata 60-Minute Rapid Electrical &amp; Construction Delivery
+        ${headerSubtitle}
       </p>
     </div>
 
@@ -276,8 +462,9 @@ function generateOrderEmailHtml(order, customerName) {
         <table style="width: 100%; border-collapse: collapse;">
           <tr>
             <td style="font-size: 13px; color: #854d0e; font-weight: bold;">Order ID:</td>
-            <td style="font-size: 14px; color: #0f172a; font-weight: 800; text-align: right;">${order.id || "GP-100234"}</td>
+            <td style="font-size: 14px; color: #0f172a; font-weight: 800; text-align: right;">#${shortId}</td>
           </tr>
+          ${deliveredStatusRow}
           <tr>
             <td style="font-size: 13px; color: #854d0e; font-weight: bold; padding-top: 6px;">Customer:</td>
             <td style="font-size: 13px; color: #0f172a; font-weight: 600; text-align: right; padding-top: 6px;">${customerName || order.customerName || "Valued Customer"}</td>
@@ -344,7 +531,8 @@ function generateOrderEmailHtml(order, customerName) {
         <strong style="color: #0f172a;">Shipping Address:</strong><br>
         ${order.address || "Address on file"}, ${order.area || "Kolkata"} ${order.landmark ? `(Landmark: ${order.landmark})` : ""}<br>
         <strong>Phone:</strong> ${order.phone || "+91"}<br><br>
-        <strong>Central Hub Dispatch:</strong> SmartRun, Bediadanga 1st Ln, Nator Park, Kasba, Kolkata 700039
+        <strong>Central Hub Dispatch:</strong> SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150
+        ${attachedPdfNote}
       </div>
     </div>
 
@@ -464,7 +652,7 @@ function generateTestEmailHtml(customerName) {
       <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748b; text-align: left;">
         <strong>Service:</strong> SmartRun Transactional Mailer<br>
         <strong>Time:</strong> ${(/* @__PURE__ */ new Date()).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} (IST)<br>
-        <strong>Hub:</strong> SmartRun Kasba Central Dispatch, Kolkata 700039
+        <strong>Hub:</strong> SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150
       </div>
     </div>
 
@@ -476,147 +664,228 @@ function generateTestEmailHtml(customerName) {
 </html>
   `;
 }
+function formatToIstIsoString(dateInput) {
+  try {
+    const d = dateInput ? new Date(dateInput) : /* @__PURE__ */ new Date();
+    const validDate = isNaN(d.getTime()) ? /* @__PURE__ */ new Date() : d;
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    });
+    const parts = formatter.formatToParts(validDate);
+    const m = {};
+    for (const p of parts) m[p.type] = p.value;
+    return `${m.year}-${m.month}-${m.day}T${m.hour}:${m.minute}:${m.second}+05:30`;
+  } catch {
+    return (/* @__PURE__ */ new Date()).toISOString().replace("Z", "+05:30");
+  }
+}
 function generateLoginAlertEmailHtml(params) {
-  const name = params.customerName || "Valued Customer";
-  const time = params.loginTime || (/* @__PURE__ */ new Date()).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " (IST)";
-  const location = params.location || "Kolkata, West Bengal, India";
-  const ip = params.ipAddress || "Protected / Encrypted";
-  const device = params.device || "Android Smartphone";
-  const os = params.os || "Android";
-  const browser = params.browser || "SmartRun App";
-  const method = params.loginMethod || "Email & Password";
+  const cleanEmail = (params.email || "").trim().toLowerCase();
+  const cleanPhone = (params.phone || "").replace(/\D/g, "").slice(-10);
+  const name = (params.customerName || "").trim() || (cleanEmail ? cleanEmail.split("@")[0] : "Valued Customer");
+  const accountId = params.accountId || (cleanPhone && cleanEmail ? `${cleanEmail} (+91 ${cleanPhone})` : cleanEmail || (cleanPhone ? `+91 ${cleanPhone}` : "Customer Account"));
+  let locationDisplay = (params.location || "").trim();
+  if (!locationDisplay || locationDisplay === "Unknown" || locationDisplay.toLowerCase().includes("undefined")) {
+    locationDisplay = "Kolkata, India";
+  } else if (locationDisplay.toLowerCase().includes("kolkata")) {
+    locationDisplay = "Kolkata, India";
+  }
+  let ipDisplay = (params.ipAddress || "").trim();
+  if (!ipDisplay || ipDisplay === "::1" || ipDisplay === "127.0.0.1" || ipDisplay.toLowerCase() === "protected") {
+    ipDisplay = "2401:4900:8829:d1cb:8233:7592:811c:e1f5";
+  }
+  const deviceDisplay = params.userAgent && params.userAgent.trim().length > 10 ? params.userAgent.trim() : params.device ? `${params.device}${params.os ? ` (${params.os})` : ""}${params.browser ? ` - ${params.browser}` : ""}` : "Mozilla/5.0 (Linux; Android 15; I2214 Build/AP3A.240905.015.A2; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/146.0.7680.14 Mobile Safari/537.36";
+  const timeDisplay = params.timeIso || formatToIstIsoString(params.loginTime);
   return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Security Alert: New Sign-in to your SmartRun Account</title>
+  <title>Important: Login from new device and location</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Baloo+Bhai+2:wght@600;700&display=swap">
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0b1120; margin: 0; padding: 24px; color: #1e293b;">
-  <div style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 18px; overflow: hidden; box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5); border: 1px solid #e2e8f0;">
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #eaedf0; margin: 0; padding: 40px 15px; color: #444444; line-height: 1.6; -webkit-font-smoothing: antialiased;">
+  
+  <!-- Outer Wrapper Centered -->
+  <div style="max-width: 580px; margin: 0 auto;">
     
-    <!-- Top Security Banner -->
-    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 28px 24px 22px 24px; text-align: center; border-bottom: 3px solid #00875a;">
-      <div style="display: inline-flex; align-items: center; justify-content: center; background-color: rgba(0, 135, 90, 0.15); border: 1px solid #00875a; color: #6ee7b7; font-weight: 800; font-size: 12px; padding: 6px 14px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">
-        \u{1F6E1}\uFE0F ACCOUNT SECURITY ALERT
-      </div>
-      <h1 style="color: #ffffff; font-size: 22px; font-weight: 800; margin: 0 0 6px 0; letter-spacing: -0.3px;">
-        New Login Detected
-      </h1>
-      <p style="color: #94a3b8; font-size: 13px; margin: 0; font-weight: 500;">
-        SmartRun Security Center
-      </p>
+    <!-- Centered Brand Logo (Baloo 18 semi bold, pure black, without cursive and sans-serif) -->
+    <div style="text-align: center; margin-bottom: 24px;">
+      <a href="https://www.smartrun.in" style="text-decoration: none; display: inline-block;">
+        <span style="font-family: 'Baloo 2', 'Baloo Bhai 2', 'Baloo'; font-size: 18px; font-weight: 600; color: #000000; letter-spacing: -0.2px; line-height: 1;">
+          SmartRun
+        </span>
+      </a>
     </div>
 
-    <!-- Main Content Area -->
-    <div style="padding: 28px 24px 24px 24px;">
-      <p style="font-size: 15px; line-height: 1.6; color: #334155; margin: 0 0 16px 0;">
-        Hello <strong style="color: #0f172a;">${name}</strong>,
-      </p>
-      <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 22px 0;">
-        We detected a successful sign-in to your <strong>SmartRun</strong> account (<span style="color: #2563eb; font-weight: 600;">${params.email}</span>). Please review the details below:
+    <!-- Main White Card -->
+    <div style="background-color: #ffffff; border-radius: 4px; padding: 40px 44px 34px 44px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+      
+      <p style="font-size: 14.5px; color: #444444; margin: 0 0 14px 0; line-height: 1.6;">
+        Hi ${name},
       </p>
 
-      <!-- Activity Details Card (Binance / Uber style) -->
-      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; margin-bottom: 24px;">
-        <div style="background-color: #f1f5f9; padding: 12px 18px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #475569;">
-          \u{1F4CB} Sign-in Activity Summary
-        </div>
-        <table style="width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.5;">
-          <tr style="border-bottom: 1px solid #edf2f7;">
-            <td style="padding: 12px 18px; color: #64748b; font-weight: 600; width: 38%;">\u{1F552} Date &amp; Time</td>
-            <td style="padding: 12px 18px; color: #0f172a; font-weight: 700;">${time}</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #edf2f7; background-color: #ffffff;">
-            <td style="padding: 12px 18px; color: #64748b; font-weight: 600;">\u{1F4CD} Location</td>
-            <td style="padding: 12px 18px; color: #0f172a; font-weight: 700;">
-              <span style="display: inline-block; background-color: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 700;">
-                ${location}
-              </span>
+      <p style="font-size: 14.5px; color: #444444; margin: 0 0 18px 0; line-height: 1.6;">
+        Your account <span style="color: #387ed1; font-weight: normal;">${accountId}</span> has logged in from a new device and location.
+      </p>
+
+      <p style="font-size: 14.5px; color: #444444; margin: 0 0 28px 0; line-height: 1.6;">
+        If this is not you, use the <a href="https://www.smartrun.in/reset-password" style="color: #387ed1; text-decoration: none; font-weight: 500;">forgot password</a> option immediately and reset your login credentials.
+      </p>
+
+      <!-- Details Table (Matching Reference Image Exactly) -->
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 13.5px; color: #444444;">
+        <tbody>
+          <tr>
+            <td style="padding: 12px 20px 12px 0; font-weight: 700; color: #222222; width: 85px; vertical-align: top; white-space: nowrap; border-bottom: 1px solid #f0f0f0;">
+              Location
+            </td>
+            <td style="padding: 12px 0; color: #444444; vertical-align: top; border-bottom: 1px solid #f0f0f0;">
+              ${locationDisplay}
             </td>
           </tr>
-          <tr style="border-bottom: 1px solid #edf2f7;">
-            <td style="padding: 12px 18px; color: #64748b; font-weight: 600;">\u{1F4F1} Device &amp; OS</td>
-            <td style="padding: 12px 18px; color: #0f172a; font-weight: 700;">${device} (${os})</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #edf2f7; background-color: #ffffff;">
-            <td style="padding: 12px 18px; color: #64748b; font-weight: 600;">\u{1F310} Browser / Client</td>
-            <td style="padding: 12px 18px; color: #0f172a; font-weight: 700;">${browser}</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #edf2f7;">
-            <td style="padding: 12px 18px; color: #64748b; font-weight: 600;">\u{1F511} Login Method</td>
-            <td style="padding: 12px 18px; color: #0f172a; font-weight: 700;">
-              <span style="display: inline-block; background-color: #fef08a; color: #854d0e; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 700;">
-                ${method}
-              </span>
+          <tr>
+            <td style="padding: 12px 20px 12px 0; font-weight: 700; color: #222222; vertical-align: top; white-space: nowrap; border-bottom: 1px solid #f0f0f0;">
+              IP
+            </td>
+            <td style="padding: 12px 0; color: #444444; vertical-align: top; word-break: break-all; border-bottom: 1px solid #f0f0f0;">
+              ${ipDisplay}
             </td>
           </tr>
-          <tr style="background-color: #ffffff;">
-            <td style="padding: 12px 18px; color: #64748b; font-weight: 600;">\u{1F522} IP Address</td>
-            <td style="padding: 12px 18px; color: #475569; font-family: monospace; font-size: 12px; font-weight: 600;">${ip}</td>
+          <tr>
+            <td style="padding: 12px 20px 12px 0; font-weight: 700; color: #222222; vertical-align: top; white-space: nowrap; border-bottom: 1px solid #f0f0f0;">
+              Device
+            </td>
+            <td style="padding: 12px 0; color: #444444; font-size: 12.5px; line-height: 1.5; vertical-align: top; word-break: break-word; border-bottom: 1px solid #f0f0f0;">
+              ${deviceDisplay}
+            </td>
           </tr>
+          <tr>
+            <td style="padding: 12px 20px 12px 0; font-weight: 700; color: #222222; vertical-align: top; white-space: nowrap; border-bottom: 1px solid #f0f0f0;">
+              Time
+            </td>
+            <td style="padding: 12px 0; color: #444444; vertical-align: top; border-bottom: 1px solid #f0f0f0;">
+              ${timeDisplay}
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2" style="padding: 14px 0 0 0; text-align: center;">
+              <a href="https://www.smartrun.in/faq#security-login-alerts" style="color: #387ed1; font-size: 12px; text-decoration: none;">
+                Why did I receive this e-mail?
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+
+    <!-- Centered Minimalist Footer -->
+    <div style="text-align: center; margin-top: 24px; font-size: 11px; color: #999999; line-height: 1.5;">
+      SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150
+    </div>
+
+  </div>
+</body>
+</html>
+  `;
+}
+function generateWelcomeEmailHtml(userName = "Customer") {
+  const safeName = userName && userName.trim() ? userName.trim() : "Valued Customer";
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You're all set! Welcome to SmartRun \u26A1</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Baloo+Bhai+2:wght@600;700&display=swap">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #eaedf0; margin: 0; padding: 40px 15px; color: #444444; line-height: 1.6; -webkit-font-smoothing: antialiased;">
+  
+  <!-- Outer Wrapper Centered -->
+  <div style="max-width: 580px; margin: 0 auto;">
+    
+    <!-- Centered Brand Logo (Baloo 18 semi bold, pure black, without cursive and sans-serif) -->
+    <div style="text-align: center; margin-bottom: 24px;">
+      <a href="https://www.smartrun.in" style="text-decoration: none; display: inline-block;">
+        <span style="font-family: 'Baloo 2', 'Baloo Bhai 2', 'Baloo'; font-size: 18px; font-weight: 600; color: #000000; letter-spacing: -0.2px; line-height: 1;">
+          SmartRun
+        </span>
+      </a>
+    </div>
+
+    <!-- Main White Card -->
+    <div style="background-color: #ffffff; border-radius: 4px; padding: 40px 44px 34px 44px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+      
+      <p style="font-size: 14.5px; color: #444444; margin: 0 0 14px 0; line-height: 1.6;">
+        Hey ${safeName}, Welcome aboard! \u{1F44B}
+      </p>
+
+      <p style="font-size: 14.5px; color: #444444; margin: 0 0 20px 0; line-height: 1.6;">
+        Thanks for joining SmartRun. We\u2019re thrilled to have you! Whether you need wiring, fixtures, tools, or heavy-duty construction supplies at your site in Kolkata, we\u2019ve got your back with lightning-fast deliveries.
+      </p>
+
+      <p style="font-size: 14.5px; color: #222222; font-weight: 700; margin: 0 0 12px 0; line-height: 1.6;">
+        What you get with SmartRun:
+      </p>
+
+      <div style="margin: 0 0 22px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; color: #444444; line-height: 1.6;">
+          <tbody>
+            <tr>
+              <td style="padding: 4px 8px 4px 0; vertical-align: top; width: 24px; font-size: 14px;">\u26A1</td>
+              <td style="padding: 4px 0; vertical-align: top;">
+                <strong style="color: #222222;">Express Delivery:</strong> Get supplies right when you need them.
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 8px 4px 0; vertical-align: top; width: 24px; font-size: 14px;">\u{1F4E6}</td>
+              <td style="padding: 4px 0; vertical-align: top;">
+                <strong style="color: #222222;">Genuine Materials:</strong> Top-tier electrical and hardware brands.
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 8px 4px 0; vertical-align: top; width: 24px; font-size: 14px;">\u{1F4F1}</td>
+              <td style="padding: 4px 0; vertical-align: top;">
+                <strong style="color: #222222;">Real-time Tracking:</strong> Track your order from dispatch to doorstep.
+              </td>
+            </tr>
+          </tbody>
         </table>
       </div>
 
-      <!-- Was this you? verification status block -->
-      <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px;">
-        <div style="display: flex; align-items: flex-start;">
-          <div style="font-size: 18px; margin-right: 10px; line-height: 1;">\u2705</div>
-          <div>
-            <strong style="color: #065f46; font-size: 13px; display: block; margin-bottom: 2px;">Was this you?</strong>
-            <span style="color: #047857; font-size: 12px; line-height: 1.4; display: block;">
-              If you just logged into SmartRun, you can safely ignore this email. No further action is required.
-            </span>
-          </div>
-        </div>
-      </div>
+      <p style="font-size: 14.5px; color: #444444; margin: 0 0 10px 0; line-height: 1.6;">
+        To get started on your phone, you can download or open our Android app here:
+      </p>
 
-      <!-- Security Warning & Action CTAs -->
-      <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 16px 18px; margin-bottom: 24px;">
-        <div style="display: flex; align-items: flex-start; margin-bottom: 12px;">
-          <div style="font-size: 18px; margin-right: 10px; line-height: 1;">\u26A0\uFE0F</div>
-          <div>
-            <strong style="color: #991b1b; font-size: 13px; display: block; margin-bottom: 2px;">Don't recognize this login?</strong>
-            <span style="color: #b91c1c; font-size: 12px; line-height: 1.4; display: block;">
-              If you did not perform this login, someone else may have gained unauthorized access to your account.
-            </span>
-          </div>
-        </div>
+      <p style="font-size: 14.5px; color: #444444; margin: 0 0 22px 0; line-height: 1.6;">
+        \u{1F449} <a href="https://play.google.com/store/apps/details?id=in.smartrun.app&amp;pcampaignid=web_share" style="color: #387ed1; text-decoration: none; font-weight: 600;">SmartRun on Google Play Store</a>
+      </p>
 
-        <div style="text-align: center; margin-top: 14px;">
-          <a href="https://www.smartrun.in/login" style="display: inline-block; background-color: #dc2626; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 13px; padding: 10px 22px; border-radius: 8px; margin: 4px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);">
-            \u{1F512} Secure Account &amp; Reset Password
-          </a>
-          <a href="tel:+918777400280" style="display: inline-block; background-color: #0f172a; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 13px; padding: 10px 18px; border-radius: 8px; margin: 4px;">
-            \u{1F4DE} Security Helpline (+91 87774 00280)
-          </a>
-        </div>
-      </div>
+      <p style="font-size: 14.5px; color: #444444; margin: 0 0 24px 0; line-height: 1.6;">
+        Need help or have questions about bulk orders? Just reply to this email or reach out to our support team right from the app.
+      </p>
 
-      <!-- Security Best Practices -->
-      <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 11px; color: #64748b; line-height: 1.5;">
-        <strong style="color: #334155; font-size: 12px;">\u{1F6E1}\uFE0F Security Tips from SmartRun:</strong>
-        <ul style="margin: 6px 0 0 0; padding-left: 18px;">
-          <li>Never share your passwords, OTP codes, or magic links with anyone.</li>
-          <li>SmartRun staff will <strong>never</strong> call or email you asking for your password or verification codes.</li>
-          <li>Always verify you are visiting <code>https://www.smartrun.in</code> before entering your credentials.</li>
-        </ul>
-      </div>
+      <p style="font-size: 14.5px; color: #444444; margin: 0; line-height: 1.6;">
+        Cheers,<br>
+        <strong style="color: #222222;">SmartRun materials pvt. ltd</strong><br>
+        Kolkata, West Bengal
+      </p>
 
     </div>
 
-    <!-- Footer -->
-    <div style="background-color: #0f172a; color: #94a3b8; padding: 20px 24px; text-align: center; font-size: 11px; line-height: 1.5; border-top: 1px solid #334155;">
-      <p style="margin: 0 0 6px 0; color: #f1f5f9; font-weight: 700;">
-        SmartRun \u2014 Kasba Central Dispatch Hub
-      </p>
-      <p style="margin: 0 0 8px 0;">
-        Kasba, Kolkata 700039, West Bengal | Support: team@smartrun.in | Web: https://www.smartrun.in
-      </p>
-      <p style="margin: 0; color: #64748b; font-size: 10px;">
-        This automated security notification was sent to ${params.email} in accordance with our account protection protocol.
-      </p>
+    <!-- Centered Minimalist Footer -->
+    <div style="text-align: center; margin-top: 24px; font-size: 11px; color: #999999; line-height: 1.5;">
+      SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150
     </div>
 
   </div>
@@ -797,7 +1066,7 @@ function generateAdminOrderAlertHtml(order) {
 
     <!-- Footer -->
     <div style="background-color: #0f172a; color: #94a3b8; padding: 18px; text-align: center; font-size: 11px;">
-      SmartRun Store Admin Notification System \u2022 Kasba Hub Kolkata 700039<br>
+      SmartRun Store Admin Notification System \u2022 SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150<br>
       Admin Alert Email: ${ADMIN_EMAIL}
     </div>
   </div>
@@ -929,6 +1198,78 @@ function writeOrderReviewsFile(reviews) {
     console.warn("[Server Write Order Reviews Notice]:", err);
   }
 }
+var WELCOMED_USERS_FILE = import_path.default.join(DATA_DIR, "welcomed_users.json");
+function loadWelcomedUsersFile() {
+  try {
+    ensureDataDir();
+    if (import_fs.default.existsSync(WELCOMED_USERS_FILE)) {
+      const raw = import_fs.default.readFileSync(WELCOMED_USERS_FILE, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed.map((e) => String(e).trim().toLowerCase()));
+      }
+    }
+  } catch (err) {
+    console.warn("[Server Read Welcomed Users Notice]:", err);
+  }
+  return /* @__PURE__ */ new Set();
+}
+var welcomedUsersStore = loadWelcomedUsersFile();
+function recordWelcomedUser(email) {
+  if (!email || !email.includes("@")) return;
+  const clean = email.trim().toLowerCase();
+  if (clean.includes("@girirajpower.internal")) return;
+  welcomedUsersStore.add(clean);
+  try {
+    ensureDataDir();
+    import_fs.default.writeFileSync(WELCOMED_USERS_FILE, JSON.stringify(Array.from(welcomedUsersStore), null, 2), "utf-8");
+  } catch (err) {
+    console.warn("[Server Write Welcomed Users Notice]:", err);
+  }
+}
+function isUserWelcomed(email) {
+  if (!email || !email.includes("@")) return true;
+  const clean = email.trim().toLowerCase();
+  if (clean.includes("@girirajpower.internal")) return true;
+  return welcomedUsersStore.has(clean);
+}
+var DELIVERED_EMAILS_FILE = import_path.default.join(DATA_DIR, "delivered_emails_sent.json");
+function loadDeliveredEmailsFile() {
+  try {
+    ensureDataDir();
+    if (import_fs.default.existsSync(DELIVERED_EMAILS_FILE)) {
+      const raw = import_fs.default.readFileSync(DELIVERED_EMAILS_FILE, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed.map((id) => String(id).trim()));
+      }
+    }
+  } catch (err) {
+    console.warn("[Server Read Delivered Emails Notice]:", err);
+  }
+  return /* @__PURE__ */ new Set();
+}
+var deliveredEmailsStore = loadDeliveredEmailsFile();
+function recordDeliveredEmailSent(orderId, email) {
+  if (!orderId) return;
+  const rawId = String(orderId).trim();
+  deliveredEmailsStore.add(rawId);
+  const short = getShortOrderCode(rawId);
+  if (short) deliveredEmailsStore.add(short);
+  if (short) deliveredEmailsStore.add(`#${short}`);
+  try {
+    ensureDataDir();
+    import_fs.default.writeFileSync(DELIVERED_EMAILS_FILE, JSON.stringify(Array.from(deliveredEmailsStore), null, 2), "utf-8");
+  } catch (err) {
+    console.warn("[Server Write Delivered Emails Notice]:", err);
+  }
+}
+function isDeliveredEmailSent(orderId) {
+  if (!orderId) return false;
+  const rawId = String(orderId).trim();
+  const short = getShortOrderCode(rawId);
+  return deliveredEmailsStore.has(rawId) || deliveredEmailsStore.has(short) || deliveredEmailsStore.has(`#${short}`);
+}
 var serverSupabaseClient = null;
 function getServerSupabase() {
   const url = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "https://iffdkhzctkbglmvaayeh.supabase.co").trim();
@@ -971,6 +1312,9 @@ async function backfillAllUsersToFirebaseFirestore() {
       for (const prof of profiles) {
         const uid = prof.user_id || prof.id;
         if (!uid) continue;
+        if (prof.email && !prof.email.includes("@girirajpower.internal")) {
+          recordWelcomedUser(prof.email);
+        }
         const cleanPhone = (prof.phone || "").replace(/\D/g, "").slice(-10);
         await syncUserToBackendFirestore(uid, {
           phone: cleanPhone ? `+91${cleanPhone}` : prof.phone || "",
@@ -993,6 +1337,9 @@ async function backfillAllUsersToFirebaseFirestore() {
         const cleanEmail = (order.customer_email || order.recipient_email || "").trim().toLowerCase();
         const emailToSave = cleanEmail.includes("@girirajpower.internal") ? "" : cleanEmail;
         const nameToSave = order.customer_name || order.recipient_name || "";
+        if (emailToSave) {
+          recordWelcomedUser(emailToSave);
+        }
         await syncUserToBackendFirestore(uid, {
           phone: cleanPhone ? `+91${cleanPhone}` : "",
           full_name: nameToSave,
@@ -1342,8 +1689,8 @@ async function startServer() {
       res.setHeader("Access-Control-Allow-Origin", origin);
     }
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-api-key, x-admin-key, x-admin-email, x-user-email, x-idempotency-key, if-none-match, Cache-Control, Pragma");
-    res.setHeader("Access-Control-Expose-Headers", "ETag, X-Cache, Content-Disposition");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-api-key, x-admin-key, x-admin-email, x-user-email, x-idempotency-key, if-none-match, Cache-Control, Pragma, Cookie, x-requested-with");
+    res.setHeader("Access-Control-Expose-Headers", "ETag, X-Cache, Content-Disposition, Set-Cookie");
     if (req.method === "OPTIONS") {
       return res.status(204).end();
     }
@@ -1362,7 +1709,78 @@ async function startServer() {
       // Only compress responses > 1KB
     })
   );
-  app.get("/api/health", (req, res) => {
+  app.use(import_express.default.json({ limit: "15mb" }));
+  app.use(import_express.default.urlencoded({ extended: true, limit: "15mb" }));
+  app.use((req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.removeHeader("X-Frame-Options");
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), payment=(self 'https://api.razorpay.com'), geolocation=*");
+    if (req.secure || req.headers["x-forwarded-proto"] === "https") {
+      res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    }
+    res.removeHeader("X-Powered-By");
+    next();
+  });
+  const KNOWN_MALICIOUS_BOT_REGEX = /sqlmap|acunetix|masscan|dirbuster|gobuster|wpscan|nmap|havij|zgrab|censys|shodan|python-requests|go-http-client|apache-httpclient|libwww-perl|petalbot|dotbot|bytespider/i;
+  const PATH_TRAVERSAL_REGEX = /(?:\.\.[\/\\]|%2e%2e[\/\\]|\/etc\/(?:passwd|shadow|hosts)|\/proc\/self|\.env|\.git\/|web\.config|phpmyadmin|\.aws\/|\.ssh\/)/i;
+  const SQLI_REGEX = /(?:\bunion\s+(?:all\s+)?select\b|\bdrop\s+table\b|\binsert\s+into\b|\bdelete\s+from\b|\bupdate\s+.*\s+set\b|\bexec\s*\(\s*xp_|\bselect\s+.*\s+from\s+information_schema)/i;
+  const XSS_PAYLOAD_REGEX = /(?:<script[\s\S]*?>|javascript:\s*[\w\.\(\)]|on(?:error|load|click|mouseover)\s*=)/i;
+  app.use((req, res, next) => {
+    const userAgent = String(req.headers["user-agent"] || "");
+    const rawUrl = req.originalUrl || req.url || "";
+    if (KNOWN_MALICIOUS_BOT_REGEX.test(userAgent) && !/googlebot|bingbot|applebot|duckduckbot/i.test(userAgent)) {
+      console.warn(`[Firewall] Blocked malicious user agent (${userAgent.slice(0, 50)}) from IP: ${req.ip}`);
+      return res.status(403).json({ success: false, error: "Access Denied: Automated scanning bot blocked by SmartRun Firewall." });
+    }
+    if (PATH_TRAVERSAL_REGEX.test(rawUrl)) {
+      console.warn(`[Firewall] Blocked path traversal attempt (${rawUrl.slice(0, 80)}) from IP: ${req.ip}`);
+      return res.status(403).json({ success: false, error: "Access Denied: Path traversal detected." });
+    }
+    if (SQLI_REGEX.test(rawUrl)) {
+      console.warn(`[Firewall] Blocked SQL injection attempt from IP: ${req.ip}`);
+      return res.status(403).json({ success: false, error: "Access Denied: Malicious SQL signature detected." });
+    }
+    if (XSS_PAYLOAD_REGEX.test(rawUrl)) {
+      console.warn(`[Firewall] Blocked XSS attempt in URL from IP: ${req.ip}`);
+      return res.status(403).json({ success: false, error: "Access Denied: Malicious script pattern detected." });
+    }
+    next();
+  });
+  function sanitizeObject(obj) {
+    if (!obj || typeof obj !== "object") return;
+    for (const key of Object.keys(obj)) {
+      if (key === "__proto__" || key === "constructor" || key === "prototype") {
+        delete obj[key];
+      } else if (typeof obj[key] === "object") {
+        sanitizeObject(obj[key]);
+      }
+    }
+  }
+  app.use((req, res, next) => {
+    if (req.body && typeof req.body === "object") {
+      sanitizeObject(req.body);
+    }
+    next();
+  });
+  function parseCookies(cookieHeader) {
+    const list = {};
+    if (!cookieHeader) return list;
+    cookieHeader.split(";").forEach((cookie) => {
+      let [name, ...rest] = cookie.split("=");
+      name = name?.trim();
+      if (!name) return;
+      const value = rest.join("=").trim();
+      try {
+        list[name] = decodeURIComponent(value);
+      } catch {
+        list[name] = value;
+      }
+    });
+    return list;
+  }
+  app.get(["/healthz", "/api/health", "/api/healthz"], (req, res) => {
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.json({
@@ -1454,6 +1872,74 @@ async function startServer() {
     }
     res.status(404).send("Robots.txt not found");
   });
+  const handleGoogleMerchantFeed = async (req, res) => {
+    try {
+      res.setHeader("Content-Type", "application/xml; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=7200");
+      const { products } = await getCachedCatalog();
+      const escapeXml = (unsafe) => {
+        if (!unsafe) return "";
+        return String(unsafe).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+      };
+      const nowRfc822 = (/* @__PURE__ */ new Date()).toUTCString();
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+  <channel>
+    <title>SmartRun Kolkata - Wholesale Electrical &amp; Construction Supplies</title>
+    <link>https://www.smartrun.in</link>
+    <description>Official product catalog for SmartRun (SmartRun materials pvt. ltd) delivering genuine electricals, wires, modular switches, and building supplies in Kolkata.</description>
+    <lastBuildDate>${nowRfc822}</lastBuildDate>
+`;
+      for (const p of products) {
+        if (!p || !p.id) continue;
+        const idStr = String(p.id);
+        const shortId = idStr.slice(0, 8).toUpperCase();
+        const sku = `SMARTRUN-${shortId}`;
+        const title = escapeXml(p.name || "SmartRun Product");
+        const rawDesc = p.description || `${p.name} with 60-minute express delivery in Kolkata. 100% genuine with warranty at SmartRun.`;
+        const description = escapeXml(rawDesc.slice(0, 5e3));
+        const category = p.category === "construction" ? "construction" : "electrical";
+        const link = `https://www.smartrun.in/${category}/product/${idStr}`;
+        const imageLink = escapeXml(
+          Array.isArray(p.image_urls) && p.image_urls[0] || p.image || "https://www.smartrun.in/SmartRun.png"
+        );
+        const price = Number(p.price || 0).toFixed(2);
+        const availability = (p.stock_quantity ?? p.stock_count ?? 1) > 0 ? "in_stock" : "out_of_stock";
+        const brand = escapeXml(p.brand || "SmartRun");
+        const mpn = escapeXml(`SR-${p.brand ? p.brand.replace(/\s+/g, "").toUpperCase() : "GEN"}-${shortId}`);
+        const productType = escapeXml(`${category} > ${p.subcategory || p.sub_category || "General"}`);
+        xml += `    <item>
+      <g:id>${sku}</g:id>
+      <g:title>${title}</g:title>
+      <g:description>${description}</g:description>
+      <g:link>${link}</g:link>
+      <g:image_link>${imageLink}</g:image_link>
+      <g:condition>new</g:condition>
+      <g:availability>${availability}</g:availability>
+      <g:price>${price} INR</g:price>
+      <g:brand>${brand}</g:brand>
+      <g:mpn>${mpn}</g:mpn>
+      <g:product_type>${productType}</g:product_type>
+      <g:identifier_exists>yes</g:identifier_exists>
+      <g:shipping>
+        <g:country>IN</g:country>
+        <g:service>60-Minute Express Delivery</g:service>
+        <g:price>49.00 INR</g:price>
+      </g:shipping>
+    </item>
+`;
+      }
+      xml += `  </channel>
+</rss>`;
+      return res.status(200).send(xml);
+    } catch (err) {
+      console.error("[Google Merchant Feed] Failed to generate XML feed:", err);
+      return res.status(500).send("<error>Failed to generate Google Merchant feed</error>");
+    }
+  };
+  app.get("/api/feeds/google-merchant.xml", handleGoogleMerchantFeed);
+  app.get("/feeds/google-merchant.xml", handleGoogleMerchantFeed);
+  app.get("/google-merchant.xml", handleGoogleMerchantFeed);
   const SERVER_BOOT_TIME = (/* @__PURE__ */ new Date()).toISOString();
   function getActiveVersionInfo() {
     try {
@@ -1470,7 +1956,8 @@ async function startServer() {
           if (parsed && parsed.buildId) {
             return {
               success: true,
-              version: parsed.version || process.env.npm_package_version || "2.4.0",
+              version: parsed.version || process.env.npm_package_version || "1.1.3",
+              versionCode: parsed.versionCode || 14,
               buildId: parsed.buildId,
               builtAt: parsed.builtAt || SERVER_BOOT_TIME,
               serverStartedAt: SERVER_BOOT_TIME,
@@ -1483,10 +1970,11 @@ async function startServer() {
     } catch (err) {
       console.warn("[Server Version Check Notice]:", err);
     }
-    const fallbackBuildId = process.env.BUILD_ID || process.env.VITE_APP_BUILD_ID || `v2.4.0-${SERVER_BOOT_TIME}`;
+    const fallbackBuildId = process.env.BUILD_ID || process.env.VITE_APP_BUILD_ID || `v1.1.3-14-${SERVER_BOOT_TIME}`;
     return {
       success: true,
-      version: process.env.npm_package_version || "2.4.0",
+      version: process.env.npm_package_version || "1.1.3",
+      versionCode: 14,
       buildId: fallbackBuildId,
       builtAt: SERVER_BOOT_TIME,
       serverStartedAt: SERVER_BOOT_TIME,
@@ -2419,7 +2907,7 @@ async function startServer() {
 ${itemsListText}
 
 \u{1F4B3} *GRAND TOTAL:* \u20B9${validatedOrder.totalAmount.toLocaleString("en-IN")} (${validatedOrder.paymentMethod.toUpperCase()})
-\u26A1 *Dispatch:* SmartRun Kasba Central Hub, Kolkata 700039`;
+\u26A1 *Dispatch:* SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150`;
       const whatsappUrl = `https://wa.me/${ADMIN_WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappText)}`;
       const customerWhatsappUrl = phoneClean ? `https://wa.me/91${phoneClean}?text=${encodeURIComponent(
         `Hello ${validatedOrder.customerName}, thank you for ordering from SmartRun! Your Order ${shortDisplayId} for \u20B9${validatedOrder.totalAmount.toLocaleString("en-IN")} is confirmed for 60-min express dispatch.`
@@ -2438,6 +2926,8 @@ ${itemsListText}
           const custHtml = generateOrderEmailHtml(validatedOrder, validatedOrder.customerName);
           const custSubject = `\u26A1 Order Confirmed ${shortDisplayId} - SmartRun Express Kolkata`;
           dispatchResendEmail({
+            type: "order",
+            from: "SmartRun Orders <order@smartrun.in>",
             to: [validatedOrder.customerEmail.trim()],
             subject: custSubject,
             html: custHtml,
@@ -3786,6 +4276,7 @@ ${itemsListText}
     }
   });
   const serverProfileStore = /* @__PURE__ */ new Map();
+  const sentWelcomeEmailsStore = /* @__PURE__ */ new Set();
   app.post("/api/user-profile", async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
@@ -3807,9 +4298,11 @@ ${itemsListText}
       let mergedEmail = email || null;
       let mergedPhone = formattedE164 || sanitizedPhone || null;
       let mergedName = sanitizedName || null;
+      let existingRow = null;
       if (sb && user_id) {
         try {
-          const { data: existingRow } = await sb.from("user_profiles").select("*").eq("user_id", user_id).maybeSingle();
+          const { data } = await sb.from("user_profiles").select("*").eq("user_id", user_id).maybeSingle();
+          existingRow = data;
           if (existingRow) {
             if (!mergedEmail && existingRow.email && !existingRow.email.includes("@girirajpower.internal")) {
               mergedEmail = existingRow.email;
@@ -3849,7 +4342,9 @@ ${itemsListText}
         serverProfileStore.set(`+91${clean10Phone}`, profileRecord);
       }
       if (mergedEmail && !mergedEmail.includes("@girirajpower.internal")) {
-        serverProfileStore.set(mergedEmail.toLowerCase(), profileRecord);
+        const cleanEmailLower = mergedEmail.toLowerCase();
+        serverProfileStore.set(cleanEmailLower, profileRecord);
+        recordWelcomedUser(cleanEmailLower);
       }
       if (serverFirestore && user_id) {
         syncUserToBackendFirestore(user_id, profileRecord).catch(() => {
@@ -4312,28 +4807,88 @@ Tone: direct, confident, objective. Output ONLY the single sentence. No quotatio
       let subject = customSubject;
       let html = customHtml;
       let text = customText;
-      if (type === "order_confirmation" && order) {
+      let attachments = void 0;
+      if ((type === "order_delivered" || type === "order_confirmation" && order?.status === "delivered") && order) {
+        const shortId = getShortOrderCode(order.id || order.order_id || order.orderId);
+        subject = subject || `\u26A1 Order Delivered #${shortId} - SmartRun Express Kolkata`;
+        html = html || generateOrderEmailHtml(order, customerName || order.customerName || "Customer", true);
+        text = text || `Your SmartRun order #${shortId} has been successfully delivered to ${order.area || "Kolkata"}. Attached is your official Tax Invoice PDF (SmartRun-Invoice-${shortId}.pdf). Total: \u20B9${order.totalAmount}. Thank you for ordering with SmartRun!`;
+        const pdfBase64 = generateInvoicePdfBuffer(order);
+        if (pdfBase64) {
+          attachments = [
+            {
+              filename: `SmartRun-Invoice-${shortId}.pdf`,
+              content: pdfBase64
+            }
+          ];
+        }
+        recordDeliveredEmailSent(order.id || order.order_id || order.orderId, to);
+      } else if (type === "order_confirmation" && order) {
         subject = subject || `\u26A1 Order Confirmed #${order.id} - SmartRun Express Kolkata`;
-        html = html || generateOrderEmailHtml(order, customerName || order.customerName || "Customer");
+        html = html || generateOrderEmailHtml(order, customerName || order.customerName || "Customer", false);
         text = text || `Your SmartRun order #${order.id} has been confirmed. Total: \u20B9${order.totalAmount}. Delivery to ${order.area}, Kolkata.`;
       } else if (type === "service_booking" && booking) {
         subject = subject || `\u26A1 Service Booking Confirmed #${booking.id} - SmartRun Services`;
         html = html || generateWiringBookingEmailHtml(booking, customerName || booking.contactName || "Customer");
         text = text || `Your wiring consultation booking #${booking.id} has been confirmed for ${booking.projectType} at ${booking.siteAddress}.`;
       } else if (type === "login_alert") {
-        subject = subject || `\u{1F6E1}\uFE0F Security Alert: New sign-in to your SmartRun account`;
+        subject = subject || "Important: Login from new device and location";
+        const timeIso = formatToIstIsoString(req.body?.clientTime);
+        const rawUserAgent = req.body?.userAgent || req.headers["user-agent"] || "";
+        const cleanPhone = (req.body?.phone || "").replace(/\D/g, "").slice(-10);
+        const accountId = req.body?.accountId || (cleanPhone ? `${to} (+91 ${cleanPhone})` : to);
         html = html || generateLoginAlertEmailHtml({
           customerName: customerName || "Customer",
           email: to,
-          loginTime: req.body?.loginTime || (/* @__PURE__ */ new Date()).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " (IST)",
+          accountId,
+          phone: req.body?.phone,
+          timeIso,
+          loginTime: req.body?.loginTime,
           ipAddress: req.body?.ipAddress || "Protected",
-          location: req.body?.location || "Kolkata, West Bengal, India",
+          location: req.body?.location || "Kolkata, India",
           device: req.body?.device || "Mobile Device",
           os: req.body?.os || "Android",
           browser: req.body?.browser || "SmartRun App",
+          userAgent: rawUserAgent,
           loginMethod: req.body?.loginMethod || "Email & Password"
         });
-        text = text || `Security Alert: A new sign-in was detected on your SmartRun account (${to}) at ${req.body?.loginTime || "recently"}. Location: ${req.body?.location || "Kolkata, India"}. If this wasn't you, secure your account at https://www.smartrun.in/login`;
+        text = text || `Hi ${customerName || "Customer"},
+Your account ${accountId} has logged in from a new device and location.
+
+If this is not you, use the forgot password option immediately and reset your login credentials: https://www.smartrun.in/reset-password
+
+Location:	${req.body?.location || "Kolkata, India"}
+IP:	${req.body?.ipAddress || "2401:4900:8829:d1cb:8233:7592:811c:e1f5"}
+Device:	${rawUserAgent || req.body?.device || "Android Device"}
+Time:	${timeIso}
+
+Why did I receive this e-mail? https://www.smartrun.in/faq#security-login-alerts
+
+SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150`;
+      } else if (type === "welcome_email") {
+        subject = subject || "You're all set! Welcome to SmartRun \u26A1";
+        html = html || generateWelcomeEmailHtml(customerName || "Customer");
+        text = text || `Hey ${customerName || "Customer"}, Welcome aboard! \u{1F44B}
+
+Thanks for joining SmartRun. We\u2019re thrilled to have you! Whether you need wiring, fixtures, tools, or heavy-duty construction supplies at your site in Kolkata, we\u2019ve got your back with lightning-fast deliveries.
+
+What you get with SmartRun:
+
+* \u26A1 Express Delivery: Get supplies right when you need them.
+* \u{1F4E6} Genuine Materials: Top-tier electrical and hardware brands.
+* \u{1F4F1} Real-time Tracking: Track your order from dispatch to doorstep.
+
+To get started on your phone, you can download or open our Android app here:
+
+\u{1F449} SmartRun on Google Play Store: https://play.google.com/store/apps/details?id=in.smartrun.app&pcampaignid=web_share
+
+Need help or have questions about bulk orders? Just reply to this email or reach out to our support team right from the app.
+
+Cheers,
+SmartRun materials pvt. ltd
+Kolkata, West Bengal
+
+SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150`;
       } else if (type === "test_email") {
         subject = subject || "\u26A1 Email Verification - SmartRun Kolkata";
         html = html || generateTestEmailHtml(customerName || "Valued Customer");
@@ -4343,10 +4898,12 @@ Tone: direct, confident, objective. Output ONLY the single sentence. No quotatio
         html = html || `<p>${customText || "Notification from SmartRun Kolkata"}</p>`;
       }
       const dispatchResult = await dispatchResendEmail({
+        type,
         to,
         subject,
         html,
-        text
+        text,
+        attachments
       });
       if (type === "order_confirmation" && order) {
         try {
@@ -4368,6 +4925,67 @@ Tone: direct, confident, objective. Output ONLY the single sentence. No quotatio
       return res.status(500).json({
         success: false,
         message: err.message || "An unexpected error occurred while sending email.",
+        error: String(err)
+      });
+    }
+  });
+  app.post("/api/orders/:id/send-delivery-email", strictLimiter, async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const orderId = req.params.id;
+      const { customerEmail, force, order: orderFromReq } = req.body || {};
+      if (!orderId) {
+        return res.status(400).json({ success: false, message: "Missing order ID." });
+      }
+      if (!force && isDeliveredEmailSent(orderId)) {
+        return res.status(200).json({
+          success: true,
+          message: "Delivered order email and invoice PDF already sent to customer.",
+          alreadySent: true
+        });
+      }
+      let orderData = orderFromReq;
+      if (!orderData) {
+        const sb = getServerSupabase();
+        if (sb) {
+          const { data } = await sb.from("orders").select("*").eq("id", orderId).maybeSingle();
+          if (data) orderData = data;
+        }
+      }
+      if (!orderData) {
+        return res.status(404).json({ success: false, message: "Order details could not be found." });
+      }
+      const recipientEmail = customerEmail || orderData.customer_email || orderData.customerEmail || orderData.recipient_email;
+      if (!recipientEmail || !recipientEmail.includes("@") || recipientEmail.includes("@girirajpower.internal")) {
+        return res.status(400).json({
+          success: false,
+          message: "No valid customer email address available on this order."
+        });
+      }
+      const shortId = getShortOrderCode(orderData.id || orderData.order_id || orderId);
+      const subject = `\u26A1 Order Delivered #${shortId} - SmartRun Express Kolkata`;
+      const html = generateOrderEmailHtml(orderData, orderData.customerName || orderData.customer_name || "Customer", true);
+      const text = `Your SmartRun order #${shortId} has been successfully delivered. Attached is your official Tax Invoice PDF (SmartRun-Invoice-${shortId}.pdf). Total: \u20B9${orderData.totalAmount || orderData.total_amount}. Thank you for choosing SmartRun!`;
+      const pdfBase64 = generateInvoicePdfBuffer(orderData);
+      const attachments = pdfBase64 ? [{ filename: `SmartRun-Invoice-${shortId}.pdf`, content: pdfBase64 }] : void 0;
+      const result = await dispatchResendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        text,
+        attachments
+      });
+      recordDeliveredEmailSent(orderId, recipientEmail);
+      return res.status(200).json({
+        success: true,
+        message: "Delivered order confirmation and Tax Invoice PDF successfully dispatched.",
+        details: result
+      });
+    } catch (err) {
+      console.error("[send-delivery-email Error]:", err);
+      return res.status(500).json({
+        success: false,
+        message: err.message || "Failed to dispatch delivered order email.",
         error: String(err)
       });
     }
@@ -4486,15 +5104,26 @@ Tone: direct, confident, objective. Output ONLY the single sentence. No quotatio
         email,
         name,
         userId,
+        phone,
+        accountId,
         loginMethod,
         device,
         os,
         browser,
+        userAgent,
         clientTime,
         clientTimeFormatted,
         clientLocation,
+        isNewAccount,
         force
       } = req.body || {};
+      if (isNewAccount === true) {
+        return res.status(200).json({
+          success: true,
+          message: "Login security alert skipped for initial account registration (welcome email is dispatched).",
+          skippedForNewRegistration: true
+        });
+      }
       const cleanEmail = (email || "").trim().toLowerCase();
       if (!cleanEmail || !cleanEmail.includes("@") || !cleanEmail.includes(".")) {
         return res.status(400).json({
@@ -4534,37 +5163,52 @@ Tone: direct, confident, objective. Output ONLY the single sentence. No quotatio
         }
       }
       if (!finalLocation || finalLocation === "Unknown" || finalLocation.toLowerCase().includes("undefined")) {
-        finalLocation = "Kolkata, West Bengal, India";
+        finalLocation = "Kolkata, India";
+      } else if (finalLocation.toLowerCase().includes("kolkata")) {
+        finalLocation = "Kolkata, India";
       }
       const displayTime = clientTimeFormatted || (/* @__PURE__ */ new Date()).toLocaleString("en-IN", {
         timeZone: "Asia/Kolkata",
         dateStyle: "full",
         timeStyle: "medium"
       }) + " (IST)";
+      const timeIso = formatToIstIsoString(clientTime);
+      const rawUserAgent = userAgent || req.headers["user-agent"] || "";
+      const cleanPhone = (phone || "").replace(/\D/g, "").slice(-10);
+      const resolvedAccountId = accountId || (cleanPhone && cleanEmail ? `${cleanEmail} (+91 ${cleanPhone})` : cleanEmail || (cleanPhone ? `+91 ${cleanPhone}` : "Customer Account"));
       const customerName = name || cleanEmail.split("@")[0] || "Valued Customer";
       const html = generateLoginAlertEmailHtml({
         customerName,
         email: cleanEmail,
+        accountId: resolvedAccountId,
+        phone,
+        timeIso,
         loginTime: displayTime,
         ipAddress: clientIp || "Protected",
         location: finalLocation,
         device: device || "Mobile Device",
         os: os || "Android",
         browser: browser || "SmartRun App",
+        userAgent: rawUserAgent,
         loginMethod: loginMethod || "Email & Password"
       });
-      const subject = `\u{1F6E1}\uFE0F Security Alert: New sign-in to your SmartRun account (${(/* @__PURE__ */ new Date()).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })} IST)`;
-      const text = `Hello ${customerName},
+      const subject = "Important: Login from new device and location";
+      const text = `Hi ${customerName},
+Your account ${resolvedAccountId} has logged in from a new device and location.
 
-A new login was detected on your SmartRun account (${cleanEmail}) on ${displayTime}.
-Location: ${finalLocation}
-Device: ${device || "Mobile"} (${os || "Android"})
-Browser: ${browser || "SmartRun App"}
-Method: ${loginMethod || "Password"}
+If this is not you, use the forgot password option immediately and reset your login credentials: https://www.smartrun.in/reset-password
 
-If this was you, no action is required.
-If you did not make this login, please secure your account immediately at https://www.smartrun.in/login or call support at +91 87774 00280.`;
+Location:	${finalLocation}
+IP:	${clientIp || "2401:4900:8829:d1cb:8233:7592:811c:e1f5"}
+Device:	${rawUserAgent || (device ? `${device} (${os || "Android"})` : "Mobile Device")}
+Time:	${timeIso}
+
+Why did I receive this e-mail? https://www.smartrun.in/faq#security-login-alerts
+
+SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150`;
       const dispatchResult = await dispatchResendEmail({
+        type: "alert",
+        from: "SmartRun Security <alert@smartrun.in>",
         to: cleanEmail,
         subject,
         html,
@@ -4580,6 +5224,115 @@ If you did not make this login, please secure your account immediately at https:
       return res.status(500).json({
         success: false,
         message: err.message || "Failed to dispatch login notification.",
+        error: String(err)
+      });
+    }
+  });
+  app.post("/api/auth/send-welcome-email", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const { email, name, userId, force, isNewAccount } = req.body || {};
+      const cleanEmail = (email || "").trim().toLowerCase();
+      if (!cleanEmail || !cleanEmail.includes("@") || !cleanEmail.includes(".") || cleanEmail.includes("@girirajpower.internal")) {
+        return res.status(400).json({
+          success: false,
+          message: "A valid email address is required to dispatch welcome email."
+        });
+      }
+      if (!force && isUserWelcomed(cleanEmail)) {
+        return res.status(200).json({
+          success: true,
+          message: "Welcome email already delivered to this user.",
+          alreadySent: true
+        });
+      }
+      if (!force) {
+        const sb = getServerSupabase();
+        if (sb) {
+          try {
+            const { data: existingProfile } = await sb.from("user_profiles").select("user_id, email, created_at").eq("email", cleanEmail).maybeSingle();
+            if (existingProfile) {
+              const createdAt = existingProfile.created_at ? new Date(existingProfile.created_at).getTime() : 0;
+              const isRecentRegistration = createdAt > 0 && Date.now() - createdAt < 5 * 60 * 1e3;
+              if (!isNewAccount || !isRecentRegistration) {
+                recordWelcomedUser(cleanEmail);
+                return res.status(200).json({
+                  success: true,
+                  message: "Welcome email skipped: user already has an established account.",
+                  alreadySent: true
+                });
+              }
+            }
+          } catch (dbCheckErr) {
+            console.warn("[Welcome Email DB Existence Check Notice]:", dbCheckErr);
+          }
+        }
+        if (serverFirestore) {
+          try {
+            const userDoc = await serverFirestore.collection("users").doc(cleanEmail).get();
+            if (userDoc.exists && userDoc.data()?.welcomed === true) {
+              recordWelcomedUser(cleanEmail);
+              return res.status(200).json({
+                success: true,
+                message: "Welcome email skipped: user already recorded as welcomed in database.",
+                alreadySent: true
+              });
+            }
+          } catch (fErr) {
+            console.debug("[Firestore Welcomed Check Notice]:", fErr);
+          }
+        }
+      }
+      const safeName = name && name.trim() ? name.trim() : cleanEmail.split("@")[0];
+      const subject = "You're all set! Welcome to SmartRun \u26A1";
+      const html = generateWelcomeEmailHtml(safeName);
+      const text = `Hey ${safeName}, Welcome aboard! \u{1F44B}
+
+Thanks for joining SmartRun. We\u2019re thrilled to have you! Whether you need wiring, fixtures, tools, or heavy-duty construction supplies at your site in Kolkata, we\u2019ve got your back with lightning-fast deliveries.
+
+What you get with SmartRun:
+
+* \u26A1 Express Delivery: Get supplies right when you need them.
+* \u{1F4E6} Genuine Materials: Top-tier electrical and hardware brands.
+* \u{1F4F1} Real-time Tracking: Track your order from dispatch to doorstep.
+
+To get started on your phone, you can download or open our Android app here:
+
+\u{1F449} SmartRun on Google Play Store: https://play.google.com/store/apps/details?id=in.smartrun.app&pcampaignid=web_share
+
+Need help or have questions about bulk orders? Just reply to this email or reach out to our support team right from the app.
+
+Cheers,
+SmartRun materials pvt. ltd
+Kolkata, West Bengal
+
+SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150`;
+      const dispatchResult = await dispatchResendEmail({
+        type: "welcome_email",
+        from: "SmartRun <welcome@smartrun.in>",
+        to: cleanEmail,
+        subject,
+        html,
+        text
+      });
+      recordWelcomedUser(cleanEmail);
+      if (serverFirestore) {
+        serverFirestore.collection("users").doc(cleanEmail).set({
+          welcomed: true,
+          welcomed_at: (/* @__PURE__ */ new Date()).toISOString()
+        }, { merge: true }).catch(() => {
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        message: "Welcome email successfully dispatched.",
+        details: dispatchResult
+      });
+    } catch (err) {
+      console.error("[Welcome Email Handler Error]:", err);
+      return res.status(500).json({
+        success: false,
+        message: err.message || "Failed to dispatch welcome email.",
         error: String(err)
       });
     }
@@ -4622,7 +5375,7 @@ ${(order.rainFee || 0) > 0 ? `\u{1F327}\uFE0F *Rain Surcharge:* \u20B9${order.ra
 ` : ""}\u{1F4B3} *GRAND TOTAL:* \u20B9${(order.totalAmount || 0).toLocaleString("en-IN")}
 \u{1F4B5} *Payment Mode:* ${order.paymentMethod === "cod" ? "Cash on Delivery (COD)" : "Online UPI / Card (PAID)"}
 
-\u26A1 *Dispatch Central:* SmartRun Kasba Hub Kolkata 700039`;
+\u26A1 *Dispatch Central:* SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150`;
       const whatsappUrl = `https://wa.me/${ADMIN_WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappText)}`;
       const customerWhatsappUrl = phoneClean ? `https://wa.me/91${phoneClean}?text=${encodeURIComponent(`Hello ${order.customerName || "Customer"}, thank you for ordering from SmartRun! Your Order #${order.id} for \u20B9${(order.totalAmount || 0).toLocaleString("en-IN")} has been received and is being dispatched.`)}` : null;
       let adminAlertSent = false;
@@ -4982,7 +5735,7 @@ ${(order.rainFee || 0) > 0 ? `\u{1F327}\uFE0F *Rain Surcharge:* \u20B9${order.ra
                 
                 <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; margin-top: 20px; font-size: 12px; color: #64748b;">
                   <strong>SmartRun Support &amp; Wholesale Desk</strong><br>
-                  Kasba Central Warehouse, Kolkata 700039<br>
+                  SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150<br>
                   WhatsApp: +91 87774 00280 | Phone: +91 90071 68561 | Email: ${OFFICIAL_EMAIL}
                 </div>
               </div>
@@ -5263,7 +6016,7 @@ If you need specific assistance or customized contractor quotes, please ask or t
               }
             }
           });
-          const systemPrompt = `You are Mayra, the friendly, expert 24/7 AI Customer Support Specialist for SmartRun Electricals & Construction Supplies, located at Kasba, Kolkata 700039.
+          const systemPrompt = `You are Mayra, the friendly, expert 24/7 AI Customer Support Specialist for SmartRun Electricals & Construction Supplies (SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150).
 Customer Name: ${customerName || "Customer"}
 Customer Email: ${customerEmail || "Not specified"}
 Customer Area: ${customerArea || "Kolkata"}
@@ -5459,20 +6212,205 @@ User Question: ${userLatestMessage}`]
     }
     return resolvedProfile;
   }
+  const SERVER_AUTH_SECRET = process.env.SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.JWT_SECRET || "smartrun_kasba_server_auth_secret_secure_key_2026";
+  function createServerSessionToken(session) {
+    const now = Math.floor(Date.now() / 1e3);
+    const exp = now + 30 * 24 * 60 * 60;
+    const payload = { ...session, iat: now, exp };
+    const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
+    const signature = import_crypto.default.createHmac("sha256", SERVER_AUTH_SECRET).update(encodedPayload).digest("base64url");
+    return `${encodedPayload}.${signature}`;
+  }
+  function verifyServerSessionToken(token) {
+    if (!token || typeof token !== "string" || !token.includes(".")) {
+      return { valid: false };
+    }
+    const [encodedPayload, signature] = token.split(".");
+    if (!encodedPayload || !signature) {
+      return { valid: false };
+    }
+    const expectedSig = import_crypto.default.createHmac("sha256", SERVER_AUTH_SECRET).update(encodedPayload).digest("base64url");
+    try {
+      const a = Buffer.from(signature);
+      const b = Buffer.from(expectedSig);
+      if (a.length !== b.length || !import_crypto.default.timingSafeEqual(a, b)) {
+        return { valid: false };
+      }
+      const jsonStr = Buffer.from(encodedPayload, "base64url").toString("utf8");
+      const session = JSON.parse(jsonStr);
+      const now = Math.floor(Date.now() / 1e3);
+      if (session.exp && session.exp < now) {
+        return { valid: false };
+      }
+      return { valid: true, session };
+    } catch {
+      return { valid: false };
+    }
+  }
+  function extractServerSession(req) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const bearerToken = authHeader.substring(7).trim();
+      const res = verifyServerSessionToken(bearerToken);
+      if (res.valid) {
+        return { valid: true, session: res.session, token: bearerToken };
+      }
+    }
+    const cookies = parseCookies(req.headers.cookie);
+    const cookieToken = cookies["smartrun_session"];
+    if (cookieToken) {
+      const res = verifyServerSessionToken(cookieToken);
+      if (res.valid) {
+        return { valid: true, session: res.session, token: cookieToken };
+      }
+    }
+    return { valid: false };
+  }
+  function setServerSessionCookie(req, res, token) {
+    const isHttps = req.secure || req.headers["x-forwarded-proto"] === "https";
+    const cookieParts = [
+      `smartrun_session=${encodeURIComponent(token)}`,
+      "Path=/",
+      "HttpOnly",
+      "Max-Age=2592000",
+      // 30 days
+      "SameSite=Lax"
+    ];
+    if (isHttps) {
+      cookieParts.push("Secure");
+    }
+    res.setHeader("Set-Cookie", cookieParts.join("; "));
+  }
+  function clearServerSessionCookie(req, res) {
+    const isHttps = req.secure || req.headers["x-forwarded-proto"] === "https";
+    const cookieParts = [
+      "smartrun_session=",
+      "Path=/",
+      "HttpOnly",
+      "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+      "Max-Age=0",
+      "SameSite=Lax"
+    ];
+    if (isHttps) {
+      cookieParts.push("Secure");
+    }
+    res.setHeader("Set-Cookie", cookieParts.join("; "));
+  }
+  app.post("/api/auth/server-session", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const { userId, phone, email, name, role, dob, avatar_url } = req.body || {};
+      const cleanUid = String(userId || "").trim();
+      const cleanPhone = phone ? String(phone).replace(/\D/g, "").slice(-10) : "";
+      const cleanEmail = email ? String(email).trim().toLowerCase() : "";
+      const cleanName = String(name || "").trim() || "Customer";
+      if (!cleanUid && !cleanPhone && !cleanEmail) {
+        return res.status(400).json({ success: false, error: "User identity information required." });
+      }
+      const effectiveUid = cleanUid || (cleanPhone ? `phone_${cleanPhone}` : `uid_${cleanEmail.replace(/[^a-zA-Z0-9]/g, "_")}`);
+      const formattedPhone = cleanPhone ? `+91${cleanPhone}` : phone || null;
+      const isUserAdmin = Boolean(cleanEmail && ADMIN_EMAILS.includes(cleanEmail) || cleanPhone === "8777400280");
+      const effectiveRole = isUserAdmin ? "admin" : role === "admin" ? "admin" : "customer";
+      const profileRecord = {
+        user_id: effectiveUid,
+        phone: formattedPhone,
+        full_name: cleanName,
+        email: cleanEmail || null,
+        avatar_url: avatar_url || null,
+        dob: dob || null,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      serverProfileStore.set(effectiveUid, profileRecord);
+      if (cleanPhone) serverProfileStore.set(cleanPhone, profileRecord);
+      if (cleanEmail) serverProfileStore.set(cleanEmail, profileRecord);
+      const sessionToken = createServerSessionToken({
+        uid: effectiveUid,
+        phone: formattedPhone,
+        email: cleanEmail || null,
+        name: cleanName,
+        role: effectiveRole
+      });
+      setServerSessionCookie(req, res, sessionToken);
+      return res.json({
+        success: true,
+        authenticated: true,
+        sessionToken,
+        user: {
+          id: effectiveUid,
+          phone: formattedPhone,
+          email: cleanEmail || void 0,
+          name: cleanName,
+          role: effectiveRole,
+          photoURL: avatar_url || void 0,
+          dob: dob || void 0
+        }
+      });
+    } catch (err) {
+      console.error("[Server Session API] Error establishing server session:", err);
+      return res.status(500).json({ success: false, error: err?.message || "Failed to establish server session." });
+    }
+  });
+  app.get("/api/auth/me", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const extracted = extractServerSession(req);
+      if (!extracted.valid || !extracted.session) {
+        return res.json({ success: false, authenticated: false, user: null });
+      }
+      const { uid, phone, email, name, role } = extracted.session;
+      let userProfile = serverProfileStore.get(uid);
+      if (!userProfile && phone) {
+        const clean10 = phone.replace(/\D/g, "").slice(-10);
+        userProfile = serverProfileStore.get(clean10);
+      }
+      if (!userProfile && email) {
+        userProfile = serverProfileStore.get(email.toLowerCase());
+      }
+      const cleanPhoneDigits = (phone || userProfile?.phone || "").replace(/\D/g, "").slice(-10);
+      const isUserAdmin = Boolean(
+        email && ADMIN_EMAILS.includes(email.toLowerCase()) || cleanPhoneDigits === "8777400280" || role === "admin"
+      );
+      return res.json({
+        success: true,
+        authenticated: true,
+        sessionToken: extracted.token,
+        user: {
+          id: uid,
+          phone: userProfile?.phone || phone || void 0,
+          email: userProfile?.email || email || void 0,
+          name: userProfile?.full_name || name || "Customer",
+          role: isUserAdmin ? "admin" : "customer",
+          photoURL: userProfile?.avatar_url || void 0,
+          dob: userProfile?.dob || void 0
+        }
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, authenticated: false, error: err?.message || "Auth check error." });
+    }
+  });
+  app.post("/api/auth/logout", (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      clearServerSessionCookie(req, res);
+      return res.json({ success: true, message: "Logged out from server session." });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err?.message || "Logout error." });
+    }
+  });
   app.post("/api/auth/send-phone-otp", smsOtpLimiter, async (req, res) => {
     try {
-      const { phone } = req.body || {};
-      const cleanPhone = String(phone || "").replace(/\D/g, "").slice(-10);
+      const rawPhone = req.body && req.body.phone || req.query?.phone || "";
+      const cleanPhone = String(rawPhone || "").replace(/\D/g, "").slice(-10);
       if (cleanPhone.length !== 10) {
         return res.status(400).json({
           success: false,
-          error: "Please enter a valid 10-digit Indian mobile number."
+          error: "Please enter a valid 10-digit mobile number."
         });
       }
       const lastSent = phoneLastSmsSentTime.get(cleanPhone) || 0;
       const now = Date.now();
-      if (now - lastSent < 3e4) {
-        const remainingSec = Math.ceil((3e4 - (now - lastSent)) / 1e3);
+      if (now - lastSent < 5e3) {
+        const remainingSec = Math.ceil((5e3 - (now - lastSent)) / 1e3);
         return res.status(429).json({
           success: false,
           error: `Please wait ${remainingSec} seconds before requesting another verification code.`
@@ -5570,22 +6508,41 @@ User Question: ${userLatestMessage}`]
       serverPhoneOtpStore.delete(cleanPhone);
       const existing = await resolvePhoneUser(cleanPhone);
       const userId = existing?.user_id || `phone_${cleanPhone}`;
+      const userFullName = existing?.name || existing?.full_name || fullName || "Customer";
+      const userEmail = existing?.email && !existing.email.includes("@girirajpower.internal") ? existing.email : null;
+      const isUserAdmin = Boolean(userEmail && ADMIN_EMAILS.includes(userEmail.toLowerCase()) || cleanPhone === "8777400280");
+      const userRole = isUserAdmin ? "admin" : "customer";
       if (serverFirestore) {
         syncUserToBackendFirestore(userId, {
           phone: `+91${cleanPhone}`,
-          name: existing?.name || fullName || "",
-          full_name: existing?.name || fullName || "",
-          email: existing?.email || ""
+          name: userFullName,
+          full_name: userFullName,
+          email: userEmail || ""
         }).catch(() => {
         });
       }
+      const sessionToken = createServerSessionToken({
+        uid: userId,
+        phone: `+91${cleanPhone}`,
+        email: userEmail,
+        name: userFullName,
+        role: userRole
+      });
+      setServerSessionCookie(req, res, sessionToken);
       return res.json({
         success: true,
         verified: true,
         phone: `+91${cleanPhone}`,
         cleanPhone,
         userId,
-        profile: existing || null,
+        sessionToken,
+        profile: existing || {
+          id: userId,
+          phone: `+91${cleanPhone}`,
+          name: userFullName,
+          email: userEmail,
+          role: userRole
+        },
         message: "Phone number verified successfully."
       });
     } catch (err) {
@@ -5622,7 +6579,7 @@ User Question: ${userLatestMessage}`]
   app.post("/api/auth/send-email-otp", emailOtpLimiter, async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
-      const { email, phone, customerName } = req.body || {};
+      const { email, phone, customerName, purpose } = req.body || {};
       const cleanEmail = String(email || "").trim().toLowerCase();
       if (!cleanEmail || !cleanEmail.includes("@") || !cleanEmail.includes(".")) {
         return res.status(400).json({
@@ -5632,67 +6589,91 @@ User Question: ${userLatestMessage}`]
       }
       const cleanPhone = phone ? String(phone).replace(/\D/g, "").slice(-10) : "";
       const generatedOtp = Math.floor(1e5 + Math.random() * 9e5).toString();
+      const expiresAt = Date.now() + 10 * 60 * 1e3;
       emailOtpStore.set(cleanEmail, {
         otp: generatedOtp,
-        expiresAt: Date.now() + 10 * 60 * 1e3,
-        // 10 minutes
+        expiresAt,
         attempts: 0,
         phone: cleanPhone
       });
-      console.log(`[Email OTP] Generated code for ${cleanEmail}: ${generatedOtp} (New phone: ${cleanPhone || "N/A"})`);
+      const secret = process.env.API_SECRET_KEY || "smartrun_email_otp_secret_key_kasba";
+      const signatureToken = import_crypto.default.createHmac("sha256", secret).update(`${cleanEmail}:${generatedOtp}:${expiresAt}`).digest("hex");
+      console.log(`[Email OTP] Generated code for ${cleanEmail}: ${generatedOtp} (Purpose: ${purpose || "email_update"})`);
       const atIdx = cleanEmail.indexOf("@");
       const namePart = cleanEmail.substring(0, atIdx);
       const domainPart = cleanEmail.substring(atIdx);
       const maskedName = namePart.length <= 2 ? namePart[0] + "*" : namePart[0] + "*".repeat(Math.min(namePart.length - 2, 4)) + namePart[namePart.length - 1];
       const maskedEmail = `${maskedName}${domainPart}`;
+      const now = /* @__PURE__ */ new Date();
+      const timeStr = now.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour12: false });
+      const day = String(now.getDate()).padStart(2, "0");
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const year = now.getFullYear();
+      const generatedAt = `${timeStr} ${day}-${month}-${year}`;
+      const emailSubject = "SmartRun OTP";
+      const emailText = `Dear User,
+
+Your one-time password (OTP) for registering on SmartRun  is ${generatedOtp} .
+This OTP is valid for 10 minutes.
+
+Please do not share your login details with anyone as sharing it will give them complete access to your account.
+
+Generated at ${generatedAt}
+
+************************************
+
+This is an auto-generated email. Do not reply to this email.`;
       const emailHtml = `
         <!DOCTYPE html>
         <html>
         <head><meta charset="utf-8"></head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
-          <div style="max-width: 480px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-            <div style="background-color: #00875a; padding: 20px; text-align: center;">
-              <h2 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">SmartRun</h2>
-              <p style="color: #d1fae5; margin: 4px 0 0 0; font-size: 12px; font-weight: 600;">Security Verification Code</p>
-            </div>
-            <div style="padding: 28px 24px; text-align: center;">
-              <p style="font-size: 14px; color: #334155; margin: 0 0 16px 0;">
-                Hello${customerName ? ` <strong>${customerName}</strong>` : ""},
-              </p>
-              <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin: 0 0 24px 0;">
-                You requested to update your account's mobile number${cleanPhone ? ` to <strong>+91 ${cleanPhone}</strong>` : ""}. Enter this 6-digit verification code to authorize this change:
-              </p>
-              <div style="background-color: #ecfdf5; border: 2px dashed #00875a; border-radius: 12px; padding: 16px 28px; margin: 0 auto 24px auto; display: inline-block;">
-                <span style="font-size: 32px; font-weight: 900; font-family: monospace; letter-spacing: 6px; color: #065f46;">
-                  ${generatedOtp}
-                </span>
-              </div>
-              <p style="font-size: 11px; color: #94a3b8; margin: 0;">
-                This code is valid for 10 minutes. If you did not initiate this request, please secure your account immediately.
-              </p>
-            </div>
-            <div style="background-color: #f1f5f9; padding: 12px; text-align: center; border-top: 1px solid #e2e8f0;">
-              <p style="font-size: 11px; color: #64748b; margin: 0;">Express Electricals &bull; Kasba Warehouse Hub &bull; Kolkata</p>
-            </div>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; color: #1e293b; margin: 0; padding: 24px; line-height: 1.6; font-size: 14px;">
+          <div style="max-width: 540px; margin: 0 auto;">
+            <p style="margin: 0 0 16px 0;">Dear User,</p>
+            <p style="margin: 0 0 16px 0;">
+              Your one-time password (OTP) for registering on SmartRun  is <strong>${generatedOtp}</strong> . This OTP is valid for 10 minutes.
+            </p>
+            <p style="margin: 0 0 16px 0; color: #334155;">
+              Please do not share your login details with anyone as sharing it will give them complete access to your account.
+            </p>
+            <p style="margin: 0 0 16px 0; color: #475569; font-size: 13px;">
+              Generated at ${generatedAt}
+            </p>
+            <p style="margin: 0 0 16px 0; color: #64748b; letter-spacing: 2px;">
+              ************************************
+            </p>
+            <p style="margin: 0; font-size: 12px; color: #64748b;">
+              This is an auto-generated email. Do not reply to this email.
+            </p>
           </div>
         </body>
         </html>
       `;
+      let dispatchResult = null;
       try {
-        await dispatchResendEmail({
+        dispatchResult = await dispatchResendEmail({
+          from: "SmartRun <team@smartrun.in>",
           to: cleanEmail,
-          subject: `\u{1F510} ${generatedOtp} is your SmartRun verification code`,
+          subject: emailSubject,
           html: emailHtml,
-          text: `Your SmartRun verification code to update your mobile number is: ${generatedOtp}. Valid for 10 minutes.`
+          text: emailText
         });
       } catch (sendErr) {
         console.warn("[Email OTP Dispatch Notice]:", sendErr);
+      }
+      if (dispatchResult && !dispatchResult.success && dispatchResult.error) {
+        return res.status(500).json({
+          success: false,
+          error: dispatchResult.error?.message || "Failed to deliver email. Please check your address."
+        });
       }
       return res.json({
         success: true,
         message: `Verification code sent to ${cleanEmail}`,
         email: cleanEmail,
-        emailMasked: maskedEmail
+        emailMasked: maskedEmail,
+        token: signatureToken,
+        expiresAt
       });
     } catch (err) {
       return res.status(500).json({
@@ -5704,7 +6685,7 @@ User Question: ${userLatestMessage}`]
   app.post("/api/auth/verify-email-otp", (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
-      const { email, otp } = req.body || {};
+      const { email, otp, token, expiresAt } = req.body || {};
       const cleanEmail = String(email || "").trim().toLowerCase();
       const cleanOtp = String(otp || "").trim();
       if (!cleanEmail || !cleanEmail.includes("@")) {
@@ -5714,38 +6695,52 @@ User Question: ${userLatestMessage}`]
         return res.status(400).json({ success: false, error: "Please enter the complete 6-digit OTP code." });
       }
       const cached = emailOtpStore.get(cleanEmail);
-      if (!cached) {
+      if (cached) {
+        if (Date.now() > cached.expiresAt) {
+          emailOtpStore.delete(cleanEmail);
+          return res.status(400).json({
+            success: false,
+            error: "Verification code has expired. Please request a fresh OTP."
+          });
+        }
+        cached.attempts += 1;
+        if (cached.attempts > 5) {
+          emailOtpStore.delete(cleanEmail);
+          return res.status(400).json({
+            success: false,
+            error: "Too many invalid attempts. Please request a new OTP code."
+          });
+        }
+        if (cached.otp === cleanOtp) {
+          emailOtpStore.delete(cleanEmail);
+          return res.json({
+            success: true,
+            verified: true,
+            message: "Email verification code verified successfully."
+          });
+        }
+      }
+      if (token && expiresAt && Number(expiresAt) > Date.now()) {
+        const secret = process.env.API_SECRET_KEY || "smartrun_email_otp_secret_key_kasba";
+        const expectedSig = import_crypto.default.createHmac("sha256", secret).update(`${cleanEmail}:${cleanOtp}:${expiresAt}`).digest("hex");
+        if (token === expectedSig) {
+          emailOtpStore.delete(cleanEmail);
+          return res.json({
+            success: true,
+            verified: true,
+            message: "Email verification code verified successfully."
+          });
+        }
+      }
+      if (!cached && (!token || !expiresAt)) {
         return res.status(400).json({
           success: false,
           error: "No active verification code found or code expired. Please request a new OTP."
         });
       }
-      if (Date.now() > cached.expiresAt) {
-        emailOtpStore.delete(cleanEmail);
-        return res.status(400).json({
-          success: false,
-          error: "Verification code has expired. Please request a fresh OTP."
-        });
-      }
-      cached.attempts += 1;
-      if (cached.attempts > 5) {
-        emailOtpStore.delete(cleanEmail);
-        return res.status(400).json({
-          success: false,
-          error: "Too many invalid attempts. Please request a new OTP code."
-        });
-      }
-      if (cached.otp !== cleanOtp) {
-        return res.status(400).json({
-          success: false,
-          error: "Incorrect verification code. Please check the code sent to your email."
-        });
-      }
-      emailOtpStore.delete(cleanEmail);
-      return res.json({
-        success: true,
-        verified: true,
-        message: "Email verification code verified successfully."
+      return res.status(400).json({
+        success: false,
+        error: "Incorrect verification code. Please check the code sent to your email."
       });
     } catch (err) {
       return res.status(500).json({
@@ -6035,21 +7030,29 @@ User Question: ${userLatestMessage}`]
       }
       if ((!resolvedProfile || !resolvedProfile.phone) && serverFirestore) {
         try {
-          const usersCol = (0, import_firestore.collection)(serverFirestore, "users");
-          const q = (0, import_firestore.query)(usersCol, (0, import_firestore.where)("email", "==", cleanEmail));
-          const snap = await (0, import_firestore.getDocs)(q);
-          if (!snap.empty) {
-            const docData = snap.docs[0].data();
-            const phoneFound = (docData.phone || "").replace(/\D/g, "").slice(-10);
-            const formattedPhone = phoneFound.length === 10 ? `+91${phoneFound}` : null;
-            resolvedProfile = {
-              user_id: resolvedProfile?.user_id || docData.user_id || snap.docs[0].id,
-              full_name: resolvedProfile?.full_name || docData.name || docData.full_name || name || null,
-              email: cleanEmail,
-              phone: resolvedProfile?.phone || formattedPhone,
-              avatar_url: avatarUrl || resolvedProfile?.avatar_url || docData.avatar_url || null,
-              dob: resolvedProfile?.dob || docData.dob || null
-            };
+          const emailKey = cleanEmail.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+          const emailIndexRef = (0, import_firestore.doc)(serverFirestore, "users_by_email", emailKey);
+          const emailSnap = await (0, import_firestore.getDoc)(emailIndexRef);
+          if (emailSnap.exists()) {
+            const eData = emailSnap.data();
+            const fbUid = eData.user_id;
+            if (fbUid) {
+              const uDocRef = (0, import_firestore.doc)(serverFirestore, "users", fbUid);
+              const uSnap = await (0, import_firestore.getDoc)(uDocRef);
+              if (uSnap.exists()) {
+                const docData = uSnap.data();
+                const phoneFound = (docData.phone || "").replace(/\D/g, "").slice(-10);
+                const formattedPhone = phoneFound.length === 10 ? `+91${phoneFound}` : null;
+                resolvedProfile = {
+                  user_id: resolvedProfile?.user_id || docData.user_id || fbUid,
+                  full_name: resolvedProfile?.full_name || docData.name || docData.full_name || name || null,
+                  email: cleanEmail,
+                  phone: resolvedProfile?.phone || formattedPhone,
+                  avatar_url: avatarUrl || resolvedProfile?.avatar_url || docData.avatar_url || null,
+                  dob: resolvedProfile?.dob || docData.dob || null
+                };
+              }
+            }
           }
         } catch (fbErr) {
           console.debug("[Resolve Google User] Firestore check notice:", fbErr);
@@ -6086,6 +7089,560 @@ User Question: ${userLatestMessage}`]
         error: err?.message || "Failed to resolve Google user profile."
       });
     }
+  });
+  app.post("/api/auth/login", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const { identifier, password } = req.body || {};
+      const cleanIdent = String(identifier || "").trim();
+      const cleanPw = String(password || "").trim();
+      if (!cleanIdent || !cleanPw) {
+        return res.status(400).json({ success: false, error: "Identifier and password are required." });
+      }
+      const sb = getServerSupabase();
+      if (!sb) {
+        return res.status(500).json({ success: false, error: "Authentication service unavailable." });
+      }
+      let targetEmail = cleanIdent;
+      let userPhone = "";
+      let userFullName = "";
+      const isPhone = !cleanIdent.includes("@") && cleanIdent.replace(/\D/g, "").length >= 7;
+      if (isPhone) {
+        const clean10 = cleanIdent.replace(/\D/g, "").slice(-10);
+        userPhone = `+91${clean10}`;
+        targetEmail = `p${clean10}@girirajpower.internal`;
+        const existing = await resolvePhoneUser(clean10);
+        if (existing?.email && !existing.email.includes("@girirajpower.internal")) {
+          targetEmail = existing.email;
+        }
+        if (existing?.full_name) {
+          userFullName = existing.full_name;
+        }
+      } else {
+        targetEmail = cleanIdent.toLowerCase();
+      }
+      let { data, error } = await sb.auth.signInWithPassword({
+        email: targetEmail,
+        password: cleanPw
+      });
+      if (error && isPhone) {
+        const clean10 = cleanIdent.replace(/\D/g, "").slice(-10);
+        const candidates = [`p${clean10}@girirajpower.internal`, `phone_${clean10}@girirajpower.internal`];
+        for (const candidate of candidates) {
+          if (candidate === targetEmail) continue;
+          const retry = await sb.auth.signInWithPassword({
+            email: candidate,
+            password: cleanPw
+          });
+          if (!retry.error && retry.data?.user) {
+            data = retry.data;
+            error = null;
+            targetEmail = candidate;
+            break;
+          }
+        }
+      }
+      if (error || !data?.user) {
+        return res.status(401).json({
+          success: false,
+          error: "Incorrect password or account not found. Please check your credentials or sign in with OTP."
+        });
+      }
+      const resolvedName = userFullName || data.user.user_metadata?.full_name || data.user.user_metadata?.name || "Customer";
+      const resolvedPhone = userPhone || data.user.phone || data.user.user_metadata?.phone || "";
+      let userProfile = null;
+      try {
+        const { data: prof } = await sb.from("user_profiles").select("*").eq("user_id", data.user.id).single();
+        if (prof) userProfile = prof;
+      } catch {
+      }
+      const cleanPhoneDigits = (resolvedPhone || "").replace(/\D/g, "").slice(-10);
+      const isUserAdmin = Boolean(
+        targetEmail && !targetEmail.includes("@girirajpower.internal") && ADMIN_EMAILS.includes(targetEmail.toLowerCase()) || cleanPhoneDigits === "8777400280"
+      );
+      const userRole = isUserAdmin ? "admin" : "customer";
+      const sessionToken = createServerSessionToken({
+        uid: data.user.id,
+        phone: resolvedPhone || null,
+        email: targetEmail.includes("@girirajpower.internal") ? null : targetEmail,
+        name: resolvedName,
+        role: userRole
+      });
+      setServerSessionCookie(req, res, sessionToken);
+      return res.json({
+        success: true,
+        user: data.user,
+        session: data.session,
+        sessionToken,
+        profile: userProfile || {
+          id: data.user.id,
+          name: resolvedName,
+          phone: resolvedPhone,
+          email: targetEmail.includes("@girirajpower.internal") ? null : targetEmail,
+          role: userRole
+        }
+      });
+    } catch (err) {
+      return res.status(500).json({
+        success: false,
+        error: err?.message || "Server authentication error."
+      });
+    }
+  });
+  app.post("/api/auth/register", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const { email, phone, fullName, password } = req.body || {};
+      const cleanEmail = String(email || "").trim().toLowerCase();
+      const cleanPhone = String(phone || "").replace(/\D/g, "").slice(-10);
+      const cleanName = String(fullName || "").trim();
+      const cleanPw = String(password || "").trim();
+      if (!cleanName) {
+        return res.status(400).json({ success: false, error: "Full name is required." });
+      }
+      if (!cleanEmail || !cleanEmail.includes("@")) {
+        return res.status(400).json({ success: false, error: "Valid email address is required." });
+      }
+      if (!cleanPw || cleanPw.length < 6) {
+        return res.status(400).json({ success: false, error: "Password must be at least 6 characters." });
+      }
+      const formattedPhone = cleanPhone ? `+91${cleanPhone}` : "";
+      const sb = getServerSupabase();
+      if (!sb) {
+        return res.status(500).json({ success: false, error: "Authentication service unavailable." });
+      }
+      let userId = "";
+      let authUser = null;
+      let authSession = null;
+      if (sb.auth?.admin) {
+        const { data: createData, error: createErr } = await sb.auth.admin.createUser({
+          email: cleanEmail,
+          password: cleanPw,
+          email_confirm: true,
+          user_metadata: {
+            full_name: cleanName,
+            name: cleanName,
+            phone: formattedPhone,
+            contact_number: formattedPhone
+          }
+        });
+        if (!createErr && createData?.user) {
+          authUser = createData.user;
+          userId = createData.user.id;
+        } else if (createErr) {
+          const { data: loginData, error: loginErr } = await sb.auth.signInWithPassword({
+            email: cleanEmail,
+            password: cleanPw
+          });
+          if (!loginErr && loginData?.user) {
+            authUser = loginData.user;
+            authSession = loginData.session;
+            userId = loginData.user.id;
+          } else {
+            return res.status(400).json({
+              success: false,
+              error: createErr.message || "An account with this email already exists."
+            });
+          }
+        }
+      } else {
+        const { data: signUpData, error: signUpErr } = await sb.auth.signUp({
+          email: cleanEmail,
+          password: cleanPw,
+          options: {
+            data: {
+              full_name: cleanName,
+              phone: formattedPhone
+            }
+          }
+        });
+        if (signUpErr) {
+          return res.status(400).json({ success: false, error: signUpErr.message });
+        }
+        authUser = signUpData.user;
+        authSession = signUpData.session;
+        userId = authUser?.id || "";
+      }
+      if (!authSession && userId) {
+        const { data: loginData } = await sb.auth.signInWithPassword({
+          email: cleanEmail,
+          password: cleanPw
+        });
+        if (loginData?.session) {
+          authSession = loginData.session;
+          authUser = loginData.user;
+        }
+      }
+      if (userId) {
+        try {
+          await sb.from("user_profiles").upsert(
+            {
+              user_id: userId,
+              full_name: cleanName,
+              email: cleanEmail,
+              phone: formattedPhone || null,
+              updated_at: (/* @__PURE__ */ new Date()).toISOString()
+            },
+            { onConflict: "user_id" }
+          );
+        } catch (dbErr) {
+          console.debug("[Register Profile Upsert]:", dbErr);
+        }
+      }
+      if (serverFirestore && userId) {
+        try {
+          const docRef = (0, import_firestore.doc)(serverFirestore, "users", userId);
+          await (0, import_firestore.setDoc)(docRef, {
+            id: userId,
+            email: cleanEmail,
+            full_name: cleanName,
+            phone: formattedPhone || null,
+            updated_at: (/* @__PURE__ */ new Date()).toISOString()
+          }, { merge: true });
+        } catch {
+        }
+      }
+      return res.json({
+        success: true,
+        user: authUser,
+        session: authSession,
+        profile: {
+          id: userId,
+          name: cleanName,
+          email: cleanEmail,
+          phone: formattedPhone
+        }
+      });
+    } catch (err) {
+      return res.status(500).json({
+        success: false,
+        error: err?.message || "Failed to register user."
+      });
+    }
+  });
+  const PASSKEYS_FILE = import_path.default.resolve(process.cwd(), "passkey_credentials.json");
+  const passkeyChallengeStore = /* @__PURE__ */ new Map();
+  function loadPasskeyCredentials() {
+    try {
+      if (import_fs.default.existsSync(PASSKEYS_FILE)) {
+        const raw = import_fs.default.readFileSync(PASSKEYS_FILE, "utf-8");
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.debug("[Passkeys] Notice loading credentials:", e);
+    }
+    return [];
+  }
+  function savePasskeyCredentials(creds) {
+    try {
+      import_fs.default.writeFileSync(PASSKEYS_FILE, JSON.stringify(creds, null, 2), "utf-8");
+    } catch (e) {
+      console.error("[Passkeys] Failed to save credentials file:", e);
+    }
+  }
+  function getWebAuthnRpConfig(req) {
+    const rawHost = req.get("host") || "smartrun.in";
+    const host = rawHost.split(":")[0].toLowerCase();
+    let rpID = "smartrun.in";
+    const expectedOrigin = [
+      "https://www.smartrun.in",
+      "https://smartrun.in",
+      "https://girirajpower.in",
+      "https://www.girirajpower.in"
+    ];
+    if (host.endsWith("smartrun.in")) {
+      rpID = "smartrun.in";
+      expectedOrigin.push(`https://${rawHost}`);
+    } else if (host === "localhost" || host === "127.0.0.1") {
+      rpID = "localhost";
+      expectedOrigin.push(
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        `http://${host}:3000`,
+        `http://${rawHost}`
+      );
+    } else {
+      rpID = host;
+      expectedOrigin.push(`https://${host}`, `https://${rawHost}`, `http://${host}`, `http://${rawHost}`);
+    }
+    const reqOrigin = req.get("origin");
+    if (reqOrigin && !expectedOrigin.includes(reqOrigin)) {
+      expectedOrigin.push(reqOrigin);
+    }
+    return { rpID, expectedOrigin };
+  }
+  app.post("/api/auth/passkey/login-options", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const { identifier } = req.body || {};
+      const { rpID } = getWebAuthnRpConfig(req);
+      const allCreds = loadPasskeyCredentials();
+      let allowCredentials = [];
+      if (identifier) {
+        const cleanIdent = String(identifier).trim().toLowerCase();
+        const clean10 = cleanIdent.replace(/\D/g, "").slice(-10);
+        const userCreds = allCreds.filter(
+          (c) => c.userEmail?.toLowerCase() === cleanIdent || clean10.length === 10 && c.userPhone?.includes(clean10) || c.userId === cleanIdent
+        );
+        if (userCreds.length > 0) {
+          allowCredentials = userCreds.map((c) => ({
+            id: c.id,
+            transports: c.transports
+          }));
+        }
+      }
+      const options = await (0, import_server.generateAuthenticationOptions)({
+        rpID,
+        allowCredentials: allowCredentials.length > 0 ? allowCredentials : void 0,
+        userVerification: "preferred"
+      });
+      const challengeToken = import_crypto.default.randomUUID();
+      passkeyChallengeStore.set(challengeToken, {
+        challenge: options.challenge,
+        expiresAt: Date.now() + 5 * 60 * 1e3
+      });
+      return res.json({
+        success: true,
+        options,
+        challengeToken
+      });
+    } catch (err) {
+      console.error("[Passkey Login Options Error]:", err);
+      return res.status(500).json({ success: false, error: err?.message || "Failed to generate passkey options." });
+    }
+  });
+  app.post("/api/auth/passkey/login-verify", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const { response, challengeToken } = req.body || {};
+      if (!response || !response.id) {
+        return res.status(400).json({ success: false, error: "Missing authentication response." });
+      }
+      const allCreds = loadPasskeyCredentials();
+      const cred = allCreds.find((c) => c.id === response.id);
+      if (!cred) {
+        return res.status(404).json({ success: false, error: "Passkey not recognized. Please sign in with OTP or password." });
+      }
+      const { rpID, expectedOrigin } = getWebAuthnRpConfig(req);
+      let expectedChallenge = "";
+      if (challengeToken && passkeyChallengeStore.has(challengeToken)) {
+        const item = passkeyChallengeStore.get(challengeToken);
+        if (item && item.expiresAt > Date.now()) {
+          expectedChallenge = item.challenge;
+        }
+        passkeyChallengeStore.delete(challengeToken);
+      } else {
+        for (const [key, item] of passkeyChallengeStore.entries()) {
+          if (item.expiresAt > Date.now()) {
+            expectedChallenge = item.challenge;
+            passkeyChallengeStore.delete(key);
+            break;
+          }
+        }
+      }
+      if (!expectedChallenge) {
+        return res.status(400).json({ success: false, error: "Passkey session expired. Please try again." });
+      }
+      const verification = await (0, import_server.verifyAuthenticationResponse)({
+        response,
+        expectedChallenge,
+        expectedOrigin,
+        expectedRPID: rpID,
+        credential: {
+          id: cred.id,
+          publicKey: Buffer.from(cred.publicKey, "base64url"),
+          counter: cred.counter
+        }
+      });
+      if (!verification.verified) {
+        return res.status(401).json({ success: false, error: "Passkey biometric verification failed." });
+      }
+      cred.counter = verification.authenticationInfo.newCounter;
+      cred.lastUsedAt = (/* @__PURE__ */ new Date()).toISOString();
+      savePasskeyCredentials(allCreds);
+      const sb = getServerSupabase();
+      let userSession = null;
+      let authUser = null;
+      const cleanPhone10 = cred.userPhone ? cred.userPhone.replace(/\D/g, "").slice(-10) : "";
+      const canonicalEmail = cred.userEmail || (cleanPhone10 ? `p${cleanPhone10}@girirajpower.internal` : `user_${cred.userId.slice(0, 8)}@girirajpower.internal`);
+      if (sb?.auth?.admin) {
+        try {
+          const { data: userRecord } = await sb.auth.admin.getUserById(cred.userId).catch(() => ({ data: null }));
+          if (userRecord?.user) {
+            authUser = userRecord.user;
+          }
+          if (cleanPhone10) {
+            const deterministicPassword = `GirirajPower@${cleanPhone10}#2026`;
+            const signInRes = await sb.auth.signInWithPassword({
+              email: canonicalEmail,
+              password: deterministicPassword
+            });
+            if (signInRes.data?.session) {
+              userSession = signInRes.data.session;
+              authUser = signInRes.data.user;
+            }
+          }
+        } catch (adminErr) {
+          console.warn("[Passkey Supabase Provisioning Notice]:", adminErr);
+        }
+      }
+      let profileData = null;
+      if (sb && cred.userId) {
+        try {
+          const { data: p } = await sb.from("user_profiles").select("*").eq("user_id", cred.userId).single();
+          if (p) profileData = p;
+        } catch {
+        }
+      }
+      return res.json({
+        success: true,
+        user: authUser || { id: cred.userId, email: cred.userEmail, phone: cred.userPhone },
+        session: userSession,
+        profile: profileData || {
+          id: cred.userId,
+          name: cred.userName || "Customer",
+          email: cred.userEmail,
+          phone: cred.userPhone
+        }
+      });
+    } catch (err) {
+      console.error("[Passkey Login Verify Error]:", err);
+      return res.status(500).json({ success: false, error: err?.message || "Passkey verification failed." });
+    }
+  });
+  app.post("/api/auth/passkey/register-options", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const { userId, email, phone, fullName } = req.body || {};
+      if (!userId) {
+        return res.status(400).json({ success: false, error: "User ID is required to register a passkey." });
+      }
+      const { rpID } = getWebAuthnRpConfig(req);
+      const allCreds = loadPasskeyCredentials();
+      const existingCreds = allCreds.filter((c) => c.userId === userId);
+      const cleanName = String(fullName || "Customer").trim();
+      const cleanEmailOrPhone = email || phone || `Customer-${userId.slice(0, 6)}`;
+      const options = await (0, import_server.generateRegistrationOptions)({
+        rpName: "SmartRun Express",
+        rpID,
+        userID: Buffer.from(userId),
+        userName: cleanEmailOrPhone,
+        userDisplayName: cleanName,
+        attestationType: "none",
+        excludeCredentials: existingCreds.map((c) => ({
+          id: c.id,
+          transports: c.transports
+        })),
+        authenticatorSelection: {
+          residentKey: "preferred",
+          userVerification: "preferred"
+        }
+      });
+      const challengeToken = import_crypto.default.randomUUID();
+      passkeyChallengeStore.set(challengeToken, {
+        challenge: options.challenge,
+        userId,
+        expiresAt: Date.now() + 5 * 60 * 1e3
+      });
+      return res.json({
+        success: true,
+        options,
+        challengeToken
+      });
+    } catch (err) {
+      console.error("[Passkey Register Options Error]:", err);
+      return res.status(500).json({ success: false, error: err?.message || "Failed to start passkey setup." });
+    }
+  });
+  app.post("/api/auth/passkey/register-verify", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const { userId, response, challengeToken, deviceName, email, phone, fullName } = req.body || {};
+      if (!userId || !response) {
+        return res.status(400).json({ success: false, error: "Missing required registration parameters." });
+      }
+      const { rpID, expectedOrigin } = getWebAuthnRpConfig(req);
+      let expectedChallenge = "";
+      if (challengeToken && passkeyChallengeStore.has(challengeToken)) {
+        const item = passkeyChallengeStore.get(challengeToken);
+        if (item && item.expiresAt > Date.now()) {
+          expectedChallenge = item.challenge;
+        }
+        passkeyChallengeStore.delete(challengeToken);
+      } else {
+        for (const [key, item] of passkeyChallengeStore.entries()) {
+          if (item.userId === userId && item.expiresAt > Date.now()) {
+            expectedChallenge = item.challenge;
+            passkeyChallengeStore.delete(key);
+            break;
+          }
+        }
+      }
+      if (!expectedChallenge) {
+        return res.status(400).json({ success: false, error: "Registration session expired. Please try again." });
+      }
+      const verification = await (0, import_server.verifyRegistrationResponse)({
+        response,
+        expectedChallenge,
+        expectedOrigin,
+        expectedRPID: rpID
+      });
+      if (!verification.verified || !verification.registrationInfo) {
+        return res.status(400).json({ success: false, error: "Passkey registration verification failed." });
+      }
+      const { credential } = verification.registrationInfo;
+      const allCreds = loadPasskeyCredentials();
+      const newCred = {
+        id: credential.id,
+        publicKey: Buffer.from(credential.publicKey).toString("base64url"),
+        userId,
+        userName: fullName || "Customer",
+        userEmail: email || void 0,
+        userPhone: phone || void 0,
+        counter: credential.counter,
+        transports: response.response?.transports || credential.transports,
+        deviceName: deviceName || "My Device",
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        lastUsedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      const filtered = allCreds.filter((c) => c.id !== newCred.id);
+      filtered.push(newCred);
+      savePasskeyCredentials(filtered);
+      if (serverFirestore) {
+        try {
+          const passkeyDoc = (0, import_firestore.doc)(serverFirestore, "passkeys", newCred.id);
+          await (0, import_firestore.setDoc)(passkeyDoc, {
+            ...newCred,
+            syncedAt: (/* @__PURE__ */ new Date()).toISOString()
+          }, { merge: true });
+        } catch (fsErr) {
+          console.debug("[Passkey Firestore Sync Notice]:", fsErr);
+        }
+      }
+      return res.json({
+        success: true,
+        message: "Passkey registered successfully! You can now use your biometric or screen lock to sign in.",
+        credentialId: newCred.id
+      });
+    } catch (err) {
+      console.error("[Passkey Register Verify Error]:", err);
+      return res.status(500).json({ success: false, error: err?.message || "Failed to complete passkey setup." });
+    }
+  });
+  app.get("/api/auth/passkey/list", (req, res) => {
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).json({ success: false, error: "User ID required." });
+    const allCreds = loadPasskeyCredentials();
+    const userCreds = allCreds.filter((c) => c.userId === userId).map(({ id, deviceName, createdAt, lastUsedAt }) => ({ id, deviceName, createdAt, lastUsedAt }));
+    return res.json({ success: true, credentials: userCreds });
+  });
+  app.delete("/api/auth/passkey/:id", (req, res) => {
+    const { id } = req.params;
+    const allCreds = loadPasskeyCredentials();
+    const next = allCreds.filter((c) => c.id !== id);
+    savePasskeyCredentials(next);
+    return res.json({ success: true, message: "Passkey removed." });
   });
   app.get("/api/sms/providers-status", (req, res) => {
     return res.json({
@@ -6291,5 +7848,9 @@ process.on("uncaughtException", (err) => {
 });
 startServer().catch((err) => {
   console.error("[DevServer] Fatal error during startServer:", err);
+});
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  generateWelcomeEmailHtml
 });
 //# sourceMappingURL=server.cjs.map

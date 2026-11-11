@@ -30,6 +30,9 @@ public class MainActivity extends BridgeActivity {
 
         // Keep system status bar always visible with solid white background and clear dark icons (WiFi, Network, Battery)
         getWindow().setStatusBarColor(android.graphics.Color.WHITE);
+        // Keep system navigation bar always clean white with dark buttons (Back, Home, Recents)
+        getWindow().setNavigationBarColor(android.graphics.Color.WHITE);
+
         androidx.core.view.WindowInsetsControllerCompat insetsController =
             androidx.core.view.WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         if (insetsController != null) {
@@ -37,35 +40,21 @@ public class MainActivity extends BridgeActivity {
             insetsController.setAppearanceLightNavigationBars(true);
         }
 
-        // Ensure root content view fits system windows so APK starts strictly below WiFi, network, and battery status bar
-        View contentView = findViewById(android.R.id.content);
-        if (contentView != null) {
-            contentView.setFitsSystemWindows(true);
-        }
-
-        // Set --safe-area-top to 0px in WebView since the WebView starts directly below the status bar with zero gap
-        if (getBridge() != null && getBridge().getWebView() != null) {
-            getBridge().getWebView().post(() -> {
-                getBridge().getWebView().evaluateJavascript(
-                    "document.documentElement.style.setProperty('--safe-area-top', '0px');",
-                    null
-                );
-            });
-        }
-
         // Measure system navigation bar insets (3-button navigation, gesture bar, etc.)
-        // and set --safe-area-bottom in WebView so floating bottom nav is positioned cleanly above navigation buttons
+        // and set --safe-area-bottom in WebView so floating bottom nav sits cleanly above phone navigation buttons like Instagram
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(getWindow().getDecorView(), (v, windowInsets) -> {
             androidx.core.graphics.Insets insets = windowInsets.getInsets(
                 androidx.core.view.WindowInsetsCompat.Type.navigationBars()
             );
             float density = getResources().getDisplayMetrics().density;
             int bottomDp = density > 0 ? Math.round(insets.bottom / density) : insets.bottom;
-            final int finalBottomDp = Math.max(bottomDp, 48);
+            final int finalBottomDp = Math.max(bottomDp, 0);
+
             if (getBridge() != null && getBridge().getWebView() != null) {
                 getBridge().getWebView().post(() -> {
                     getBridge().getWebView().evaluateJavascript(
-                        "document.documentElement.style.setProperty('--safe-area-bottom', '" + finalBottomDp + "px');",
+                        "document.documentElement.style.setProperty('--safe-area-bottom', '" + finalBottomDp + "px');" +
+                        "document.documentElement.style.setProperty('--safe-area-top', '0px');",
                         null
                     );
                 });
