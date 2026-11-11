@@ -19,6 +19,7 @@ export interface SEOHeadProps {
     originalPrice?: number;
     brand?: string;
     image?: string;
+    images?: string[];
     inStock?: boolean;
     rating?: number;
     reviewsCount?: number;
@@ -65,21 +66,21 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     const path = location.pathname;
 
     // 1. Determine Title & Meta Defaults Based on Current Route
-    let defaultTitle = 'SmartRun (Smart Run) | Electrical Goods, Construction Supplies & Wiring Services Kolkata';
+    let defaultTitle = 'SmartRun (Smart Run) - Kolkata Online Delivery App for Electrical & Construction Products';
     let defaultDesc =
-      'SmartRun (Smart Run) by SmartRun materials pvt. ltd: Kolkata’s trusted depot for electrical goods, modular switches, Polycab & Havells wires, UltraTech cement, Tata Tiscon TMT bars, and certified house wiring contractors with 60-minute express delivery.';
+      'SmartRun (Smart Run) by SmartRun materials pvt. ltd: Kolkata’s #1 express online delivery app for electrical products, Polycab & Havells wires, Schneider switches, UltraTech cement, Tata steel rebars, and licensed electricians with 60-minute delivery.';
     let defaultKeywords =
-      'Smart Run, SmartRun, smart run, smartrun, smart run app, smartrun app, smart run kolkata, smart run electricals, smart run apk, smart run download, smart run play store, SmartRun materials pvt ltd, SmartRun materials pvt. ltd, electrical shop near me, buy electrical goods online Kolkata, house wiring contractor, electrical wiring services, modular switches, Polycab wire, Havells cables, Finolex wire, Schneider MCB, distribution board, LED lighting, construction materials Kolkata, cement delivery, UltraTech cement, ACC cement, TMT steel bars, Tata Tiscon rebars, waterproofing chemicals, real estate electrification, licensed electrician Kolkata, Kasba electrical shop, wholesale electrical market Kolkata, B2B building materials procurement, direct depot Kolkata';
+      'Smart Run, SmartRun, smart run, smartrun, smart run app, smartrun app, smart run kolkata, kolkata online delivery app for electrical products, kolkata online delivery app for construction products, online delivery app for electrical products, electrical products delivery app, construction products delivery app kolkata, buy electrical goods online Kolkata, electrical shop near me, house wiring contractor, electrical wiring services, modular switches, Polycab wire, Havells cables, Finolex wire, Schneider MCB, distribution board, LED lighting, construction materials Kolkata, cement delivery, UltraTech cement, ACC cement, TMT steel bars, Tata Tiscon rebars, waterproofing chemicals, real estate electrification, licensed electrician Kolkata, Kasba electrical shop, wholesale electrical market Kolkata, B2B building materials procurement, direct depot Kolkata, in.smartrun.app';
     let defaultType = type;
     let shouldNoIndex = noIndex ?? false;
 
     if (path === '/') {
-      defaultTitle = 'SmartRun (Smart Run) | Buy Electrical Goods, Construction Materials & Wiring Services Kolkata';
-      defaultDesc = 'Order genuine electrical supplies, house wiring cables, modular switches, UltraTech cement, and TMT steel bars on SmartRun (Smart Run) with 60-minute express delivery across Kolkata.';
+      defaultTitle = 'SmartRun (Smart Run) - Kolkata Online Delivery App for Electrical & Construction Products';
+      defaultDesc = 'Order genuine electrical products, house wiring cables, modular switches, UltraTech cement, and TMT steel bars on SmartRun (Smart Run) with 60-minute express delivery across Kolkata.';
     } else if (path === '/electrical') {
       defaultTitle = 'Electrical Goods & House Wiring Cables Wholesale Kolkata | SmartRun';
       defaultDesc = 'Shop RR Kabel, Polycab, Havells copper wires, Schneider MCBs, distribution boards, and modular switches at factory-direct wholesale prices in Kolkata.';
-      defaultKeywords = 'electrical goods kolkata, polycab wire kolkata, rr kabel online, buy switches kolkata, schneider mcb, distribution board, electrical depot kolkata';
+      defaultKeywords = 'kolkata online delivery app for electrical products, electrical goods kolkata, polycab wire kolkata, rr kabel online, buy switches kolkata, schneider mcb, distribution board, electrical depot kolkata';
     } else if (path.startsWith('/electrical/product/') || path.startsWith('/product/')) {
       defaultType = 'product';
       defaultTitle = 'Genuine Electrical Supply & Hardware | SmartRun Kolkata Depot';
@@ -184,17 +185,31 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     // 4. Set Canonical Link
     setOrUpdateCanonical(canonicalUrl);
 
-    // 5. Set OpenGraph Meta Tags
+    // 5. Set OpenGraph Meta Tags (Multi-Aspect Ratio for Google Discover, Search & Social)
     setOrUpdateMeta('property', 'og:type', defaultType);
     setOrUpdateMeta('property', 'og:site_name', 'SmartRun');
     setOrUpdateMeta('property', 'og:url', canonicalUrl);
     setOrUpdateMeta('property', 'og:title', computedTitle);
     setOrUpdateMeta('property', 'og:description', computedDesc);
     setOrUpdateMeta('property', 'og:image', computedImage);
+    setOrUpdateMeta('property', 'og:image:secure_url', computedImage);
+    setOrUpdateMeta('property', 'og:image:width', '1200');
+    setOrUpdateMeta('property', 'og:image:height', '630');
+    setOrUpdateMeta('property', 'og:image:type', computedImage.endsWith('.png') ? 'image/png' : 'image/jpeg');
     setOrUpdateMeta('property', 'og:image:alt', computedTitle);
     setOrUpdateMeta('property', 'og:locale', 'en_IN');
 
-    // 6. Set Twitter Card Meta Tags
+    // Geographic Meta Tags & Dublin Core for Local Kolkata Ranking
+    setOrUpdateMeta('name', 'geo.region', 'IN-WB');
+    setOrUpdateMeta('name', 'geo.placename', 'Kolkata, Kasba, West Bengal, India');
+    setOrUpdateMeta('name', 'geo.position', '22.5145;88.3882');
+    setOrUpdateMeta('name', 'ICBM', '22.5145, 88.3882');
+    setOrUpdateMeta('name', 'geo.country', 'IN');
+    setOrUpdateMeta('name', 'DC.title', computedTitle);
+    setOrUpdateMeta('name', 'DC.creator', 'SmartRun materials pvt. ltd');
+    setOrUpdateMeta('name', 'DC.coverage', 'Kolkata, West Bengal, India');
+
+    // 6. Set Twitter Card Meta Tags (summary_large_image for high CTR)
     setOrUpdateMeta('name', 'twitter:card', 'summary_large_image');
     setOrUpdateMeta('name', 'twitter:site', '@SmartRunIn');
     setOrUpdateMeta('name', 'twitter:title', computedTitle);
@@ -290,6 +305,15 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
       const prodSku = productData.sku || `SMARTRUN-${prodId.slice(0, 8).toUpperCase()}`;
       const prodMpn = productData.mpn || prodSku;
 
+      const prodImages = Array.from(
+        new Set([
+          computedImage,
+          ...(Array.isArray(productData.images) ? productData.images : []),
+          'https://www.smartrun.in/SmartRun.png',
+          'https://www.smartrun.in/icons/icon-512.png'
+        ])
+      ).filter(Boolean);
+
       schemaGraph.push({
         '@context': 'https://schema.org/',
         '@type': 'Product',
@@ -297,8 +321,9 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
         sku: prodSku,
         mpn: prodMpn,
         name: productData.name,
-        image: computedImage,
-        description: productData.description || `${productData.name} available at SmartRun Kolkata with 60-min express delivery.`,
+        image: prodImages,
+        description: productData.description || `${productData.name} available at SmartRun Kolkata with 60-min express delivery across West Bengal. 100% genuine guaranteed with instant manufacturer warranty.`,
+        category: productData.category || 'Electrical & Construction Supplies',
         brand: {
           '@type': 'Brand',
           name: productData.brand || 'SmartRun'
@@ -311,9 +336,34 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
           priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           availability: productData.inStock !== false ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
           itemCondition: 'https://schema.org/NewCondition',
+          areaServed: {
+            '@type': 'City',
+            name: 'Kolkata',
+            containedInPlace: {
+              '@type': 'State',
+              name: 'West Bengal'
+            }
+          },
+          availableAtOrFrom: {
+            '@type': 'Place',
+            name: 'SmartRun Kasba Central Depot',
+            address: {
+              '@type': 'PostalAddress',
+              streetAddress: 'Kasba Industrial Estate Phase 1',
+              addressLocality: 'Kolkata',
+              addressRegion: 'West Bengal',
+              postalCode: '700107',
+              addressCountry: 'IN'
+            },
+            geo: {
+              '@type': 'GeoCoordinates',
+              latitude: 22.5145,
+              longitude: 88.3934
+            }
+          },
           seller: {
             '@type': 'Organization',
-            name: 'SmartRun',
+            name: 'SmartRun (Smart Run)',
             legalName: 'SmartRun materials pvt. ltd',
             url: 'https://www.smartrun.in/'
           },

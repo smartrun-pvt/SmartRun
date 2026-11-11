@@ -29,6 +29,8 @@ import {
   where as firestoreWhere,
   getDocs as firestoreGetDocs
 } from "firebase/firestore";
+import { INITIAL_PRODUCTS } from "./src/data/products";
+import { generateDynamicSitemap, injectSeoMetadata } from "./src/utils/seoHelper";
 
 dotenv.config();
 
@@ -1709,6 +1711,11 @@ async function getCachedCatalog(forceRefresh = false): Promise<{ products: any[]
     }
   }
 
+  // Fallback to offline catalog if Supabase returns 0 items
+  if (!productsList || productsList.length === 0) {
+    productsList = INITIAL_PRODUCTS;
+  }
+
   const hash = crypto
     .createHash("md5")
     .update(JSON.stringify(productsList.map((p) => ({ id: p.id, price: p.price, stock: p.in_stock, updated: p.updated_at }))))
@@ -2367,21 +2374,22 @@ async function startServer() {
     res.status(404).json({ error: "Manifest not found" });
   });
 
-  // SEO: Explicit Sitemap & Robots routes to ensure direct 200 responses with correct Content-Type
-  app.get("/sitemap.xml", (req, res) => {
-    res.setHeader("Content-Type", "application/xml; charset=utf-8");
-    res.setHeader("Cache-Control", "public, max-age=86400");
-    const candidates = [
-      path.join(process.cwd(), "public", "sitemap.xml"),
-      path.join(process.cwd(), "dist", "sitemap.xml"),
-      path.join(__dirnameResolved, "public", "sitemap.xml")
-    ];
-    for (const p of candidates) {
-      if (fs.existsSync(p)) {
-        return res.sendFile(p);
+  // SEO: Dynamic XML Sitemap with full product catalog & image tags for Google Search, Bing, and Search Engine Bots
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const { products } = await getCachedCatalog();
+      const sitemapXml = generateDynamicSitemap(products);
+      res.setHeader("Content-Type", "application/xml; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      return res.status(200).send(sitemapXml);
+    } catch (err: any) {
+      console.error("[Sitemap Handler] Error rendering dynamic sitemap:", err);
+      const fallbackPath = path.join(process.cwd(), "public", "sitemap.xml");
+      if (fs.existsSync(fallbackPath)) {
+        return res.sendFile(fallbackPath);
       }
+      return res.status(500).send("<error>Failed to render sitemap</error>");
     }
-    res.status(404).send("Sitemap not found");
   });
 
   app.get("/robots.txt", (req, res) => {
@@ -9794,6 +9802,43 @@ Knowledge Base & Service Details:
       ],
       appType: "spa",
     });
+
+    // Dynamic SSR Micro-Prerendering & SEO Meta Injection for Products & Category Pages
+    app.get(
+      [
+        "/electrical/product/:id",
+        "/construction/product/:id",
+        "/product/:id",
+        "/electrical",
+        "/construction",
+        "/technicians",
+        "/shipping",
+        "/return",
+        "/return-policy",
+        "/refund-policy"
+      ],
+      async (req, res, next) => {
+        try {
+          const { products } = await getCachedCatalog();
+          const productId = req.params.id;
+          const matchedProduct = productId
+            ? products.find((p) => String(p.id).toLowerCase() === String(productId).toLowerCase())
+            : null;
+
+          const rawTemplate = fs.readFileSync(path.join(process.cwd(), "index.html"), "utf-8");
+          const devHtml = await vite.transformIndexHtml(req.originalUrl, rawTemplate);
+          const injectedHtml = injectSeoMetadata(devHtml, req.path, matchedProduct);
+
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          return res.status(200).send(injectedHtml);
+        } catch (prerenderErr) {
+          console.warn("[Dev SEO Prerender] Fallback notice:", prerenderErr);
+          next();
+        }
+      }
+    );
+
     app.use(vite.middlewares);
   } else {
     console.log("Serving pre-compiled production build from dist/ (Vite dev server OFF)...");
@@ -9835,6 +9880,44 @@ Knowledge Base & Service Details:
           }
         }
       })
+    );
+
+    // Production SSR Micro-Prerendering & Dynamic Meta Injection for Products & Category Pages
+    app.get(
+      [
+        "/electrical/product/:id",
+        "/construction/product/:id",
+        "/product/:id",
+        "/electrical",
+        "/construction",
+        "/technicians",
+        "/shipping",
+        "/return",
+        "/return-policy",
+        "/refund-policy"
+      ],
+      async (req, res, next) => {
+        try {
+          const prodIndexFile = path.join(distPath, "index.html");
+          if (!fs.existsSync(prodIndexFile)) return next();
+
+          const { products } = await getCachedCatalog();
+          const productId = req.params.id;
+          const matchedProduct = productId
+            ? products.find((p) => String(p.id).toLowerCase() === String(productId).toLowerCase())
+            : null;
+
+          const rawHtml = fs.readFileSync(prodIndexFile, "utf-8");
+          const injectedHtml = injectSeoMetadata(rawHtml, req.path, matchedProduct);
+
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          return res.status(200).send(injectedHtml);
+        } catch (prerenderErr) {
+          console.warn("[Prod SEO Prerender] Fallback notice:", prerenderErr);
+          next();
+        }
+      }
     );
 
     // 3. Fallback SPA serving with no-cache header

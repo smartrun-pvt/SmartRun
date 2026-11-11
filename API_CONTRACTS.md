@@ -78,4 +78,14 @@
   }
   ```
 
+## 7. GET `/sitemap.xml` (Dynamic Search Engine XML Sitemap)
+- **Response**: `200 OK`
+- **Content-Type**: `application/xml; charset=utf-8`
+- **Cache-Control**: `public, max-age=3600`
+- **Payload**: Dynamically generated XML containing all static hubs, policy routes, and 50+ individual catalog products with `<image:image>` tags and current `lastmod` timestamps.
 
+## 8. GET `/electrical/product/:id` & `/construction/product/:id` (SSR Micro-Prerendering)
+- **Response**: `200 OK`
+- **Content-Type**: `text/html; charset=utf-8`
+- **Cache-Control**: `no-cache, no-store, must-revalidate`
+- **Payload**: Full HTML document with dynamically injected product `<title>`, `<meta name="description">`, `<meta name="keywords">`, `<link rel="canonical">`, OpenGraph multi-aspect ratio images, and Schema.org `Product` JSON-LD before client-side hydration.

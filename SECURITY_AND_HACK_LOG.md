@@ -44,3 +44,11 @@
 - **Defense**:
   1. Stripped `password` from the JSON response of `/api/auth/phone-login-session`.
   2. Added `phoneResolveLimiter` to the endpoint.
+
+## Threat 8: XSS and XML Entity Injection via Product Titles & Descriptions
+- **Attack Vector**: An attacker injecting special characters (`<script>`, quotes, or `&`) into product names or descriptions in the database causes unescaped script execution during SSR micro-prerendering or XML corruption in `/sitemap.xml`.
+- **Defense**:
+  1. Built strict sanitization helpers `escapeHtml` and `escapeXml` in `src/utils/seoHelper.ts`.
+  2. All titles, meta tags, and OpenGraph contents undergo full character entity substitution (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&#039;`).
+  3. JSON-LD scripts are serialized with standard `JSON.stringify`, preventing breakout attacks before client hydration.
+  4. Unit tested against malicious payloads in `src/utils/seoHelper.test.ts`.

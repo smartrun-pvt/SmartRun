@@ -15,6 +15,9 @@ Allow: /about
 Allow: /faqs
 Allow: /refund-policy
 Allow: /shipping-policy
+Allow: /shipping
+Allow: /return-policy
+Allow: /return
 Allow: /privacy
 Allow: /terms
 Allow: /account-deletion

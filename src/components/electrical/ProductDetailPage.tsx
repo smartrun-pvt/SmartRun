@@ -664,9 +664,9 @@ export const ProductDetailPage = ({
   return (
     <div className="min-h-screen bg-white text-slate-900 pb-32 sm:pb-36 font-sans relative">
       <SEOHead
-        title={`${product.name} - Buy Online at Best Price in Kolkata | SmartRun`}
-        description={`Buy authentic ${product.brand} ${product.subcategory}, ₹${effectivePrice} in Kolkata. Fast 60-min delivery, genuine manufacturer warranty, and certified quality from SmartRun.`}
-        keywords={`${product.name}, ${product.brand}, ${product.subcategory}, buy ${product.name} Kolkata, wholesale electrical shop near me`}
+        title={`${product.name} - Buy Online at Best Price in Kolkata | SmartRun (Smart Run)`}
+        description={`Buy genuine ${product.brand || 'SmartRun'} ${product.name} (₹${effectivePrice}) online in Kolkata on SmartRun (Smart Run). 60-minute express delivery across Kolkata & West Bengal, 100% manufacturer warranty.`}
+        keywords={`${product.name}, buy ${product.name} online, ${product.brand || ''} ${product.subcategory || ''}, ${product.name} Kolkata price, kolkata online delivery app for electrical products, smart run, SmartRun, wholesale electrical shop Kolkata`}
         image={currentImage}
         productData={{
           id: product.id,
@@ -678,9 +678,11 @@ export const ProductDetailPage = ({
           originalPrice: effectiveMrp,
           brand: product.brand,
           image: currentImage,
+          images: effectiveImageUrls,
           inStock: product.stock_quantity > 0,
           rating: 4.8,
-          reviewsCount: reviews.length || 24
+          reviewsCount: reviews.length || 24,
+          category: product.category || 'Electrical Supplies'
         }}
       />
       

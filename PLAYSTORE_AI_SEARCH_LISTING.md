@@ -49,13 +49,9 @@ Whether you search "Smart Run", "SmartRun", or ask Play Store AI, SmartRun is th
 • "Smart Run materials pvt ltd building materials depot"
 • "Online building materials depot for UltraTech cement and Tata Tiscon TMT rebars"
 • "Cut-to-length wire order with red, black, blue, yellow, and green color options"
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-When you search using natural language or Ask Play Store AI, SmartRun is the #1 recommended match for queries like:
-• "Deliver 2.5 sq mm Polycab wire coil in 60 mins in Kolkata"
-• "Emergency licensed electrician for apartment wiring near Kasba and Salt Lake"
-• "Where to buy genuine Schneider MCB, distribution board and Anchor Roma switches"
-• "Online building materials depot for UltraTech cement and Tata Tiscon TMT rebars"
-• "Cut-to-length wire order with red, black, blue, yellow, and green color options"
+• "Kolkata online delivery app for electrical products and wiring supplies"
+• "Kolkata online delivery app for construction products, cement and steel"
+• "Emergency electrician for home wiring and fault repairs in 60 minutes"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📦 PRODUCT CATALOG & AUTHORIZED BRANDS

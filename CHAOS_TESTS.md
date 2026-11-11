@@ -34,3 +34,16 @@ curl -I http://localhost:3000/healthz
 # Expectation: HTTP/1.1 200 OK with {"status":"ok","app":"SmartRun Kolkata Express"}
 ```
 
+## 5. Test Dynamic XML Sitemap Generation with Images
+```bash
+curl -s http://localhost:3000/sitemap.xml | head -n 45
+# Expectation: Valid XML starting with <?xml version="1.0" encoding="UTF-8"?>
+# Contains all static routes, 50+ catalog products, <image:image> tags, and today's date in <lastmod>
+```
+
+## 6. Test Product SSR Micro-Prerender (Direct Crawler Hit)
+```bash
+curl -s http://localhost:3000/electrical/product/05e97d96-5942-4e67-a5e6-5907426f0767 | grep -C 3 "<title>"
+# Expectation: Immediate HTTP 200 with exact product name, brand, Kolkata price, and Kasba Central Depot Schema.org Product JSON-LD in <head>
+```
+
