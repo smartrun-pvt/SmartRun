@@ -2229,8 +2229,8 @@ async function startServer() {
     return list;
   }
 
-  // Health check endpoint (exempt from rate limiter for container readiness probes)
-  app.get("/api/health", (req, res) => {
+  // Health check endpoint (exempt from rate limiter for Cloud Run & container readiness probes)
+  app.get(["/healthz", "/api/health", "/api/healthz"], (req, res) => {
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.json({

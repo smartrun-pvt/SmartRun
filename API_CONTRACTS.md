@@ -67,3 +67,15 @@
   }
   ```
 
+## 6. GET `/healthz`, `/api/health`, `/api/healthz`
+- **Response**:
+  ```json
+  {
+    "status": "ok",
+    "app": "SmartRun Kolkata Express",
+    "uptime": 12.345,
+    "timestamp": 1794354220870
+  }
+  ```
+
+

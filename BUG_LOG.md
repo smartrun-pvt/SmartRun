@@ -61,3 +61,22 @@
   - **Root Cause**: In `App.tsx`, Capacitor's `backButton` event listener intercepted all back presses and unconditionally executed `if (currentPath === '/profile') { navigate('/'); return; }` without querying child component state, completely bypassing `ProfileView`'s internal sub-page state and history.
   - **Permanent Guardrail**: Implemented cancelable `smartrun:hardware-back` event dispatch in `App.tsx` before default routing. In `ProfileView.tsx`, the event listener catches hardware back presses: if an individual sub-page is active (`subPage !== 'main'`) or EditProfileModal is open, it returns to the profile menu (`setSubPage('main')` or `setSubPage('security')`) and calls `e.preventDefault()`, halting `App.tsx` from navigating to `/`. Added `useEdgeSwipeBack` on `ProfileView` and `AccountDeletionPage` for smooth touch edge gestures, and ensured `/delete` and `/faq` routes fallback to `/profile` when authenticated.
 
+- [x] **Bug ID: BUG-UI-004 - Shipping & Return Policy Profile Menu Entry Point & Cloud Run /healthz Probe**
+  - **Summary**: In ProfileView, Section 3 lacked a direct entry point for Shipping and Return Policy between Terms of Service and Refund Policy, and Cloud Run /healthz health probes were served by the SPA fallback rather than returning 200 JSON.
+  - **Root Cause**: Section 3 only included Terms of Service and Refund Policy without a Shipping Policy subpage bridge, and `server.ts` had registered only `/api/health`.
+  - **Permanent Guardrail**: Added `btn-profile-shipping-policy` between Terms of Service and Refund Policy in `ProfileView.tsx`, rendering `ShippingPolicySubPage` (`sub=shipping-policy` / `sub=shipping`), and updated `server.ts` with `app.get(["/healthz", "/api/health", "/api/healthz"])`.
+
+- [x] **Bug ID: BUG-UI-005 - Separate Shipping and Return Policy Buttons with Dedicated `/shipping` and `/return` Routes**
+  - **Summary**: Shipping and Return policies were combined in a single button, and `/return` direct route was missing and previously routed to the generic refund view.
+  - **Root Cause**: There was no dedicated `ReturnPolicyPage.tsx`, and Section 3 only had a single combined button.
+  - **Permanent Guardrail**: Created dedicated `ReturnPolicyPage.tsx` and `ReturnPolicySubPage.tsx`, separated into distinct `btn-profile-shipping-policy` (`/shipping`) and `btn-profile-return-policy` (`/return`) in `ProfileView.tsx` with identical styling, mapped `/shipping` and `/return` in `App.tsx` with smart back navigation, and updated `SEOHead.tsx` and `FloatingLiveOrderButton.tsx`.
+
+- [x] **Bug ID: BUG-UI-006 - Home Header Visibility On Shipping/Return Pages & 3-Dot Mobile Nav with Gestures**
+  - **Summary**: When opening `/shipping`, `/return`, or `/refund`, the home page `<Header>` navbar (location selector and search bar) remained visible above the policy page, and the policy header lacked 3-dot overflow options and mobile edge-swipe gesture navigation.
+  - **Root Cause**: `App.tsx` did not exclude `/shipping`, `/return`, or `/refund` paths from rendering `<Header>`, and `ShippingPolicyPage` / `ReturnPolicyPage` used bare header containers without overflow menus or edge-swipe hooks.
+  - **Permanent Guardrail**: Added `!location.pathname.startsWith('/shipping')`, `!location.pathname.startsWith('/return')`, and `!location.pathname.startsWith('/refund')` to the Header condition in `App.tsx`. Upgraded `ShippingPolicyPage.tsx`, `ReturnPolicyPage.tsx`, and `RefundPolicy.tsx` to feature standalone top navbars with `<ChevronLeft />` back buttons, 3-dot overflow navigation menus (`MoreVertical`), left-edge swipe gesture support (`useEdgeSwipeBack`), and `smartrun:hardware-back` event handling returning to `/profile`.
+
+- [x] **Bug ID: BUG-UI-007 - Dark Multi-Box Footer Removal & Minimalist White Copyright Footer**
+  - **Summary**: Page bottom previously contained large dark blue/slate footer containers (trust badges banner, 5-column links grid, entity details, explore depot, customer policies, support desk) that cluttered the end of the page.
+  - **Root Cause**: `Footer.tsx` contained legacy multi-section dark slate grid (`bg-slate-900`) extending the page significantly past the final licensed contractor section.
+  - **Permanent Guardrail**: Streamlined `Footer.tsx` to a clean, minimal white footer (`bg-white border-t border-slate-200`) displaying strictly black text (`text-black`): `2026 SmartRun Materials Pvt. Ltd. All right reserved.` Ending the page immediately following the "Need licensed..." electrical contractor box.

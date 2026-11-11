@@ -24,6 +24,7 @@ export const isProfileOrSubpage = (pathname: string): boolean => {
     p.startsWith('/privacy') ||
     p.startsWith('/terms') ||
     p.startsWith('/refund') ||
+    p.startsWith('/return') ||
     p.startsWith('/shipping') ||
     p.startsWith('/about') ||
     p.startsWith('/sitemap') ||

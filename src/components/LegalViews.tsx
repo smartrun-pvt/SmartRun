@@ -1,5 +1,6 @@
 import React from 'react';
 import { RefundPolicy } from './RefundPolicy';
+import { ReturnPolicyPage } from './ReturnPolicyPage';
 import { ShippingPolicy } from './ShippingPolicyPage';
 import { PrivacyPolicyPage } from './PrivacyPolicyPage';
 import { TermsOfServicePage } from './TermsOfServicePage';
@@ -26,7 +27,7 @@ import {
 } from 'lucide-react';
 import { SEOHead } from './SEOHead';
 
-export type LegalPageType = 'privacy' | 'terms' | 'refund' | 'shipping' | 'about' | 'faqs';
+export type LegalPageType = 'privacy' | 'terms' | 'refund' | 'return' | 'shipping' | 'about' | 'faqs';
 
 interface LegalViewProps {
   onBack: () => void;
@@ -59,14 +60,21 @@ export const LegalView = ({ onBack, type }: LegalViewProps) => {
         };
       case 'refund':
         return {
-          title: 'Refund & Cancellation Policy',
-          subtitle: 'Hassle-free 7-day replacements, instant direct-to-source refunds and transparent SLAs',
+          title: 'Refund Policy',
+          subtitle: 'Instant direct-to-source refunds, ₹0 cancellation deductions, and transparent Razorpay SLAs',
+          icon: RotateCcw,
+          badge: 'Customer Protection'
+        };
+      case 'return':
+        return {
+          title: 'Return Policy',
+          subtitle: '7-day hassle-free doorstep returns, 100% free reverse pickup, and instant replacements',
           icon: RotateCcw,
           badge: 'Customer Protection'
         };
       case 'shipping':
         return {
-          title: 'Shipping & Delivery Policy',
+          title: 'Shipping Policy',
           subtitle: '60-Minute rapid bike dispatch and calibrated heavy freight site delivery across Kolkata',
           icon: Truck,
           badge: 'Logistics Policy'
@@ -91,6 +99,10 @@ export const LegalView = ({ onBack, type }: LegalViewProps) => {
 
   if (type === 'refund') {
     return <RefundPolicy onBack={onBack} />;
+  }
+
+  if (type === 'return') {
+    return <ReturnPolicyPage onBack={onBack} />;
   }
 
   if (type === 'shipping') {

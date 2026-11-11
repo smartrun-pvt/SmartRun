@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
   Truck,
@@ -8,9 +9,16 @@ import {
   PhoneCall,
   CheckCircle2,
   PackageCheck,
-  AlertCircle
+  AlertCircle,
+  MoreVertical,
+  User,
+  RotateCcw,
+  Home,
+  HelpCircle,
+  FileText
 } from 'lucide-react';
 import { SEOHead } from './SEOHead';
+import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack';
 
 export interface ShippingPolicyProps {
   onBack?: () => void;
@@ -21,42 +29,195 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
   onBack,
   onContactSupport
 }) => {
+  const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close 3-dot dropdown menu when tapping outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isMenuOpen]);
+
+  // Robust back navigation to profile or preceding page
+  const handleBack = useCallback(() => {
+    if (onBack) {
+      onBack();
+    } else if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/profile');
+    }
+  }, [onBack, navigate]);
+
+  // Mobile gesture support: Swipe from left edge of screen to go back to profile
+  useEdgeSwipeBack({
+    onBack: handleBack,
+    disabled: false
+  });
+
+  // Android native hardware back button support
+  useEffect(() => {
+    const handleHardwareBack = (e: Event) => {
+      e.preventDefault();
+      handleBack();
+    };
+    window.addEventListener('smartrun:hardware-back', handleHardwareBack);
+    return () => {
+      window.removeEventListener('smartrun:hardware-back', handleHardwareBack);
+    };
+  }, [handleBack]);
+
   return (
     <div
       id="shipping-policy-container"
       className="min-h-screen bg-white text-slate-900 pb-20 font-sans"
     >
       <SEOHead
-        title="Shipping & Delivery Policy | SmartRun Kolkata"
+        title="Shipping Policy | SmartRun Kolkata"
         description="SmartRun 60-minute express courier delivery, transparent shipping rates, service areas across Kolkata, live GPS tracking, and delivery terms."
         keywords="smartrun shipping policy, express delivery kolkata, electrical supplies delivery, 60-min delivery, shipping charges"
       />
 
-      {/* Top Header: Simple Heading 'Shipping policy' and Back Button in the same line */}
-      <div
-        className="bg-white border-b border-slate-200 sticky top-0 z-20 px-4 sm:px-6 pb-3.5"
+      {/* Top Navbar: Heading 'Shipping Policy', Back Button & 3-Dot Mobile Menu */}
+      <header
+        className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 sm:px-6 pb-3.5 shadow-2xs"
         style={{ paddingTop: 'calc(0.875rem + max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px)))' }}
       >
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
-          {onBack && (
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3 relative">
+          {/* Left: Back Button & Title */}
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <button
               id="btn-shipping-policy-back"
               type="button"
-              onClick={onBack}
+              onClick={handleBack}
               className="p-1.5 -ml-1.5 rounded-full hover:bg-slate-100 active:bg-slate-200 text-slate-700 transition-colors cursor-pointer flex items-center justify-center shrink-0"
-              aria-label="Go back"
+              aria-label="Go back to profile"
             >
               <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
             </button>
-          )}
-          <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight whitespace-nowrap">
-            Shipping &amp; Delivery Policy
-          </h1>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight whitespace-nowrap truncate">
+              Shipping Policy
+            </h1>
+          </div>
+
+          {/* Right: Mobile Navigation 3-Dot Overflow Menu */}
+          <div className="relative shrink-0" ref={menuRef}>
+            <button
+              id="btn-shipping-policy-menu"
+              type="button"
+              onClick={() => setIsMenuOpen((prev) => !prev)}
+              className="p-1.5 -mr-1.5 rounded-full hover:bg-slate-100 active:bg-slate-200 text-slate-700 transition-colors cursor-pointer flex items-center justify-center"
+              aria-label="Navigation menu options"
+              aria-expanded={isMenuOpen}
+            >
+              <MoreVertical className="w-5 h-5 text-slate-700" />
+            </button>
+
+            {/* 3-Dot Dropdown Menu Modal */}
+            {isMenuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full mt-2 w-52 sm:w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-150 origin-top-right divide-y divide-slate-100"
+              >
+                <div className="py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate('/profile');
+                    }}
+                    className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                  >
+                    <User className="w-4 h-4 text-slate-500" />
+                    <span>Back to Profile</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate('/return');
+                    }}
+                    className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                  >
+                    <RotateCcw className="w-4 h-4 text-amber-600" />
+                    <span>Return Policy</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate('/refund-policy');
+                    }}
+                    className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <span>Refund Policy</span>
+                  </button>
+                </div>
+
+                <div className="py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate('/orders');
+                    }}
+                    className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                  >
+                    <Clock className="w-4 h-4 text-blue-500" />
+                    <span>Order History</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      if (onContactSupport) {
+                        onContactSupport();
+                      } else {
+                        navigate('/profile?sub=help');
+                      }
+                    }}
+                    className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                  >
+                    <HelpCircle className="w-4 h-4 text-purple-500" />
+                    <span>Help Center</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate('/');
+                    }}
+                    className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                  >
+                    <Home className="w-4 h-4 text-slate-500" />
+                    <span>Storefront</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
 
       {/* Main Content Area */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
 
         {/* Section 1: Overview & 60-Minute Express Delivery */}
         <section className="space-y-3">
@@ -255,7 +416,7 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
           </div>
         </section>
 
-      </div>
+      </main>
     </div>
   );
 };

@@ -133,11 +133,14 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     } else if (path === '/faqs' || path === '/faq') {
       defaultTitle = 'Frequently Asked Questions (FAQ) | SmartRun';
       defaultDesc = 'Find answers about 60-minute express delivery, order tracking, bulk contractor discounts, GST invoices, and return policies on SmartRun.';
-    } else if (path === '/refund-policy' || path === '/refunds') {
-      defaultTitle = 'Refund & Cancellation Policy | SmartRun Kolkata';
-      defaultDesc = 'Read SmartRun’s customer-first refund and return policy: 7-day hassle-free replacements and instant direct-to-source refunds.';
-    } else if (path === '/shipping-policy' || path === '/shipping') {
-      defaultTitle = 'Shipping & Delivery Policy | SmartRun Kolkata';
+    } else if (path === '/return-policy' || path === '/return' || path === '/returns') {
+      defaultTitle = 'Return Policy | SmartRun Kolkata';
+      defaultDesc = 'Read SmartRun’s 7-day doorstep return policy: 100% free reverse courier pickup and instant replacement or direct refund across Kolkata.';
+    } else if (path === '/refund-policy' || path === '/refunds' || path === '/refund') {
+      defaultTitle = 'Refund Policy | SmartRun Kolkata';
+      defaultDesc = 'Read SmartRun’s customer-first refund policy: instant direct-to-source UPI and bank refunds with zero deduction.';
+    } else if (path === '/shipping-policy' || path === '/shipping' || path === '/shipping-and-return-policy') {
+      defaultTitle = 'Shipping Policy | SmartRun Kolkata';
       defaultDesc = 'Learn about SmartRun’s 60-minute express courier delivery, service radius in Kolkata & Howrah, packaging standards, and tracking.';
     } else if (path === '/privacy' || path === '/privacy-policy') {
       defaultTitle = 'Privacy Policy | SmartRun';

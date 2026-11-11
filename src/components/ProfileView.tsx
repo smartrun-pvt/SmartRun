@@ -22,7 +22,8 @@ import {
   BookOpen,
   Smartphone,
   Fingerprint,
-  ShieldCheck
+  ShieldCheck,
+  Truck
 } from 'lucide-react';
 import { PasskeysSubPage } from './profile/PasskeysSubPage';
 import { SecuritySubPage } from './profile/SecuritySubPage';
@@ -54,6 +55,8 @@ import { HelpCenterSubPage } from './profile/HelpCenterSubPage';
 import { NotificationsSubPage } from './profile/NotificationsSubPage';
 import { PrivacyPolicySubPage } from './profile/PrivacyPolicySubPage';
 import { TermsOfServiceSubPage } from './profile/TermsOfServiceSubPage';
+import { ShippingPolicySubPage } from './profile/ShippingPolicySubPage';
+import { ReturnPolicySubPage } from './profile/ReturnPolicySubPage';
 import { RefundPolicySubPage } from './profile/RefundPolicySubPage';
 import { EditProfileModal } from './profile/EditProfileModal';
 import { FAQPage } from './FAQPage';
@@ -117,6 +120,9 @@ export const ProfileView = ({
     | 'privacy'
     | 'terms'
     | 'favorites'
+    | 'shipping-policy'
+    | 'shipping'
+    | 'return-policy'
     | 'refund-policy'
     | 'how-to-use'
     | 'security'
@@ -515,9 +521,35 @@ export const ProfileView = ({
   }
 
   // -------------------------------------------------------------
+  // SUB-PAGE: SHIPPING AND RETURN POLICY
+  // -------------------------------------------------------------
+  // SUB-PAGE: SHIPPING POLICY
+  // -------------------------------------------------------------
+  if (subPage === 'shipping-policy' || (subPage as string) === 'shipping') {
+    return (
+      <ShippingPolicySubPage
+        onBack={handleSubPageBack}
+        onContactSupport={() => setSubPage('help')}
+      />
+    );
+  }
+
+  // -------------------------------------------------------------
+  // SUB-PAGE: RETURN POLICY
+  // -------------------------------------------------------------
+  if (subPage === 'return-policy' || (subPage as string) === 'return') {
+    return (
+      <ReturnPolicySubPage
+        onBack={handleSubPageBack}
+        onContactSupport={() => setSubPage('help')}
+      />
+    );
+  }
+
+  // -------------------------------------------------------------
   // SUB-PAGE 11: REFUND POLICY (MANAGED BY RAZORPAY)
   // -------------------------------------------------------------
-  if (subPage === 'refund-policy') {
+  if (subPage === 'refund-policy' || (subPage as string) === 'refund') {
     return (
       <RefundPolicySubPage
         onBack={handleSubPageBack}
@@ -952,15 +984,49 @@ export const ProfileView = ({
             <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
           </button>
 
-          {/* 12. Refund Policy */}
+          {/* 12. Shipping Policy */}
+          <button
+            id="btn-profile-shipping-policy"
+            onClick={() => navigate('/shipping')}
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+          >
+            <div className="flex items-center gap-3.5 sm:gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-blue-100 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                <Truck className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-base sm:text-lg font-normal text-slate-800">Shipping Policy</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+          </button>
+
+          {/* 13. Return Policy */}
+          <button
+            id="btn-profile-return-policy"
+            onClick={() => navigate('/return')}
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+          >
+            <div className="flex items-center gap-3.5 sm:gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-base sm:text-lg font-normal text-slate-800">Return Policy</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+          </button>
+
+          {/* 14. Refund Policy */}
           <button
             id="btn-profile-refund-policy"
-            onClick={() => setSubPage('refund-policy')}
+            onClick={() => navigate('/refund-policy')}
             className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
             <div className="flex items-center gap-3.5 sm:gap-4">
               <div className="w-10 h-10 rounded-2xl bg-emerald-100 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                <RotateCcw className="w-5 h-5" />
+                <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
                 <p className="text-base sm:text-lg font-normal text-slate-800">Refund Policy</p>

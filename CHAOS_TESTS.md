@@ -27,3 +27,10 @@ curl -X POST http://localhost:3000/api/auth/logout \
   -H "Content-Type: application/json"
 # Expectation: 200 OK with {"success":true,"message":"Logged out successfully"} and Set-Cookie clearing smartrun_session
 ```
+
+## 4. Test Cloud Run / Container Readiness Probe
+```bash
+curl -I http://localhost:3000/healthz
+# Expectation: HTTP/1.1 200 OK with {"status":"ok","app":"SmartRun Kolkata Express"}
+```
+

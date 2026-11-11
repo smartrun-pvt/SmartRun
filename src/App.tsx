@@ -1785,6 +1785,9 @@ export default function App() {
         !location.pathname.startsWith('/terms') &&
         !location.pathname.startsWith('/faq') &&
         !location.pathname.startsWith('/faqs') &&
+        !location.pathname.startsWith('/shipping') &&
+        !location.pathname.startsWith('/return') &&
+        !location.pathname.startsWith('/refund') &&
         activeTab !== 'cart' &&
         !selectedProductQuickView && (
         <Header
@@ -2116,12 +2119,142 @@ export default function App() {
               />
             }
           />
-          <Route path="/refund-policy" element={<LegalView onBack={() => navigate('/')} type="refund" />} />
-          <Route path="/refunds" element={<LegalView onBack={() => navigate('/')} type="refund" />} />
-          <Route path="/return-policy" element={<LegalView onBack={() => navigate('/')} type="refund" />} />
-          <Route path="/returns" element={<LegalView onBack={() => navigate('/')} type="refund" />} />
-          <Route path="/shipping-policy" element={<LegalView onBack={() => navigate('/')} type="shipping" />} />
-          <Route path="/shipping" element={<LegalView onBack={() => navigate('/')} type="shipping" />} />
+          {/* SHIPPING, RETURN & REFUND ROUTES (Direct URL & Profile Navigation) */}
+          <Route
+            path="/shipping"
+            element={
+              <LegalView
+                onBack={() => {
+                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+                    navigate(-1);
+                  } else {
+                    navigate(isAuthenticated ? '/profile' : '/');
+                  }
+                }}
+                type="shipping"
+              />
+            }
+          />
+          <Route
+            path="/shipping-policy"
+            element={
+              <LegalView
+                onBack={() => {
+                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+                    navigate(-1);
+                  } else {
+                    navigate(isAuthenticated ? '/profile' : '/');
+                  }
+                }}
+                type="shipping"
+              />
+            }
+          />
+          <Route
+            path="/shipping-and-return-policy"
+            element={
+              <LegalView
+                onBack={() => {
+                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+                    navigate(-1);
+                  } else {
+                    navigate(isAuthenticated ? '/profile' : '/');
+                  }
+                }}
+                type="shipping"
+              />
+            }
+          />
+          <Route
+            path="/return"
+            element={
+              <LegalView
+                onBack={() => {
+                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+                    navigate(-1);
+                  } else {
+                    navigate(isAuthenticated ? '/profile' : '/');
+                  }
+                }}
+                type="return"
+              />
+            }
+          />
+          <Route
+            path="/return-policy"
+            element={
+              <LegalView
+                onBack={() => {
+                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+                    navigate(-1);
+                  } else {
+                    navigate(isAuthenticated ? '/profile' : '/');
+                  }
+                }}
+                type="return"
+              />
+            }
+          />
+          <Route
+            path="/returns"
+            element={
+              <LegalView
+                onBack={() => {
+                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+                    navigate(-1);
+                  } else {
+                    navigate(isAuthenticated ? '/profile' : '/');
+                  }
+                }}
+                type="return"
+              />
+            }
+          />
+          <Route
+            path="/refund"
+            element={
+              <LegalView
+                onBack={() => {
+                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+                    navigate(-1);
+                  } else {
+                    navigate(isAuthenticated ? '/profile' : '/');
+                  }
+                }}
+                type="refund"
+              />
+            }
+          />
+          <Route
+            path="/refund-policy"
+            element={
+              <LegalView
+                onBack={() => {
+                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+                    navigate(-1);
+                  } else {
+                    navigate(isAuthenticated ? '/profile' : '/');
+                  }
+                }}
+                type="refund"
+              />
+            }
+          />
+          <Route
+            path="/refunds"
+            element={
+              <LegalView
+                onBack={() => {
+                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+                    navigate(-1);
+                  } else {
+                    navigate(isAuthenticated ? '/profile' : '/');
+                  }
+                }}
+                type="refund"
+              />
+            }
+          />
           <Route path="/privacy" element={<LegalView onBack={() => navigate('/')} type="privacy" />} />
           <Route path="/privacy-policy" element={<LegalView onBack={() => navigate('/')} type="privacy" />} />
           <Route path="/terms" element={<LegalView onBack={() => navigate('/')} type="terms" />} />
