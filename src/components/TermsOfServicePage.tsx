@@ -358,9 +358,11 @@ export const TermsOfServicePage: React.FC<TermsOfServicePageProps> = ({ onBack }
           </p>
           <ul className="list-disc pl-5 space-y-2 text-sm sm:text-base text-[#4A4235] leading-relaxed">
             <li>Submit fake delivery addresses, false phone numbers, or fraudulent payment claims.</li>
-            <li>Use automated software, bots, or scripts to place spam orders or manipulate inventory.</li>
+            <li>Use automated software, bots, crawlers, or scripts to place spam orders, create mass accounts, or manipulate inventory.</li>
+            <li>Execute automated credential stuffing, brute-force password guessing, dictionary attacks, or probe authentication APIs.</li>
+            <li>Attempt to bypass cryptographic OTP verification, tamper with signed session tokens, or impersonate other customer accounts.</li>
             <li>Harass, abuse, or endanger delivery partners, warehouse staff, or partner electricians.</li>
-            <li>Attempt to probe, scan, or breach system security, firewalls, or payment gateway APIs.</li>
+            <li>Attempt to probe, scan, or breach system security, firewalls, or payment gateway APIs. Violations are logged and prosecuted under Sections 43 &amp; 66 of the Information Technology Act, 2000.</li>
           </ul>
         </section>
 

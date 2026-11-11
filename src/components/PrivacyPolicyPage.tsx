@@ -241,10 +241,16 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({ onBack }) 
               <strong>Modern Transport Encryption:</strong> All communications between the SmartRun mobile app and our backend servers are secured using TLS 1.3 / HTTPS 256-bit encryption.
             </li>
             <li>
-              <strong>Cloud Row-Level Security (RLS):</strong> Our cloud database enforces strict user-level isolation. You can only query and view your own orders, addresses, and account details.
+              <strong>Login Threat Defense &amp; Anti-Brute-Force Lockout:</strong> All authentication routes are fortified with intelligent rate limiting. Accounts are automatically locked for 15 minutes following 5 consecutive failed attempts to stop dictionary attacks, credential stuffing, and bot intrusions. Constant-time responses and artificial timing jitter neutralize side-channel timing analysis.
             </li>
             <li>
-              <strong>Cryptographic OTP Verification:</strong> Mobile login OTPs use secure stateless HMAC-SHA256 signatures, preventing credential spoofing and unauthorized account hijacking.
+              <strong>Strict Cryptographic OTP Verification:</strong> Login OTPs are authenticated through server-side HMAC-SHA256 signatures or Firebase Phone Auth. Static test bypasses are completely forbidden in production, guaranteeing that only the legitimate owner of a phone number can access their account.
+            </li>
+            <li>
+              <strong>PII Data Masking &amp; Anti-Scraping Protection:</strong> Public account resolution endpoints mask phone numbers (e.g. <code>+91 ******3210</code>) and strictly exclude financial balances and personal addresses, ensuring customer data cannot be harvested through automated dictionary probes.
+            </li>
+            <li>
+              <strong>Cloud Row-Level Security (RLS):</strong> Our cloud database enforces strict user-level isolation. You can only query and view your own orders, addresses, and account details.
             </li>
             <li>
               <strong>Role-Based Staff Access:</strong> Warehouse and customer support personnel only have access to the specific order information needed to pack and deliver packages.

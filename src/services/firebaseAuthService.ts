@@ -530,13 +530,10 @@ export async function verifyFirebaseOtpAndBridgeToSupabase(
       };
     }
   } else {
-    // If testing code is used without active session
-    if (cleanCode !== '123456' && cleanCode !== '582914') {
-      return {
-        success: false,
-        error: 'Verification session expired. Please request a new OTP code.'
-      };
-    }
+    return {
+      success: false,
+      error: 'Verification session expired. Please request a new OTP code.'
+    };
   }
 
   // 2. Bridge verified Firebase phone identity into Supabase
@@ -640,10 +637,6 @@ export async function verifyPhoneOtpOnly(
     } catch (err: any) {
       return { success: false, error: err?.message || 'Failed to verify OTP code.' };
     }
-  }
-
-  if (cleanCode === '123456' || cleanCode === '582914') {
-    return { success: true, formattedPhone };
   }
 
   return {

@@ -1847,6 +1847,74 @@ const phoneResolveLimiter = rateLimit({
   }
 });
 
+// loginRateLimiter: 15 login attempts per 15 minutes per IP to defeat automated brute-force attacks
+const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false, forwardedHeader: false, default: false },
+  keyGenerator: getClientIp,
+  message: {
+    success: false,
+    error: "Too many login attempts from this network. Please wait 15 minutes before trying again or sign in with OTP."
+  }
+});
+
+// registerRateLimiter: 6 user registrations per 30 minutes per IP to prevent spam bot account creation
+const registerRateLimiter = rateLimit({
+  windowMs: 30 * 60 * 1000,
+  max: 6,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false, forwardedHeader: false, default: false },
+  keyGenerator: getClientIp,
+  message: {
+    success: false,
+    error: "Registration rate limit reached. Please wait a few minutes before creating a new account."
+  }
+});
+
+// accountLookupLimiter: 25 identity lookups per 10 minutes per IP to block PII scraping & dictionary attacks
+const accountLookupLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 25,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false, forwardedHeader: false, default: false },
+  keyGenerator: getClientIp,
+  message: {
+    success: false,
+    error: "Lookup limit exceeded. Please wait a few minutes before trying again."
+  }
+});
+
+// In-memory brute force lockout tracker (5 failed attempts locks target account for 15 minutes)
+const failedLoginTracker = new Map<string, { count: number; lockedUntil: number }>();
+
+// Disposable email domains list to prevent fake throwaway registrations
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  "mailinator.com",
+  "tempmail.com",
+  "10minutemail.com",
+  "guerrillamail.com",
+  "yopmail.com",
+  "sharklasers.com",
+  "trashmail.com",
+  "throwawaymail.com",
+  "dispostable.com",
+  "fakeinbox.com",
+  "getairmail.com",
+  "maildrop.cc"
+]);
+
+// Helper to mask phone numbers on unauthenticated responses
+function maskPhoneNumber(phone: string): string {
+  const digits = String(phone || "").replace(/\D/g, "").slice(-10);
+  if (digits.length < 4) return "******";
+  return `+91 ******${digits.slice(-4)}`;
+}
+
 // In-memory per-phone cooldown tracker to prevent SMS bombing on a single phone number
 const phoneLastSmsSentTime = new Map<string, number>();
 
@@ -8050,8 +8118,9 @@ Knowledge Base & Service Details:
       ].filter(Boolean);
       let isCodeValid = false;
 
-      // 1. Check test OTP codes (123456 or standard testing bypass)
-      if (cleanOtp === "123456" || cleanOtp === "582914") {
+      // 1. Check test OTP codes (strictly restricted: only allowed in non-production on dedicated virtual sandbox number 9999900000)
+      const isNonProd = process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "prod";
+      if (isNonProd && (cleanOtp === "123456" || cleanOtp === "582914") && cleanPhone === "9999900000") {
         isCodeValid = true;
       }
 
@@ -8606,7 +8675,7 @@ Knowledge Base & Service Details:
    * setting master_user_id metadata so the phone user automatically signs into their existing account,
    * keeping orders, profile, and addresses unified while creating a real auto-refreshing Supabase session.
    */
-  app.post("/api/auth/phone-login-session", async (req, res) => {
+  app.post("/api/auth/phone-login-session", phoneResolveLimiter, async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
       const { phone, fullName, preResolvedUserId } = req.body || {};
@@ -8687,7 +8756,6 @@ Knowledge Base & Service Details:
       return res.json({
         success: true,
         email: canonicalEmail,
-        password: deterministicPassword,
         effectiveUserId,
         resolvedName,
         resolvedEmail,
@@ -8707,7 +8775,7 @@ Knowledge Base & Service Details:
    * Matches Google email against user_profiles and historic orders to retrieve existing user identity,
    * phone number, saved addresses, and master account ID so the user signs in to the SAME account.
    */
-  app.post("/api/auth/resolve-google-user", async (req, res) => {
+  app.post("/api/auth/resolve-google-user", accountLookupLimiter, async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
       const { email, name, avatarUrl } = req.body || {};
@@ -8837,10 +8905,29 @@ Knowledge Base & Service Details:
         if (resolvedProfile.user_id) serverProfileStore.set(resolvedProfile.user_id, toCache);
       }
 
+      const sessionCheck = extractServerSession(req);
+      const isAuthed = sessionCheck.valid;
+
+      // Mask profile if unauthenticated to prevent public PII harvesting and dictionary enumeration
+      const safeProfile = resolvedProfile
+        ? {
+            user_id: resolvedProfile.user_id,
+            full_name: resolvedProfile.full_name,
+            email: cleanEmail,
+            phone: isAuthed
+              ? resolvedProfile.phone
+              : resolvedProfile.phone
+                ? maskPhoneNumber(resolvedProfile.phone)
+                : null,
+            avatar_url: resolvedProfile.avatar_url,
+            dob: isAuthed ? resolvedProfile.dob : null
+          }
+        : null;
+
       return res.json({
         success: true,
         exists: Boolean(resolvedProfile),
-        profile: resolvedProfile || null
+        profile: safeProfile
       });
     } catch (err: any) {
       return res.status(500).json({
@@ -8857,7 +8944,7 @@ Knowledge Base & Service Details:
    * Authenticates user entirely on the server using Supabase and account resolution,
    * returning authenticated session, user details, and profile.
    */
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", loginRateLimiter, async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
       const { identifier, password } = req.body || {};
@@ -8866,6 +8953,17 @@ Knowledge Base & Service Details:
 
       if (!cleanIdent || !cleanPw) {
         return res.status(400).json({ success: false, error: "Identifier and password are required." });
+      }
+
+      // Check account lockout status to block brute-force password guessing
+      const now = Date.now();
+      const lockoutEntry = failedLoginTracker.get(cleanIdent.toLowerCase());
+      if (lockoutEntry && lockoutEntry.lockedUntil > now) {
+        const remainingMinutes = Math.ceil((lockoutEntry.lockedUntil - now) / 60000);
+        return res.status(429).json({
+          success: false,
+          error: `Account temporarily locked due to repeated failed login attempts. Please wait ${remainingMinutes} minute(s) before trying again or sign in with OTP.`
+        });
       }
 
       const sb = getServerSupabase();
@@ -8920,11 +9018,28 @@ Knowledge Base & Service Details:
       }
 
       if (error || !data?.user) {
+        // Track failed attempt
+        const isExpired = Boolean(lockoutEntry && lockoutEntry.lockedUntil > 0 && lockoutEntry.lockedUntil <= now);
+        const currentCount = isExpired ? 0 : (lockoutEntry?.count || 0);
+        const newCount = currentCount + 1;
+        const lockedUntil = newCount >= 5 ? now + 15 * 60 * 1000 : 0;
+        failedLoginTracker.set(cleanIdent.toLowerCase(), { count: newCount, lockedUntil });
+
+        // Add 300-500ms jitter to defeat side-channel timing analysis
+        await new Promise((r) => setTimeout(r, 300 + Math.random() * 200));
+
+        const warningMsg = newCount >= 5
+          ? "Account temporarily locked due to 5 consecutive failed attempts. Please wait 15 minutes or sign in with OTP."
+          : `Incorrect password or account not found. ${5 - newCount} attempt(s) remaining before temporary lockout.`;
+
         return res.status(401).json({
           success: false,
-          error: "Incorrect password or account not found. Please check your credentials or sign in with OTP."
+          error: warningMsg
         });
       }
+
+      // Successful login -> Clear failed attempts for this identifier
+      failedLoginTracker.delete(cleanIdent.toLowerCase());
 
       const resolvedName = userFullName || data.user.user_metadata?.full_name || data.user.user_metadata?.name || "Customer";
       const resolvedPhone = userPhone || data.user.phone || data.user.user_metadata?.phone || "";
@@ -8982,7 +9097,7 @@ Knowledge Base & Service Details:
    * Body: { email, phone, fullName, password }
    * Registers user on the server using admin client, configures profile, and provisions session.
    */
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", registerRateLimiter, async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
       const { email, phone, fullName, password } = req.body || {};
@@ -8997,6 +9112,16 @@ Knowledge Base & Service Details:
       if (!cleanEmail || !cleanEmail.includes("@")) {
         return res.status(400).json({ success: false, error: "Valid email address is required." });
       }
+
+      // Block disposable / burner email domains
+      const emailDomain = cleanEmail.split("@")[1];
+      if (emailDomain && DISPOSABLE_EMAIL_DOMAINS.has(emailDomain)) {
+        return res.status(400).json({
+          success: false,
+          error: "Temporary or disposable email domains are not allowed. Please register with a permanent email."
+        });
+      }
+
       if (!cleanPw || cleanPw.length < 6) {
         return res.status(400).json({ success: false, error: "Password must be at least 6 characters." });
       }
