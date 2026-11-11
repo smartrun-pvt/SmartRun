@@ -101,9 +101,8 @@ export default function App() {
 
     if (isNative) {
       SplashScreen.hide().catch(() => {});
-      StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
+      StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
       StatusBar.setStyle({ style: Style.Light }).catch(() => {});
-      StatusBar.setBackgroundColor({ color: '#ffffff' }).catch(() => {});
 
       // Respect measured Android navigation bar insets from MainActivity.
       // If unset, default gracefully to CSS safe-area-inset-bottom
@@ -112,11 +111,6 @@ export default function App() {
         document.documentElement.style.setProperty('--safe-area-bottom', 'env(safe-area-inset-bottom, 0px)');
       }
     }
-
-    // Ensure --safe-area-top is 0px because the APK starts directly below WiFi, network & battery status bar
-    try {
-      document.documentElement.style.setProperty('--safe-area-top', '0px');
-    } catch {}
   }, []);
 
   // Silent Background Version Check & Cache Invalidation (no popups, no blinking reloads)

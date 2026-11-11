@@ -18,6 +18,9 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Official Android 15 Edge-to-Edge initialization for full backward compatibility across all Android versions
+        androidx.activity.EdgeToEdge.enable(this);
+
         super.onCreate(savedInstanceState);
 
         // Hide any native Android ActionBar or Toolbar so web app navbar is unobstructed
@@ -28,11 +31,7 @@ public class MainActivity extends BridgeActivity {
             getActionBar().hide();
         }
 
-        // Keep system status bar always visible with solid white background and clear dark icons (WiFi, Network, Battery)
-        getWindow().setStatusBarColor(android.graphics.Color.WHITE);
-        // Keep system navigation bar always clean white with dark buttons (Back, Home, Recents)
-        getWindow().setNavigationBarColor(android.graphics.Color.WHITE);
-
+        // Configure system bars to show clear dark icons (WiFi, Network, Battery) and dark navigation buttons (Back, Home, Recents)
         androidx.core.view.WindowInsetsControllerCompat insetsController =
             androidx.core.view.WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         if (insetsController != null) {
@@ -40,21 +39,28 @@ public class MainActivity extends BridgeActivity {
             insetsController.setAppearanceLightNavigationBars(true);
         }
 
-        // Measure system navigation bar insets (3-button navigation, gesture bar, etc.)
-        // and set --safe-area-bottom in WebView so floating bottom nav sits cleanly above phone navigation buttons like Instagram
+        // Measure system bars and navigation insets dynamically (status bar notch, 3-button navigation, gesture bar)
+        // and inject them as CSS variables into the WebView so Header and BottomNav adjust with zero overlap
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(getWindow().getDecorView(), (v, windowInsets) -> {
-            androidx.core.graphics.Insets insets = windowInsets.getInsets(
+            androidx.core.graphics.Insets navInsets = windowInsets.getInsets(
                 androidx.core.view.WindowInsetsCompat.Type.navigationBars()
             );
+            androidx.core.graphics.Insets statusInsets = windowInsets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.statusBars()
+            );
+
             float density = getResources().getDisplayMetrics().density;
-            int bottomDp = density > 0 ? Math.round(insets.bottom / density) : insets.bottom;
+            int topDp = density > 0 ? Math.round(statusInsets.top / density) : statusInsets.top;
+            int bottomDp = density > 0 ? Math.round(navInsets.bottom / density) : navInsets.bottom;
+
+            final int finalTopDp = Math.max(topDp, 0);
             final int finalBottomDp = Math.max(bottomDp, 0);
 
             if (getBridge() != null && getBridge().getWebView() != null) {
                 getBridge().getWebView().post(() -> {
                     getBridge().getWebView().evaluateJavascript(
-                        "document.documentElement.style.setProperty('--safe-area-bottom', '" + finalBottomDp + "px');" +
-                        "document.documentElement.style.setProperty('--safe-area-top', '0px');",
+                        "document.documentElement.style.setProperty('--safe-area-top', '" + finalTopDp + "px');" +
+                        "document.documentElement.style.setProperty('--safe-area-bottom', '" + finalBottomDp + "px');",
                         null
                     );
                 });
