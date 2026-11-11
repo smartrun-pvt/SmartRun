@@ -48,6 +48,1717 @@ var import_jspdf = require("jspdf");
 var import_server = require("@simplewebauthn/server");
 var import_app = require("firebase/app");
 var import_firestore = require("firebase/firestore");
+
+// src/data/products.ts
+var INITIAL_PRODUCTS = [
+  // =========================================================================
+  // ELECTRICAL - WIRES & CABLES
+  // =========================================================================
+  {
+    "id": "p1",
+    "name": "RR Kabel Wire FR LS 0.75 Sqmm, 200 MTR",
+    "brand": "RR Kabel",
+    "category": "electrical",
+    "subCategory": "Wiring",
+    "price": 3065,
+    "originalPrice": 3200,
+    "discountPercentage": 4,
+    "unit": "1 Coil",
+    "rating": 4.8,
+    "reviewsCount": 124,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1558223616-e5d79faebdd6?q=80&w=400&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 50,
+    "tags": ["wire", "rr kabel", "electrical", "wiring"],
+    "isEmergency": false,
+    "specs": {
+      "Size": "0.75 Sqmm",
+      "Length": "200 MTR",
+      "Insulation": "Flame Retardant Low Smoke (FR LS)"
+    },
+    "description": "High quality FR LS copper wire from RR Kabel for safe residential concealed conduit wiring."
+  },
+  {
+    "id": "p2",
+    "name": "RR Kabel Wire FR LS 1.0 Sqmm, 200 MTR",
+    "brand": "RR Kabel",
+    "category": "electrical",
+    "subCategory": "Wiring",
+    "price": 4005,
+    "originalPrice": 4200,
+    "discountPercentage": 5,
+    "unit": "1 Coil",
+    "rating": 4.9,
+    "reviewsCount": 98,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1558223616-e5d79faebdd6?q=80&w=400&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 50,
+    "tags": ["wire", "rr kabel", "electrical", "wiring"],
+    "isEmergency": false,
+    "specs": {
+      "Size": "1.0 Sqmm",
+      "Length": "200 MTR"
+    },
+    "description": "High quality FR LS wire from RR Kabel for light and fan circuits."
+  },
+  {
+    "id": "p3",
+    "name": "RR Kabel Wire FR LS 1.5 Sqmm, 200 MTR",
+    "brand": "RR Kabel",
+    "category": "electrical",
+    "subCategory": "Wiring",
+    "price": 5787,
+    "originalPrice": 6e3,
+    "discountPercentage": 4,
+    "unit": "1 Coil",
+    "rating": 4.7,
+    "reviewsCount": 156,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1558223616-e5d79faebdd6?q=80&w=400&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 40,
+    "tags": ["wire", "rr kabel", "electrical", "wiring"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Size": "1.5 Sqmm",
+      "Length": "200 MTR"
+    },
+    "description": "High quality FR LS wire from RR Kabel for socket and utility load points."
+  },
+  {
+    "id": "p4",
+    "name": "Polycab Optima Plus FR Wire 2.5 Sqmm, 200 MTR",
+    "brand": "Polycab",
+    "category": "electrical",
+    "subCategory": "Wiring",
+    "price": 9431,
+    "originalPrice": 9800,
+    "discountPercentage": 4,
+    "unit": "1 Coil",
+    "rating": 4.8,
+    "reviewsCount": 210,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1558223616-e5d79faebdd6?q=80&w=400&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 30,
+    "tags": ["wire", "polycab", "electrical", "wiring"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Size": "2.5 Sqmm",
+      "Length": "200 MTR",
+      "Conductor": "100% Electrolytic Copper"
+    },
+    "description": "Heavy load power wire for air conditioner, geyser and microwave circuits."
+  },
+  {
+    "id": "p5",
+    "name": "Finolex 4.0 Sqmm Single Core Industrial Cable (90 Mtr)",
+    "brand": "Finolex",
+    "category": "electrical",
+    "subCategory": "Wiring",
+    "price": 6850,
+    "originalPrice": 7400,
+    "discountPercentage": 7,
+    "unit": "1 Coil",
+    "rating": 4.9,
+    "reviewsCount": 85,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1558223616-e5d79faebdd6?q=80&w=400&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 25,
+    "tags": ["wire", "finolex", "electrical", "wiring"],
+    "isEmergency": false,
+    "specs": {
+      "Size": "4.0 Sqmm",
+      "Length": "90 MTR"
+    },
+    "description": "Premium industrial grade copper conductor wire for high amp main panels."
+  },
+  // =========================================================================
+  // ELECTRICAL - CEILING FANS & EXHAUST
+  // =========================================================================
+  {
+    "id": "p-fan-1",
+    "name": "Crompton High Breeze 1200mm Ceiling Fan (Opal White)",
+    "brand": "Crompton",
+    "category": "electrical",
+    "subCategory": "Fans",
+    "price": 2450,
+    "originalPrice": 2990,
+    "discountPercentage": 18,
+    "unit": "1 Piece",
+    "rating": 4.8,
+    "reviewsCount": 340,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 40,
+    "tags": ["fan", "crompton", "ceiling fan", "electrical"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Sweep Size": "1200 mm (48 Inch)",
+      "Air Delivery": "230 CMM",
+      "Speed": "380 RPM",
+      "Motor": "100% Copper Winding"
+    },
+    "description": "High air thrust aerodynamic blades with double ball bearing for whisper-quiet performance."
+  },
+  {
+    "id": "p-fan-2",
+    "name": "Atomberg Renesa 1200mm BLDC Motor Smart Ceiling Fan with Remote",
+    "brand": "Atomberg",
+    "category": "electrical",
+    "subCategory": "Fans",
+    "price": 3699,
+    "originalPrice": 4790,
+    "discountPercentage": 22,
+    "unit": "1 Piece",
+    "rating": 4.9,
+    "reviewsCount": 420,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 35,
+    "tags": ["fan", "atomberg", "bldc", "ceiling fan"],
+    "isEmergency": false,
+    "specs": {
+      "Power": "28 Watts BLDC (65% Power Saving)",
+      "Sweep": "1200 mm",
+      "Speed Control": "Smart RF Remote with Timer & Boost Mode"
+    },
+    "description": "Energy-efficient 5-star rated BLDC motor fan running 3x longer on home inverters."
+  },
+  {
+    "id": "p-fan-3",
+    "name": "Havells Ventilair DB 150mm High Speed Exhaust Fan (White)",
+    "brand": "Havells",
+    "category": "electrical",
+    "subCategory": "Fans",
+    "price": 1250,
+    "originalPrice": 1550,
+    "discountPercentage": 19,
+    "unit": "1 Piece",
+    "rating": 4.7,
+    "reviewsCount": 115,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1585771724684-38269d6639fd?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 50,
+    "tags": ["fan", "havells", "exhaust fan", "ventilation"],
+    "isEmergency": false,
+    "specs": {
+      "Sweep": "150 mm (6 Inch)",
+      "Body": "Rust-proof ABS Plastic with Bird Guard Shutter",
+      "RPM": "2000 RPM"
+    },
+    "description": "Quiet and powerful ventilation exhaust fan for modern bathrooms and kitchens."
+  },
+  // =========================================================================
+  // ELECTRICAL - SWITCHES & SOCKETS
+  // =========================================================================
+  {
+    "id": "p-sw-1",
+    "name": "Schneider Vivace 6A 1-Way Modular Switch (White)",
+    "brand": "Schneider",
+    "category": "electrical",
+    "subCategory": "Switches",
+    "price": 45,
+    "originalPrice": 62,
+    "discountPercentage": 27,
+    "unit": "1 Piece",
+    "rating": 4.9,
+    "reviewsCount": 380,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=400&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 500,
+    "tags": ["switch", "schneider", "modular", "switches"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Rating": "6A 240V AC",
+      "Material": "Fire Retardant Polycarbonate",
+      "Contact": "Silver Cadmium Oxide Contacts"
+    },
+    "description": "Sleek and slim modular switch tested for over 100,000 operational clicks."
+  },
+  {
+    "id": "p-sw-2",
+    "name": "Anchor Roma 6/16A Universal Heavy Duty Combined Socket with Shutter",
+    "brand": "Anchor",
+    "category": "electrical",
+    "subCategory": "Switches",
+    "price": 145,
+    "originalPrice": 185,
+    "discountPercentage": 21,
+    "unit": "1 Piece",
+    "rating": 4.8,
+    "reviewsCount": 290,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=400&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 300,
+    "tags": ["socket", "anchor", "roma", "switches"],
+    "isEmergency": false,
+    "specs": {
+      "Rating": "16 Ampere",
+      "Safety": "Child Protection Safety Shutters"
+    },
+    "description": "Heavy-duty power socket for refrigerators, geysers and heavy appliances."
+  },
+  {
+    "id": "p-sw-3",
+    "name": "Legrand Mylinc 100W 4-Step Rotary Fan Step Regulator",
+    "brand": "Legrand",
+    "category": "electrical",
+    "subCategory": "Switches",
+    "price": 285,
+    "originalPrice": 360,
+    "discountPercentage": 20,
+    "unit": "1 Piece",
+    "rating": 4.8,
+    "reviewsCount": 160,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=400&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 120,
+    "tags": ["regulator", "legrand", "fan regulator", "switches"],
+    "isEmergency": false,
+    "specs": {
+      "Steps": "4 Step 360 Degree Rotation",
+      "Capacity": "100 Watts (Capacitive Hum-free)"
+    },
+    "description": "Hum-free capacitive electronic step regulator for ceiling fans."
+  },
+  // =========================================================================
+  // ELECTRICAL - MCB & DISTRIBUTION BOARDS
+  // =========================================================================
+  {
+    "id": "p-mcb-1",
+    "name": "Havells Euro-II 16A Single Pole (SP) C-Curve MCB (10kA)",
+    "brand": "Havells",
+    "category": "electrical",
+    "subCategory": "MCBs",
+    "price": 195,
+    "originalPrice": 260,
+    "discountPercentage": 25,
+    "unit": "1 Piece",
+    "rating": 4.9,
+    "reviewsCount": 210,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=400&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 150,
+    "tags": ["mcb", "havells", "switchgear", "breaker"],
+    "isEmergency": false,
+    "specs": {
+      "Current Rating": "16A",
+      "Breaking Capacity": "10 kA",
+      "Standard": "IS/IEC 60898-1"
+    },
+    "description": "High breaking capacity miniature circuit breaker protecting wires from short-circuits."
+  },
+  {
+    "id": "p-mcb-2",
+    "name": "Schneider Electric Easy9 8-Way SPN Distribution Board (Double Door)",
+    "brand": "Schneider",
+    "category": "electrical",
+    "subCategory": "MCBs",
+    "price": 1250,
+    "originalPrice": 1600,
+    "discountPercentage": 21,
+    "unit": "1 Box",
+    "rating": 4.8,
+    "reviewsCount": 85,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=400&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 45,
+    "tags": ["db box", "schneider", "distribution board", "mcb"],
+    "isEmergency": false,
+    "specs": {
+      "Ways": "8 Way Single Pole & Neutral",
+      "Door": "IP43 Metallic Double Door"
+    },
+    "description": "Flush mounting industrial grade sheet steel enclosure for home power distribution."
+  },
+  // =========================================================================
+  // ELECTRICAL - LIGHTING
+  // =========================================================================
+  {
+    "id": "p-light-1",
+    "name": "Philips Stellar Bright 9W B22 Cool Day LED Bulbs (Pack of 4)",
+    "brand": "Philips",
+    "category": "electrical",
+    "subCategory": "Lights",
+    "price": 380,
+    "originalPrice": 520,
+    "discountPercentage": 26,
+    "unit": "Pack of 4",
+    "rating": 4.9,
+    "reviewsCount": 540,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1507668077129-56e32842fceb?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 180,
+    "tags": ["led", "bulb", "philips", "lighting"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Wattage": "9W (900 Lumens)",
+      "Cap": "B22 Pin Base",
+      "Color Temp": "6500K Cool Day Light",
+      "Surge Protection": "Up to 4kV"
+    },
+    "description": "Energy-saving eye-safe LED bulbs with wide beam distribution."
+  },
+  {
+    "id": "p-light-2",
+    "name": "Havells Adore 12W Square Slim Recessed LED Panel Light",
+    "brand": "Havells",
+    "category": "electrical",
+    "subCategory": "Lights",
+    "price": 340,
+    "originalPrice": 460,
+    "discountPercentage": 26,
+    "unit": "1 Piece",
+    "rating": 4.8,
+    "reviewsCount": 190,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1507668077129-56e32842fceb?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 90,
+    "tags": ["panel light", "havells", "recessed", "lighting"],
+    "isEmergency": false,
+    "specs": {
+      "Wattage": "12W",
+      "Mounting": "False Ceiling Recessed Square",
+      "Driver": "Isolated Surge-Proof Internal Driver"
+    },
+    "description": "Ultra-slim anti-glare diffuser panel for living rooms and false ceilings."
+  },
+  {
+    "id": "p-light-3",
+    "name": "Wipro 50W IP66 Waterproof Heavy Outdoor LED Floodlight",
+    "brand": "Wipro",
+    "category": "electrical",
+    "subCategory": "Lights",
+    "price": 1299,
+    "originalPrice": 1800,
+    "discountPercentage": 27,
+    "unit": "1 Piece",
+    "rating": 4.7,
+    "reviewsCount": 78,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1507668077129-56e32842fceb?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 35,
+    "tags": ["flood light", "wipro", "outdoor", "lighting"],
+    "isEmergency": false,
+    "specs": {
+      "Wattage": "50W",
+      "Ingress Protection": "IP66 Heavy Rainproof",
+      "Body": "Die-cast Aluminum Heat Sink"
+    },
+    "description": "High powered exterior floodlight for building facades, gardens and boundary walls."
+  },
+  // =========================================================================
+  // ELECTRICAL - CONDUITS & GI BOXES
+  // =========================================================================
+  {
+    "id": "p-dalda-pipe-3-4",
+    "name": '3/4" Dalda PVC Conduit Pipe (10 Ft Length, Heavy Duty)',
+    "brand": "Dalda",
+    "category": "electrical",
+    "subCategory": "Pipes",
+    "price": 65,
+    "originalPrice": 80,
+    "discountPercentage": 19,
+    "unit": "1 Piece (10ft)",
+    "rating": 4.9,
+    "reviewsCount": 118,
+    "deliveryMinutes": 30,
+    "image": "https://i.imgur.com/G9LIx1R.jpeg",
+    "images": ["https://i.imgur.com/G9LIx1R.jpeg"],
+    "image_urls": ["https://i.imgur.com/G9LIx1R.jpeg"],
+    "inStock": true,
+    "stockCount": 350,
+    "tags": ["pipe", "dalda", "pvc", "conduit", "3/4 pipe", "dalda pipe", "electrical"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Size": "3/4 Inch (20mm)",
+      "Brand": "Dalda",
+      "Length": "10 Feet (3 Metres)",
+      "Material": "Heavy Virgin Rigid PVC",
+      "Standard": "IS 9537 Part 3",
+      "Available Colors": "Ivory/White, Black, Grey, Blue, Red, Yellow",
+      "Application": "Concealed RCC Slab Casting & Wall Chasing Wiring"
+    },
+    "description": 'High-durability 3/4" Dalda rigid PVC conduit pipe with high impact strength, shock protection, and flame-retardant formulation for residential and commercial building electrical conduit routing.'
+  },
+  {
+    "id": "p10",
+    "name": "25mm Heavy Duty PVC Conduit Straight Pipe (10 Ft Length, AKG)",
+    "brand": "AKG",
+    "category": "electrical",
+    "subCategory": "PVC Items",
+    "price": 70,
+    "originalPrice": 85,
+    "discountPercentage": 17,
+    "unit": "1 Piece (10ft)",
+    "rating": 4.7,
+    "reviewsCount": 88,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1584992236310-6edddc08acff?q=80&w=400&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 200,
+    "tags": ["pipe", "pvc", "akg", "conduit"],
+    "isEmergency": false,
+    "specs": {
+      "Diameter": "25mm (1 Inch)",
+      "Grade": "Medium Duty (MMS)",
+      "Length": "10 Feet (3 Mtr)"
+    },
+    "description": "Shock-proof fire-retardant rigid PVC conduit pipe for concrete wall chasing."
+  },
+  {
+    "id": "p-gi-1",
+    "name": "8-Module Galvanized Iron (GI) Flush Modular Switch Box (18 Gauge)",
+    "brand": "Generic",
+    "category": "electrical",
+    "subCategory": "PVC Items",
+    "price": 85,
+    "originalPrice": 110,
+    "discountPercentage": 22,
+    "unit": "1 Box",
+    "rating": 4.8,
+    "reviewsCount": 160,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?q=80&w=400&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 250,
+    "tags": ["gi box", "metal box", "modular box", "electrical"],
+    "isEmergency": false,
+    "specs": {
+      "Capacity": "8 Module",
+      "Thickness": "18 Gauge Heavy Zinc Coated GI Sheet",
+      "Earthing": "Pre-welded Brass Earthing Screw"
+    },
+    "description": "Rust-proof concealed metal modular switchboard box."
+  },
+  // =========================================================================
+  // ELECTRICAL - CCTV & SURVEILLANCE
+  // =========================================================================
+  {
+    "id": "p-cctv-1",
+    "name": "Hikvision 2MP Full HD 1080P IR Dome Security Camera (Night Vision)",
+    "brand": "Hikvision",
+    "category": "electrical",
+    "subCategory": "CCTV & Surveillance",
+    "price": 1450,
+    "originalPrice": 1950,
+    "discountPercentage": 25,
+    "unit": "1 Unit",
+    "rating": 4.8,
+    "reviewsCount": 130,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1557597774-9d273605dfa9?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 35,
+    "tags": ["cctv", "camera", "hikvision", "surveillance"],
+    "isEmergency": false,
+    "specs": {
+      "Resolution": "1080P Full HD (2 Megapixels)",
+      "Night Vision Range": "20 Meters Smart IR",
+      "Lens": "3.6mm Wide Angle Lens"
+    },
+    "description": "Indoor security dome camera with crystal clear day and night infrared recording."
+  },
+  {
+    "id": "p-cctv-2",
+    "name": "CP Plus 4-Channel HD DVR Digital Video Recorder with Mobile App View",
+    "brand": "CP Plus",
+    "category": "electrical",
+    "subCategory": "CCTV & Surveillance",
+    "price": 2890,
+    "originalPrice": 3600,
+    "discountPercentage": 19,
+    "unit": "1 Unit",
+    "rating": 4.7,
+    "reviewsCount": 85,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1557597774-9d273605dfa9?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 20,
+    "tags": ["cctv", "dvr", "cp plus", "surveillance"],
+    "isEmergency": false,
+    "specs": {
+      "Channels": "4 Channel HD Video Inputs",
+      "Compression": "H.265+ High Efficiency Storage",
+      "Connectivity": "HDMI / VGA / LAN / Cloud Phone App"
+    },
+    "description": "Standalone DVR recorder with real-time smartphone remote monitoring."
+  },
+  // =========================================================================
+  // ELECTRICAL - HOME APPLIANCES & POWER BACKUP
+  // =========================================================================
+  {
+    "id": "p-app-1",
+    "name": "Crompton Arno Neo 15-Litre 5-Star Storage Water Heater (Geyser)",
+    "brand": "Crompton",
+    "category": "electrical",
+    "subCategory": "Home Appliances",
+    "price": 6290,
+    "originalPrice": 8400,
+    "discountPercentage": 25,
+    "unit": "1 Unit",
+    "rating": 4.9,
+    "reviewsCount": 280,
+    "deliveryMinutes": 60,
+    "image": "https://images.unsplash.com/photo-1585771724684-38269d6639fd?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 25,
+    "tags": ["geyser", "water heater", "crompton", "appliances"],
+    "isEmergency": false,
+    "specs": {
+      "Capacity": "15 Litres",
+      "Energy Rating": "5 Star BEE Certified",
+      "Pressure": "8 Bar High Rise Apartment Suitable",
+      "Tank": "Superior Glassline Coated Inner Tank"
+    },
+    "description": "Fast heating anti-scale water geyser with advanced multi-tier safety valve system."
+  },
+  {
+    "id": "p-app-2",
+    "name": "Luminous Zelio+ 1100 Pure Sine Wave Home Inverter (900VA / 12V)",
+    "brand": "Luminous",
+    "category": "electrical",
+    "subCategory": "Home Appliances",
+    "price": 6499,
+    "originalPrice": 7900,
+    "discountPercentage": 17,
+    "unit": "1 Unit",
+    "rating": 4.9,
+    "reviewsCount": 195,
+    "deliveryMinutes": 60,
+    "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 20,
+    "tags": ["inverter", "luminous", "power backup", "appliances"],
+    "isEmergency": false,
+    "specs": {
+      "Capacity": "900 VA / 12V DC",
+      "Waveform": "Pure Sine Wave (Safe for Electronics)",
+      "Display": "Smart LCD Showing Backup Hours & Battery %"
+    },
+    "description": "Silent inverter with 32-bit DSP processor protecting fans and delicate home devices."
+  },
+  // =========================================================================
+  // CONSTRUCTION - CEMENT & CONCRETE
+  // =========================================================================
+  {
+    "id": "c1",
+    "name": "UltraTech Super Cement OPC 53 Grade (50 Kg Bag)",
+    "brand": "UltraTech",
+    "category": "construction",
+    "subCategory": "Cement & Concrete",
+    "price": 385,
+    "originalPrice": 425,
+    "discountPercentage": 9,
+    "unit": "50 Kg Bag",
+    "rating": 4.9,
+    "reviewsCount": 184,
+    "deliveryMinutes": 120,
+    "image": "https://images.unsplash.com/photo-1590069261209-f8e9b8642343?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 200,
+    "tags": ["cement", "ultratech", "construction", "opc 53"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Grade": "OPC 53 Grade",
+      "Weight": "50 Kg",
+      "Packaging": "Tamper-proof Laminated HDPE Bag",
+      "Setting Time": "Initial > 30 min, Final < 600 min"
+    },
+    "description": "UltraTech 53 Grade OPC cement engineered for high strength RCC slabs, beams and pillars."
+  },
+  {
+    "id": "c-cem-2",
+    "name": "ACC Concrete Plus High Strength Silico-Mineral Cement (50 Kg)",
+    "brand": "ACC",
+    "category": "construction",
+    "subCategory": "Cement & Concrete",
+    "price": 375,
+    "originalPrice": 415,
+    "discountPercentage": 10,
+    "unit": "50 Kg Bag",
+    "rating": 4.8,
+    "reviewsCount": 140,
+    "deliveryMinutes": 120,
+    "image": "https://images.unsplash.com/photo-1590069261209-f8e9b8642343?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 150,
+    "tags": ["cement", "acc", "concrete", "construction"],
+    "isEmergency": false,
+    "specs": {
+      "Grade": "PPC Concrete Special",
+      "Feature": "Dense Microstructure Impermeable to Water"
+    },
+    "description": "Advanced cement with microfine particles preventing corrosion of reinforcement steel."
+  },
+  // =========================================================================
+  // CONSTRUCTION - TMT & STEEL
+  // =========================================================================
+  {
+    "id": "c2",
+    "name": "Tata Tiscon 550D Superlinks TMT Rebars (10mm, 12 Mtr Length)",
+    "brand": "Tata Tiscon",
+    "category": "construction",
+    "subCategory": "TMT & Steel",
+    "price": 640,
+    "originalPrice": 710,
+    "discountPercentage": 10,
+    "unit": "1 Piece (12m)",
+    "rating": 4.9,
+    "reviewsCount": 142,
+    "deliveryMinutes": 180,
+    "image": "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 150,
+    "tags": ["tmt", "steel", "tata tiscon", "rebar"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Diameter": "10mm",
+      "Grade": "Fe 550D High Ductility",
+      "Standard": "IS 1786:2008"
+    },
+    "description": "Earthquake resistant high-ductility Fe 550D TMT steel rebars direct from Tata Tiscon factory depot."
+  },
+  // =========================================================================
+  // CONSTRUCTION - TILING & ADHESIVES
+  // =========================================================================
+  {
+    "id": "c-tile-1",
+    "name": "Roff New Construction Tile Adhesive (NSA Grey, 20 Kg Bag)",
+    "brand": "Roff",
+    "category": "construction",
+    "subCategory": "Tiling & Adhesives",
+    "price": 460,
+    "originalPrice": 550,
+    "discountPercentage": 16,
+    "unit": "20 Kg Bag",
+    "rating": 4.9,
+    "reviewsCount": 110,
+    "deliveryMinutes": 60,
+    "image": "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 80,
+    "tags": ["tile", "adhesive", "roff", "tiling"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Weight": "20 Kg",
+      "Type": "Polymer Modified Cementitious Tile Adhesive",
+      "Application": "Floor and Wall Ceramic / Vitrified Tiles"
+    },
+    "description": "High shear bond strength tile adhesive preventing hollow sounds and debonding."
+  },
+  {
+    "id": "c-tile-2",
+    "name": "Roff Cera Clean Rapid Action Tile & Ceramic Cleaner (1 Litre)",
+    "brand": "Roff",
+    "category": "construction",
+    "subCategory": "Tiling & Adhesives",
+    "price": 195,
+    "originalPrice": 240,
+    "discountPercentage": 18,
+    "unit": "1 Litre Bottle",
+    "rating": 4.8,
+    "reviewsCount": 95,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 120,
+    "tags": ["cleaner", "tile cleaner", "roff", "tiling"],
+    "isEmergency": false,
+    "specs": {
+      "Volume": "1 Litre",
+      "Usage": "Removes Cement Stains, Limescale and Grout Residues"
+    },
+    "description": "Heavy duty chemical cleaner restoring shine on vitrified tiles and bathroom fittings."
+  },
+  // =========================================================================
+  // CONSTRUCTION - PAINTS & PUTTY
+  // =========================================================================
+  {
+    "id": "c5",
+    "name": "Asian Paints TruCare White Cement Wall Putty (20 Kg Bag)",
+    "brand": "Asian Paints",
+    "category": "construction",
+    "subCategory": "Paints & Putty",
+    "price": 680,
+    "originalPrice": 760,
+    "discountPercentage": 11,
+    "unit": "20 Kg Bag",
+    "rating": 4.8,
+    "reviewsCount": 112,
+    "deliveryMinutes": 90,
+    "image": "https://images.unsplash.com/photo-1562259949-e8e7689d7828?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 90,
+    "tags": ["paint", "putty", "asian paints", "wall prep"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Weight": "20 Kg",
+      "Coverage": "14-16 sq ft/kg",
+      "Base": "White Portland Cement with Polymer Resins"
+    },
+    "description": "Silky-smooth white cement wall putty creating flawless water-resistant base for luxury paints."
+  },
+  {
+    "id": "c-paint-2",
+    "name": "Asian Paints Apex Ultima Dust Proof Exterior Emulsion (4 Litre, Brilliant White)",
+    "brand": "Asian Paints",
+    "category": "construction",
+    "subCategory": "Paints & Putty",
+    "price": 1490,
+    "originalPrice": 1780,
+    "discountPercentage": 16,
+    "unit": "4 Litre Bucket",
+    "rating": 4.9,
+    "reviewsCount": 75,
+    "deliveryMinutes": 60,
+    "image": "https://images.unsplash.com/photo-1562259949-e8e7689d7828?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 45,
+    "tags": ["paint", "asian paints", "exterior paint", "paints"],
+    "isEmergency": false,
+    "specs": {
+      "Volume": "4 Litre",
+      "Warranty": "7 Year Anti-Algal Exterior Warranty"
+    },
+    "description": "High performance exterior wall paint with anti-fungal silicone additives."
+  },
+  // =========================================================================
+  // CONSTRUCTION - WATERPROOFING
+  // =========================================================================
+  {
+    "id": "c3",
+    "name": "Dr. Fixit 101 LW+ Integral Liquid Waterproofing Compound (5 Litre)",
+    "brand": "Dr. Fixit",
+    "category": "construction",
+    "subCategory": "Waterproofing",
+    "price": 650,
+    "originalPrice": 750,
+    "discountPercentage": 13,
+    "unit": "5 L Can",
+    "rating": 4.8,
+    "reviewsCount": 96,
+    "deliveryMinutes": 60,
+    "image": "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 60,
+    "tags": ["waterproofing", "dr fixit", "chemical", "mortar"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Volume": "5 Litre",
+      "Dosage": "200ml per 50kg cement bag",
+      "Application": "Plaster, Concrete, Slabs & Basements"
+    },
+    "description": "Integral waterproofing liquid compound preventing hairline shrinkage cracks and dampness."
+  },
+  {
+    "id": "c-wp-2",
+    "name": "Dr. Fixit Dampguard Interior Wall Damp-Proof Coating (1 Kg Pack)",
+    "brand": "Dr. Fixit",
+    "category": "construction",
+    "subCategory": "Waterproofing",
+    "price": 420,
+    "originalPrice": 510,
+    "discountPercentage": 17,
+    "unit": "1 Kg Kit",
+    "rating": 4.7,
+    "reviewsCount": 82,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 40,
+    "tags": ["dampguard", "dr fixit", "waterproofing", "dampness"],
+    "isEmergency": false,
+    "specs": {
+      "Weight": "1 Kg (2-Part Epoxy Coating)",
+      "Coverage": "30-35 sq ft / kg / 2 coats"
+    },
+    "description": "Epoxy water-based damp proofing barrier blocking severe efflorescence and wall flaking."
+  },
+  // =========================================================================
+  // CONSTRUCTION - PLYWOOD, MDF & HDHMR
+  // =========================================================================
+  {
+    "id": "c-ply-1",
+    "name": "CenturyPly Club Prime 710 BWP Boiling Waterproof Plywood (18mm, 8x4 Ft)",
+    "brand": "CenturyPly",
+    "category": "construction",
+    "subCategory": "Plywood & Boards",
+    "price": 3840,
+    "originalPrice": 4400,
+    "discountPercentage": 13,
+    "unit": "1 Sheet (32 sqft)",
+    "rating": 4.9,
+    "reviewsCount": 65,
+    "deliveryMinutes": 180,
+    "image": "https://images.unsplash.com/photo-1546484396-fb3fc6f95f98?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 35,
+    "tags": ["plywood", "centuryply", "marine", "boards"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Thickness": "18mm",
+      "Dimensions": "8 Ft x 4 Ft",
+      "Grade": "IS 710 Marine Grade BWP",
+      "Warranty": "25-Year Guarantee"
+    },
+    "description": "Boiling waterproof calibrated plywood with glue line borer and termite treatment."
+  },
+  {
+    "id": "c-ply-2",
+    "name": "Action TESA Heavy Density HDHMR Board (12mm, 8x4 Ft Sheet)",
+    "brand": "Action TESA",
+    "category": "construction",
+    "subCategory": "Plywood & Boards",
+    "price": 2350,
+    "originalPrice": 2750,
+    "discountPercentage": 15,
+    "unit": "1 Sheet (32 sqft)",
+    "rating": 4.8,
+    "reviewsCount": 54,
+    "deliveryMinutes": 180,
+    "image": "https://images.unsplash.com/photo-1546484396-fb3fc6f95f98?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 40,
+    "tags": ["hdhmr", "action tesa", "board", "plywood"],
+    "isEmergency": false,
+    "specs": {
+      "Thickness": "12mm",
+      "Density": "> 850 kg/m\xB3 High Moisture Resistance"
+    },
+    "description": "Green core HDHMR panel ideal for CNC routing, modular wardrobes and kitchen cabinets."
+  },
+  // =========================================================================
+  // CONSTRUCTION - ADHESIVES & FEVICOL
+  // =========================================================================
+  {
+    "id": "c-fev-1",
+    "name": "Fevicol SH Synthetic Resin Wood Adhesive (5 Kg Tub)",
+    "brand": "Fevicol",
+    "category": "construction",
+    "subCategory": "Adhesives & Fevicol",
+    "price": 1150,
+    "originalPrice": 1320,
+    "discountPercentage": 13,
+    "unit": "5 Kg Tub",
+    "rating": 4.9,
+    "reviewsCount": 210,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 85,
+    "tags": ["fevicol", "adhesive", "wood glue", "construction"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Weight": "5 Kg",
+      "Bonding Time": "6-8 Hours",
+      "Application": "Plywood, Laminates, MDF and Wood joints"
+    },
+    "description": "India's trusted synthetic resin adhesive with unbeatable bonding strength for carpentry."
+  },
+  {
+    "id": "c-fev-2",
+    "name": "Fevicol Marine Waterproof Wood Adhesive (5 Kg Bucket)",
+    "brand": "Fevicol",
+    "category": "construction",
+    "subCategory": "Adhesives & Fevicol",
+    "price": 1420,
+    "originalPrice": 1650,
+    "discountPercentage": 14,
+    "unit": "5 Kg Bucket",
+    "rating": 4.9,
+    "reviewsCount": 135,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 60,
+    "tags": ["fevicol marine", "waterproof glue", "fevicol"],
+    "isEmergency": false,
+    "specs": {
+      "Type": "D3 Waterproof Wood Adhesive",
+      "Specialty": "Resistant to 48 Hours Continuous Boiling Water"
+    },
+    "description": "Marine grade wood glue specially engineered for kitchens, bathrooms and exterior doors."
+  },
+  // =========================================================================
+  // CONSTRUCTION - KITCHEN SINKS & FAUCETS
+  // =========================================================================
+  {
+    "id": "c-sink-1",
+    "name": "SS 304 Heavy Duty Handmade Stainless Steel Kitchen Sink (24x18 Inch, Satin Finish)",
+    "brand": "Giriraj Genuine",
+    "category": "construction",
+    "subCategory": "Kitchen Sinks & Faucets",
+    "price": 3890,
+    "originalPrice": 5200,
+    "discountPercentage": 25,
+    "unit": "1 Unit with Waste Coupling & Basket",
+    "rating": 4.8,
+    "reviewsCount": 78,
+    "deliveryMinutes": 60,
+    "image": "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 25,
+    "tags": ["sink", "kitchen sink", "stainless steel", "faucets"],
+    "isEmergency": false,
+    "specs": {
+      "Size": "24 x 18 x 9 Inch Deep Bowl",
+      "Material": "SUS 304 Grade Stainless Steel (1.2mm Thick)",
+      "Sound Proofing": "Heavy Rubber Sound Deadening Pads"
+    },
+    "description": "Deep single bowl handmade sink with anti-condensation undercoating."
+  },
+  {
+    "id": "c-sink-2",
+    "name": "Jaquar Alive Chrome Swan Neck Table Mounted Kitchen Faucet Tap",
+    "brand": "Jaquar",
+    "category": "construction",
+    "subCategory": "Kitchen Sinks & Faucets",
+    "price": 1850,
+    "originalPrice": 2400,
+    "discountPercentage": 23,
+    "unit": "1 Piece",
+    "rating": 4.9,
+    "reviewsCount": 110,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 30,
+    "tags": ["faucet", "tap", "jaquar", "kitchen"],
+    "isEmergency": false,
+    "specs": {
+      "Spout": "360 Degree Swivel High Arch Spout",
+      "Cartridge": "Ceramic Disc Cartridge (500k Cycles)"
+    },
+    "description": "Mirror chrome plated solid brass swan neck sink faucet with honeycomb aerator."
+  },
+  // =========================================================================
+  // CONSTRUCTION - SANITARY & BATH FITTINGS
+  // =========================================================================
+  {
+    "id": "c-san-1",
+    "name": "Hindware Italian Collection Wall Hung Western Commode Toilet (Soft-Close Seat)",
+    "brand": "Hindware",
+    "category": "construction",
+    "subCategory": "Sanitary & Bath Fittings",
+    "price": 6490,
+    "originalPrice": 8500,
+    "discountPercentage": 24,
+    "unit": "1 Set",
+    "rating": 4.8,
+    "reviewsCount": 92,
+    "deliveryMinutes": 120,
+    "image": "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 20,
+    "tags": ["commode", "hindware", "sanitary", "toilet"],
+    "isEmergency": false,
+    "specs": {
+      "Mounting": "Wall Hung Concealed Fixing",
+      "Flushing": "Rimless Vortex Power Flush System",
+      "Seat Cover": "Hydraulic Soft Close UF Seat"
+    },
+    "description": "Modern rimless wall-hung ceramic commode toilet with anti-bacterial glaze."
+  },
+  {
+    "id": "c-san-2",
+    "name": "Geberit Concealed Cistern Flush Tank with Dual Flush Chrome Actuator Plate",
+    "brand": "Geberit",
+    "category": "construction",
+    "subCategory": "Sanitary & Bath Fittings",
+    "price": 4750,
+    "originalPrice": 5900,
+    "discountPercentage": 19,
+    "unit": "1 Unit",
+    "rating": 4.9,
+    "reviewsCount": 65,
+    "deliveryMinutes": 60,
+    "image": "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 25,
+    "tags": ["cistern", "geberit", "flush", "sanitary"],
+    "isEmergency": false,
+    "specs": {
+      "Tank Capacity": "Dual Flush (3L / 6L Water Saving)",
+      "Installation": "In-wall Brick / Drywall Concealed"
+    },
+    "description": "Leak-proof Swiss engineered in-wall flush cistern with quiet fill valve."
+  },
+  // =========================================================================
+  // CONSTRUCTION - HINGES, CHANNELS & HANDLES
+  // =========================================================================
+  {
+    "id": "c-hinge-1",
+    "name": "Hettich Sensys Soft-Close Concealed Auto Hinges 0 Crank (Pack of 4)",
+    "brand": "Hettich",
+    "category": "construction",
+    "subCategory": "Hinges & Hardware",
+    "price": 680,
+    "originalPrice": 850,
+    "discountPercentage": 20,
+    "unit": "Pack of 4",
+    "rating": 4.9,
+    "reviewsCount": 140,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1508873696983-2df5293cb395?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 90,
+    "tags": ["hinges", "hettich", "soft close", "hardware"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Type": "0 Crank Full Overlay Auto Concealed Hinge",
+      "Mechanism": "Integrated Silent System Cushioning"
+    },
+    "description": "German engineered soft-close hydraulic cabinet hinges tested for 200,000 door cycles."
+  },
+  {
+    "id": "c-hinge-2",
+    "name": "Godrej Telescopic Soft-Close Drawer Ball Bearing Channels (18 Inch, Pair)",
+    "brand": "Godrej",
+    "category": "construction",
+    "subCategory": "Hinges & Hardware",
+    "price": 540,
+    "originalPrice": 690,
+    "discountPercentage": 22,
+    "unit": "1 Pair (Left + Right)",
+    "rating": 4.8,
+    "reviewsCount": 115,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1508873696983-2df5293cb395?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 80,
+    "tags": ["drawer channels", "godrej", "telescopic", "hardware"],
+    "isEmergency": false,
+    "specs": {
+      "Length": "18 Inch (450 mm)",
+      "Load Capacity": "45 Kg Heavy Load",
+      "Steel": "Zinc Plated High-Tensile Steel"
+    },
+    "description": "Smooth full extension drawer slide channels with hydraulic self-closing dampers."
+  },
+  // =========================================================================
+  // CONSTRUCTION - KITCHEN SYSTEMS & ACCESSORIES
+  // =========================================================================
+  {
+    "id": "c-kit-1",
+    "name": "Stainless Steel 304 Pull-Out Spice Rack 2-Tier Organizer (150mm Width)",
+    "brand": "Giriraj Genuine",
+    "category": "construction",
+    "subCategory": "Kitchen Systems & Accessories",
+    "price": 2490,
+    "originalPrice": 3200,
+    "discountPercentage": 22,
+    "unit": "1 Set with Soft-Close Slides",
+    "rating": 4.8,
+    "reviewsCount": 64,
+    "deliveryMinutes": 60,
+    "image": "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 25,
+    "tags": ["kitchen", "modular", "spice rack", "tandem"],
+    "isEmergency": false,
+    "specs": {
+      "Width": "150 mm Cabinet Width",
+      "Wire Material": "100% SS 304 Solid Round Wire with Chrome Nickel Plating"
+    },
+    "description": "Modular under-counter pull-out wire basket system for oil bottles and spice containers."
+  },
+  // =========================================================================
+  // CONSTRUCTION - WARDROBE & BED FITTINGS
+  // =========================================================================
+  {
+    "id": "c-bed-1",
+    "name": "Heavy Duty Gas Hydraulic Bed Lift Mechanism with Struts (120 Kg Capacity, Pair)",
+    "brand": "Giriraj Genuine",
+    "category": "construction",
+    "subCategory": "Wardrobe & Bed Fittings",
+    "price": 2150,
+    "originalPrice": 2800,
+    "discountPercentage": 23,
+    "unit": "1 Pair (Bed Lift Hinges + Gas Springs)",
+    "rating": 4.8,
+    "reviewsCount": 85,
+    "deliveryMinutes": 60,
+    "image": "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 30,
+    "tags": ["bed lift", "hydraulic", "gas pump", "wardrobe"],
+    "isEmergency": false,
+    "specs": {
+      "Piston Force": "1200N (120 Kg Weight Lift)",
+      "Bracket": "Cold-rolled Heavy Gauge Steel Frame"
+    },
+    "description": "Smooth lifting pneumatic gas struts allowing effortless access to under-bed box storage."
+  },
+  // =========================================================================
+  // CONSTRUCTION - DOOR LOCKS & HARDWARE
+  // =========================================================================
+  {
+    "id": "c-lock-1",
+    "name": "Godrej Advantis Smart Touchscreen Digital & Biometric Fingerprint Main Door Lock",
+    "brand": "Godrej",
+    "category": "construction",
+    "subCategory": "Door Locks & Hardware",
+    "price": 11990,
+    "originalPrice": 15500,
+    "discountPercentage": 23,
+    "unit": "1 Set",
+    "rating": 4.9,
+    "reviewsCount": 160,
+    "deliveryMinutes": 60,
+    "image": "https://images.unsplash.com/photo-1558002038-1055907df827?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 20,
+    "tags": ["smart lock", "godrej", "biometric", "door lock"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Access Modes": "Fingerprint (100 Prints) / RFID Card / PIN Code / Mechanical Key",
+      "Body": "Heavy Aluminum Alloy Die Cast Body with Anti-tamper Alarm"
+    },
+    "description": "High security digital lock with 3-minute auto lock and fire alert sensors."
+  },
+  {
+    "id": "c-lock-2",
+    "name": "Godrej Nav-Tal 7 Levers Heavy Brass Body Padlock (with 3 Keys)",
+    "brand": "Godrej",
+    "category": "construction",
+    "subCategory": "Door Locks & Hardware",
+    "price": 490,
+    "originalPrice": 610,
+    "discountPercentage": 20,
+    "unit": "1 Piece",
+    "rating": 4.9,
+    "reviewsCount": 350,
+    "deliveryMinutes": 30,
+    "image": "https://images.unsplash.com/photo-1558002038-1055907df827?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 150,
+    "tags": ["padlock", "godrej", "nav tal", "lock"],
+    "isEmergency": false,
+    "specs": {
+      "Material": "Solid Brass Extruded Body with Hardened Steel Shackle",
+      "Mechanism": "7 Brass Levers (Pick-proof)"
+    },
+    "description": "Traditional heavy brass padlock securing main gates, shutters and warehouses."
+  },
+  // =========================================================================
+  // CONSTRUCTION - CPVC PIPES & OVERHEAD TANKS
+  // =========================================================================
+  {
+    "id": "c4",
+    "name": "Astral CPVC Pro High Pressure Pipe (1 Inch, 3 Mtr Length)",
+    "brand": "Astral",
+    "category": "construction",
+    "subCategory": "Plumbing & Pipes",
+    "price": 420,
+    "originalPrice": 480,
+    "discountPercentage": 12,
+    "unit": "1 Length (3m)",
+    "rating": 4.7,
+    "reviewsCount": 78,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 80,
+    "tags": ["plumbing", "pipe", "astral", "cpvc"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Diameter": "1 Inch (25mm)",
+      "SDR": "SDR 11 Class 1",
+      "Temperature": "Up to 93\xB0C Hot & Cold Water"
+    },
+    "description": "NSF-certified chlorination polyvinyl chloride pipe for domestic water distribution."
+  },
+  {
+    "id": "c-pipe-2",
+    "name": "Supreme 1000 Litre Heavy Triple Layer UV Protected Water Storage Tank",
+    "brand": "Supreme",
+    "category": "construction",
+    "subCategory": "Plumbing & Pipes",
+    "price": 6890,
+    "originalPrice": 8200,
+    "discountPercentage": 16,
+    "unit": "1 Tank",
+    "rating": 4.8,
+    "reviewsCount": 85,
+    "deliveryMinutes": 180,
+    "image": "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 15,
+    "tags": ["water tank", "supreme", "overhead tank", "plumbing"],
+    "isEmergency": false,
+    "specs": {
+      "Capacity": "1000 Litres",
+      "Layers": "3 Layers (Outer White UV Shield + Middle Black + Inner Food Grade Anti-Microbial)"
+    },
+    "description": "Roto-molded 100% virgin polymer overhead water storage tank."
+  },
+  // =========================================================================
+  // CONSTRUCTION - POWER TOOLS & ACCESSORIES
+  // =========================================================================
+  {
+    "id": "c6",
+    "name": "Bosch GSB 500W Professional Impact Drill Kit with 100 Accessories",
+    "brand": "Bosch",
+    "category": "construction",
+    "subCategory": "Power Tools",
+    "price": 3890,
+    "originalPrice": 4500,
+    "discountPercentage": 14,
+    "unit": "1 Kit with Carry Case",
+    "rating": 4.9,
+    "reviewsCount": 230,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1508873696983-2df5293cb395?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 25,
+    "tags": ["drill", "bosch", "power tool", "hardware"],
+    "isBestSeller": true,
+    "isEmergency": false,
+    "specs": {
+      "Power": "500 Watts",
+      "Chuck": "10mm Keyed",
+      "Speed": "0-2600 RPM Variable Speed & Reverse Switch"
+    },
+    "description": "Compact and powerful impact drill kit for concrete, steel and woodwork."
+  },
+  {
+    "id": "c-tool-2",
+    "name": "Bosch GWS 600 Professional 4-Inch 670W Angle Grinder",
+    "brand": "Bosch",
+    "category": "construction",
+    "subCategory": "Power Tools",
+    "price": 2790,
+    "originalPrice": 3400,
+    "discountPercentage": 18,
+    "unit": "1 Unit with Protective Guard",
+    "rating": 4.8,
+    "reviewsCount": 145,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1508873696983-2df5293cb395?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 30,
+    "tags": ["grinder", "bosch", "angle grinder", "tools"],
+    "isEmergency": false,
+    "specs": {
+      "Power": "670 Watts",
+      "Disc Diameter": "100 mm (4 Inch)",
+      "Speed": "11,000 RPM No-load"
+    },
+    "description": "Ergonomic slim housing angle grinder for cutting metal rebars, masonry and tile grinding."
+  },
+  // =========================================================================
+  // CONSTRUCTION - GENERAL HARDWARE & TOOLS
+  // =========================================================================
+  {
+    "id": "c-gen-1",
+    "name": "Heavy Duty 5-Step Aluminum Folding Step Ladder (Slip-Resistant Ribbed Steps)",
+    "brand": "Giriraj Genuine",
+    "category": "construction",
+    "subCategory": "General Hardware & Tools",
+    "price": 2890,
+    "originalPrice": 3600,
+    "discountPercentage": 20,
+    "unit": "1 Ladder",
+    "rating": 4.8,
+    "reviewsCount": 95,
+    "deliveryMinutes": 60,
+    "image": "https://images.unsplash.com/photo-1508873696983-2df5293cb395?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 20,
+    "tags": ["ladder", "step ladder", "hardware", "tools"],
+    "isEmergency": false,
+    "specs": {
+      "Steps": "5 Steps (Top Platform at 4.5 Ft)",
+      "Load Capacity": "150 Kg Tested Weight",
+      "Material": "High Strength Anodized Aluminum"
+    },
+    "description": "Ultra lightweight foldable step ladder with safety top guard rail and non-skid rubber feet."
+  },
+  {
+    "id": "c-gen-2",
+    "name": "Heavy Duty Waterproof HDPE Tarpaulin Sheet (12x18 Ft, 250 GSM)",
+    "brand": "Giriraj Genuine",
+    "category": "construction",
+    "subCategory": "General Hardware & Tools",
+    "price": 1150,
+    "originalPrice": 1450,
+    "discountPercentage": 21,
+    "unit": "1 Piece",
+    "rating": 4.7,
+    "reviewsCount": 68,
+    "deliveryMinutes": 45,
+    "image": "https://images.unsplash.com/photo-1508873696983-2df5293cb395?q=80&w=600&auto=format&fit=crop",
+    "inStock": true,
+    "stockCount": 45,
+    "tags": ["tarpaulin", "tirpal", "cover", "hardware"],
+    "isEmergency": false,
+    "specs": {
+      "Size": "12 Ft x 18 Ft",
+      "GSM": "250 GSM 100% Water & UV Proof",
+      "Eyelets": "Reinforced Aluminum Eyelets Every 3 Feet"
+    },
+    "description": "Heavy monsoon protection tarpaulin sheet for cement bags, construction aggregates and roofing."
+  }
+];
+
+// src/utils/seoHelper.ts
+function escapeHtml(str) {
+  if (str === null || str === void 0) return "";
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+function escapeXml(str) {
+  if (str === null || str === void 0) return "";
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+function getRouteSeoConfig(reqPath, product) {
+  const cleanPath = reqPath.split("?")[0].replace(/\/+$/, "") || "/";
+  const canonical = `https://www.smartrun.in${cleanPath}`;
+  if (product) {
+    const brand = product.brand || "SmartRun";
+    const price = product.price ? `\u20B9${product.price}` : "Wholesale Price";
+    const subcat = product.subCategory ? ` (${product.subCategory})` : "";
+    const title = `${product.name} - Buy Online in Kolkata | SmartRun (Smart Run)`;
+    const description = `Buy genuine ${brand} ${product.name}${subcat} at ${price} online in Kolkata on SmartRun (Smart Run). 60-min express delivery across Kolkata & West Bengal, 100% manufacturer warranty.`;
+    const keywords = `${product.name}, buy ${product.name} online, ${brand}, ${product.name} Kolkata price, ${product.subCategory || ""}, kolkata online delivery app for electrical products, kolkata online delivery app for construction products, smart run, SmartRun, wholesale electrical shop Kolkata, Kasba depot`;
+    const image = product.image || "https://www.smartrun.in/SmartRun.png";
+    const imagesArray = Array.from(
+      /* @__PURE__ */ new Set([
+        image,
+        ...Array.isArray(product.images) ? product.images : [],
+        "https://www.smartrun.in/SmartRun.png",
+        "https://www.smartrun.in/icons/icon-512.png"
+      ])
+    ).filter(Boolean);
+    const prodId = String(product.id || "PRD");
+    const sku = `SMARTRUN-${prodId.slice(0, 8).toUpperCase()}`;
+    const mpn = `SR-${brand.replace(/\s+/g, "").toUpperCase()}-${prodId.slice(0, 8).toUpperCase()}`;
+    const structuredData = {
+      "@context": "https://schema.org/",
+      "@type": "Product",
+      productID: prodId,
+      sku,
+      mpn,
+      name: product.name,
+      image: imagesArray,
+      description,
+      category: product.category === "construction" ? "Construction & Building Materials" : "Electrical Supplies",
+      brand: {
+        "@type": "Brand",
+        name: brand
+      },
+      offers: {
+        "@type": "Offer",
+        url: canonical,
+        priceCurrency: "INR",
+        price: product.price || 0,
+        priceValidUntil: "2027-12-31",
+        availability: product.inStock !== false ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+        itemCondition: "https://schema.org/NewCondition",
+        areaServed: {
+          "@type": "City",
+          name: "Kolkata",
+          containedInPlace: {
+            "@type": "State",
+            name: "West Bengal"
+          }
+        },
+        availableAtOrFrom: {
+          "@type": "Place",
+          name: "SmartRun Kasba Central Depot",
+          address: {
+            "@type": "PostalAddress",
+            streetAddress: "Kasba Industrial Estate Phase 1",
+            addressLocality: "Kolkata",
+            addressRegion: "West Bengal",
+            postalCode: "700107",
+            addressCountry: "IN"
+          },
+          geo: {
+            "@type": "GeoCoordinates",
+            latitude: 22.5145,
+            longitude: 88.3934
+          }
+        },
+        seller: {
+          "@type": "Organization",
+          name: "SmartRun (Smart Run)",
+          legalName: "SmartRun materials pvt. ltd",
+          url: "https://www.smartrun.in/"
+        },
+        hasMerchantReturnPolicy: {
+          "@type": "MerchantReturnPolicy",
+          applicableCountry: "IN",
+          returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+          merchantReturnDays: 7,
+          returnMethod: "https://schema.org/ReturnAtKiosk",
+          returnFees: "https://schema.org/FreeReturn",
+          refundType: "https://schema.org/FullRefund"
+        },
+        shippingDetails: {
+          "@type": "OfferShippingDetails",
+          shippingRate: {
+            "@type": "MonetaryAmount",
+            value: "49",
+            currency: "INR"
+          },
+          shippingDestination: {
+            "@type": "DefinedRegion",
+            addressCountry: "IN",
+            postalCodeRange: {
+              postalCode: "700001-700160"
+            }
+          },
+          deliveryTime: {
+            "@type": "ShippingDeliveryTime",
+            handlingTime: {
+              "@type": "QuantitativeValue",
+              minValue: 0,
+              maxValue: 1,
+              unitCode: "DAY"
+            },
+            transitTime: {
+              "@type": "QuantitativeValue",
+              minValue: 0,
+              maxValue: 1,
+              unitCode: "DAY"
+            }
+          }
+        }
+      },
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: product.rating || 4.8,
+        reviewCount: product.reviewsCount || 42
+      }
+    };
+    return {
+      title,
+      description,
+      keywords,
+      canonical,
+      ogType: "product",
+      image,
+      structuredData
+    };
+  }
+  if (cleanPath === "/electrical") {
+    return {
+      title: "Electrical Products Online Delivery Kolkata | SmartRun (Smart Run) - 60 Min Express",
+      description: "Kolkata's #1 online delivery app for electrical products: Polycab wires, Schneider MCBs, Havells cables, Anchor Roma modular switches with 60-minute delivery to your doorstep or site by SmartRun (Smart Run).",
+      keywords: "kolkata online delivery app for electrical products, electrical products delivery app, buy electrical goods online Kolkata, Polycab wire, Havells cables, Schneider MCB, Smart Run, SmartRun, house wiring Kolkata, Kasba electrical depot",
+      canonical,
+      ogType: "website",
+      image: "https://www.smartrun.in/SmartRun.png"
+    };
+  }
+  if (cleanPath === "/construction") {
+    return {
+      title: "Construction Products & Building Materials Delivery Kolkata | SmartRun (Smart Run)",
+      description: "Kolkata's #1 online delivery app for construction products: UltraTech cement, ACC cement, Tata Tiscon TMT rebars, waterproofing chemicals delivered direct to your site in 60 mins by SmartRun (Smart Run).",
+      keywords: "kolkata online delivery app for construction products, construction products delivery app kolkata, cement delivery Kolkata, UltraTech cement, Tata Tiscon rebars, Dr Fixit, Smart Run, SmartRun, building materials Kolkata",
+      canonical,
+      ogType: "website",
+      image: "https://www.smartrun.in/SmartRun.png"
+    };
+  }
+  if (cleanPath === "/technicians") {
+    return {
+      title: "Licensed Electricians & Wiring Contractors Kolkata | SmartRun (Smart Run)",
+      description: "Book licensed emergency electricians and wiring contractors in Kolkata. 60-minute doorstep arrival, upfront transparent pricing, residential flat wiring & switchboard repairs by SmartRun (Smart Run).",
+      keywords: "licensed electrician Kolkata, house wiring contractor Kolkata, emergency electrical repair, electrical wiring services, Smart Run, SmartRun, flat wiring Kolkata",
+      canonical,
+      ogType: "website",
+      image: "https://www.smartrun.in/SmartRun.png"
+    };
+  }
+  if (cleanPath === "/shipping") {
+    return {
+      title: "Shipping & 60-Minute Delivery Policy | SmartRun (Smart Run)",
+      description: "SmartRun (Smart Run) shipping policy: 60-minute express doorstep delivery across Kolkata from Kasba Central Depot. Order tracking, service areas, and delivery fees.",
+      keywords: "SmartRun shipping policy, smart run delivery time, express electrical delivery Kolkata, Kasba depot delivery",
+      canonical,
+      ogType: "website"
+    };
+  }
+  if (cleanPath === "/return" || cleanPath === "/return-policy") {
+    return {
+      title: "Return Policy & 7-Day Replacement Guarantee | SmartRun (Smart Run)",
+      description: "SmartRun (Smart Run) return policy: 7-day hassle-free return and replacement for electrical goods, wires, switches, and construction materials with doorstep pickup.",
+      keywords: "SmartRun return policy, smart run replacement guarantee, return electrical items Kolkata",
+      canonical,
+      ogType: "website"
+    };
+  }
+  if (cleanPath === "/refund-policy") {
+    return {
+      title: "Refund Policy & Instant Settlement Guarantee | SmartRun (Smart Run)",
+      description: "SmartRun (Smart Run) refund policy: 100% money-back guarantee with 2 to 4 hour instant bank settlement on verified cancellations.",
+      keywords: "SmartRun refund policy, smart run money back guarantee, instant refund settlement",
+      canonical,
+      ogType: "website"
+    };
+  }
+  return {
+    title: "SmartRun (Smart Run) - Kolkata Online Delivery App for Electrical & Construction Products",
+    description: "SmartRun (Smart Run) by SmartRun materials pvt. ltd: Kolkata's #1 express online delivery app for genuine electrical products, Polycab wires, Schneider MCBs, modular switches, UltraTech cement, Tata Tiscon steel rebars, and licensed electricians with 60-min delivery.",
+    keywords: "Smart Run, SmartRun, smart run, smartrun, smart run app, smartrun app, smart run kolkata, kolkata online delivery app for electrical products, kolkata online delivery app for construction products, online delivery app for electrical products, electrical products delivery app, construction products delivery app kolkata, buy electrical goods online Kolkata, electrical shop near me, house wiring contractor, electrical wiring services, modular switches, Polycab wire, Havells cables, Finolex wire, Schneider MCB, distribution board, LED lighting, construction materials Kolkata, cement delivery, UltraTech cement, ACC cement, TMT steel bars, Tata Tiscon rebars, waterproofing chemicals, real estate electrification, licensed electrician Kolkata, emergency electrician 60 mins, Kasba electrical shop, wholesale electrical market Kolkata, B2B building materials procurement, direct factory depot Kolkata, in.smartrun.app",
+    canonical,
+    ogType: "website",
+    image: "https://www.smartrun.in/SmartRun.png"
+  };
+}
+function injectSeoMetadata(html, reqPath, product) {
+  if (!html || typeof html !== "string") return html;
+  const seo = getRouteSeoConfig(reqPath, product);
+  let result = html;
+  if (result.includes("<title>")) {
+    result = result.replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(seo.title)}</title>`);
+  } else {
+    result = result.replace("<head>", `<head>
+    <title>${escapeHtml(seo.title)}</title>`);
+  }
+  if (result.includes('name="title"')) {
+    result = result.replace(/<meta\s+name="title"\s+content=".*?"\s*\/?>/i, `<meta name="title" content="${escapeHtml(seo.title)}" />`);
+  }
+  if (result.includes('name="description"')) {
+    result = result.replace(/<meta\s+name="description"\s+content=".*?"\s*\/?>/i, `<meta name="description" content="${escapeHtml(seo.description)}" />`);
+  }
+  if (result.includes('name="keywords"')) {
+    result = result.replace(/<meta\s+name="keywords"\s+content=".*?"\s*\/?>/i, `<meta name="keywords" content="${escapeHtml(seo.keywords)}" />`);
+  }
+  if (result.includes('rel="canonical"')) {
+    result = result.replace(/<link\s+rel="canonical"\s+href=".*?"\s*\/?>/i, `<link rel="canonical" href="${seo.canonical}" />`);
+  }
+  result = result.replace(/<meta\s+property="og:title"\s+content=".*?"\s*\/?>/i, `<meta property="og:title" content="${escapeHtml(seo.title)}" />`);
+  result = result.replace(/<meta\s+property="og:description"\s+content=".*?"\s*\/?>/i, `<meta property="og:description" content="${escapeHtml(seo.description)}" />`);
+  result = result.replace(/<meta\s+property="og:url"\s+content=".*?"\s*\/?>/i, `<meta property="og:url" content="${seo.canonical}" />`);
+  if (seo.image) {
+    result = result.replace(/<meta\s+property="og:image"\s+content=".*?"\s*\/?>/i, `<meta property="og:image" content="${escapeHtml(seo.image)}" />`);
+  }
+  result = result.replace(/<meta\s+name="twitter:title"\s+content=".*?"\s*\/?>/i, `<meta name="twitter:title" content="${escapeHtml(seo.title)}" />`);
+  result = result.replace(/<meta\s+name="twitter:description"\s+content=".*?"\s*\/?>/i, `<meta name="twitter:description" content="${escapeHtml(seo.description)}" />`);
+  if (seo.image) {
+    result = result.replace(/<meta\s+name="twitter:image"\s+content=".*?"\s*\/?>/i, `<meta name="twitter:image" content="${escapeHtml(seo.image)}" />`);
+  }
+  if (seo.structuredData) {
+    const jsonLdScript = `
+    <script type="application/ld+json" id="server-prerender-schema">${JSON.stringify(seo.structuredData)}</script>
+`;
+    result = result.replace("</head>", `${jsonLdScript}</head>`);
+  }
+  return result;
+}
+function generateDynamicSitemap(products) {
+  const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+  const staticRoutes = [
+    { path: "/", priority: "1.0", changefreq: "daily" },
+    { path: "/electrical", priority: "0.95", changefreq: "daily" },
+    { path: "/construction", priority: "0.95", changefreq: "daily" },
+    { path: "/technicians", priority: "0.9", changefreq: "daily" },
+    { path: "/sitemap", priority: "0.8", changefreq: "weekly" },
+    { path: "/shipping", priority: "0.8", changefreq: "monthly" },
+    { path: "/return", priority: "0.8", changefreq: "monthly" },
+    { path: "/return-policy", priority: "0.8", changefreq: "monthly" },
+    { path: "/refund-policy", priority: "0.8", changefreq: "monthly" },
+    { path: "/terms", priority: "0.7", changefreq: "monthly" },
+    { path: "/privacy", priority: "0.7", changefreq: "monthly" },
+    { path: "/about", priority: "0.7", changefreq: "monthly" },
+    { path: "/contact", priority: "0.7", changefreq: "monthly" },
+    { path: "/career", priority: "0.7", changefreq: "monthly" }
+  ];
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+`;
+  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+`;
+  xml += `        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+`;
+  xml += `        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+`;
+  for (const route of staticRoutes) {
+    xml += `  <url>
+`;
+    xml += `    <loc>https://www.smartrun.in${route.path}</loc>
+`;
+    xml += `    <lastmod>${today}</lastmod>
+`;
+    xml += `    <changefreq>${route.changefreq}</changefreq>
+`;
+    xml += `    <priority>${route.priority}</priority>
+`;
+    xml += `  </url>
+`;
+  }
+  if (Array.isArray(products)) {
+    for (const prod of products) {
+      if (!prod || !prod.id) continue;
+      const isConst = prod.category === "construction";
+      const prodPath = isConst ? `/construction/product/${prod.id}` : `/electrical/product/${prod.id}`;
+      const imgUrl = prod.image || "https://www.smartrun.in/SmartRun.png";
+      const prodName = escapeXml(prod.name);
+      const prodDesc = escapeXml(prod.description || `${prod.name} available at SmartRun Kolkata with 60-min express delivery.`);
+      xml += `  <url>
+`;
+      xml += `    <loc>https://www.smartrun.in${prodPath}</loc>
+`;
+      xml += `    <lastmod>${today}</lastmod>
+`;
+      xml += `    <changefreq>daily</changefreq>
+`;
+      xml += `    <priority>0.9</priority>
+`;
+      if (imgUrl) {
+        xml += `    <image:image>
+`;
+        xml += `      <image:loc>${escapeXml(imgUrl)}</image:loc>
+`;
+        xml += `      <image:title>${prodName}</image:title>
+`;
+        xml += `      <image:caption>${prodDesc}</image:caption>
+`;
+        xml += `    </image:image>
+`;
+      }
+      xml += `  </url>
+`;
+    }
+  }
+  xml += `</urlset>`;
+  return xml;
+}
+
+// server.ts
 import_dotenv.default.config();
 var __filenameResolved = typeof __filename !== "undefined" ? __filename : process.cwd();
 var __dirnameResolved = typeof __dirname !== "undefined" ? __dirname : import_path.default.dirname(__filenameResolved);
@@ -1376,6 +3087,9 @@ async function getCachedCatalog(forceRefresh = false) {
       console.warn("[Server Catalog Cache] DB query notice:", sbErr);
     }
   }
+  if (!productsList || productsList.length === 0) {
+    productsList = INITIAL_PRODUCTS;
+  }
   const hash = import_crypto.default.createHash("md5").update(JSON.stringify(productsList.map((p) => ({ id: p.id, price: p.price, stock: p.in_stock, updated: p.updated_at })))).digest("hex");
   catalogCache = {
     products: productsList,
@@ -1485,6 +3199,62 @@ var phoneResolveLimiter = (0, import_express_rate_limit.default)({
     message: "Lookup rate limit exceeded. Please wait a few minutes before trying again."
   }
 });
+var loginRateLimiter = (0, import_express_rate_limit.default)({
+  windowMs: 15 * 60 * 1e3,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false, forwardedHeader: false, default: false },
+  keyGenerator: getClientIp,
+  message: {
+    success: false,
+    error: "Too many login attempts from this network. Please wait 15 minutes before trying again or sign in with OTP."
+  }
+});
+var registerRateLimiter = (0, import_express_rate_limit.default)({
+  windowMs: 30 * 60 * 1e3,
+  max: 6,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false, forwardedHeader: false, default: false },
+  keyGenerator: getClientIp,
+  message: {
+    success: false,
+    error: "Registration rate limit reached. Please wait a few minutes before creating a new account."
+  }
+});
+var accountLookupLimiter = (0, import_express_rate_limit.default)({
+  windowMs: 10 * 60 * 1e3,
+  max: 25,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false, forwardedHeader: false, default: false },
+  keyGenerator: getClientIp,
+  message: {
+    success: false,
+    error: "Lookup limit exceeded. Please wait a few minutes before trying again."
+  }
+});
+var failedLoginTracker = /* @__PURE__ */ new Map();
+var DISPOSABLE_EMAIL_DOMAINS = /* @__PURE__ */ new Set([
+  "mailinator.com",
+  "tempmail.com",
+  "10minutemail.com",
+  "guerrillamail.com",
+  "yopmail.com",
+  "sharklasers.com",
+  "trashmail.com",
+  "throwawaymail.com",
+  "dispostable.com",
+  "fakeinbox.com",
+  "getairmail.com",
+  "maildrop.cc"
+]);
+function maskPhoneNumber(phone) {
+  const digits = String(phone || "").replace(/\D/g, "").slice(-10);
+  if (digits.length < 4) return "******";
+  return `+91 ******${digits.slice(-4)}`;
+}
 var phoneLastSmsSentTime = /* @__PURE__ */ new Map();
 async function getAuthenticatedUser(req) {
   const authHeader = req.headers.authorization;
@@ -1842,20 +3612,21 @@ async function startServer() {
     }
     res.status(404).json({ error: "Manifest not found" });
   });
-  app.get("/sitemap.xml", (req, res) => {
-    res.setHeader("Content-Type", "application/xml; charset=utf-8");
-    res.setHeader("Cache-Control", "public, max-age=86400");
-    const candidates = [
-      import_path.default.join(process.cwd(), "public", "sitemap.xml"),
-      import_path.default.join(process.cwd(), "dist", "sitemap.xml"),
-      import_path.default.join(__dirnameResolved, "public", "sitemap.xml")
-    ];
-    for (const p of candidates) {
-      if (import_fs.default.existsSync(p)) {
-        return res.sendFile(p);
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const { products } = await getCachedCatalog();
+      const sitemapXml = generateDynamicSitemap(products);
+      res.setHeader("Content-Type", "application/xml; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      return res.status(200).send(sitemapXml);
+    } catch (err) {
+      console.error("[Sitemap Handler] Error rendering dynamic sitemap:", err);
+      const fallbackPath = import_path.default.join(process.cwd(), "public", "sitemap.xml");
+      if (import_fs.default.existsSync(fallbackPath)) {
+        return res.sendFile(fallbackPath);
       }
+      return res.status(500).send("<error>Failed to render sitemap</error>");
     }
-    res.status(404).send("Sitemap not found");
   });
   app.get("/robots.txt", (req, res) => {
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
@@ -1877,7 +3648,7 @@ async function startServer() {
       res.setHeader("Content-Type", "application/xml; charset=utf-8");
       res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=7200");
       const { products } = await getCachedCatalog();
-      const escapeXml = (unsafe) => {
+      const escapeXml2 = (unsafe) => {
         if (!unsafe) return "";
         return String(unsafe).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
       };
@@ -1895,19 +3666,19 @@ async function startServer() {
         const idStr = String(p.id);
         const shortId = idStr.slice(0, 8).toUpperCase();
         const sku = `SMARTRUN-${shortId}`;
-        const title = escapeXml(p.name || "SmartRun Product");
+        const title = escapeXml2(p.name || "SmartRun Product");
         const rawDesc = p.description || `${p.name} with 60-minute express delivery in Kolkata. 100% genuine with warranty at SmartRun.`;
-        const description = escapeXml(rawDesc.slice(0, 5e3));
+        const description = escapeXml2(rawDesc.slice(0, 5e3));
         const category = p.category === "construction" ? "construction" : "electrical";
         const link = `https://www.smartrun.in/${category}/product/${idStr}`;
-        const imageLink = escapeXml(
+        const imageLink = escapeXml2(
           Array.isArray(p.image_urls) && p.image_urls[0] || p.image || "https://www.smartrun.in/SmartRun.png"
         );
         const price = Number(p.price || 0).toFixed(2);
         const availability = (p.stock_quantity ?? p.stock_count ?? 1) > 0 ? "in_stock" : "out_of_stock";
-        const brand = escapeXml(p.brand || "SmartRun");
-        const mpn = escapeXml(`SR-${p.brand ? p.brand.replace(/\s+/g, "").toUpperCase() : "GEN"}-${shortId}`);
-        const productType = escapeXml(`${category} > ${p.subcategory || p.sub_category || "General"}`);
+        const brand = escapeXml2(p.brand || "SmartRun");
+        const mpn = escapeXml2(`SR-${p.brand ? p.brand.replace(/\s+/g, "").toUpperCase() : "GEN"}-${shortId}`);
+        const productType = escapeXml2(`${category} > ${p.subcategory || p.sub_category || "General"}`);
         xml += `    <item>
       <g:id>${sku}</g:id>
       <g:title>${title}</g:title>
@@ -6473,7 +8244,8 @@ User Question: ${userLatestMessage}`]
         "smartrun-phone-auth-secret"
       ].filter(Boolean);
       let isCodeValid = false;
-      if (cleanOtp === "123456" || cleanOtp === "582914") {
+      const isNonProd = process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "prod";
+      if (isNonProd && (cleanOtp === "123456" || cleanOtp === "582914") && cleanPhone === "9999900000") {
         isCodeValid = true;
       }
       if (!isCodeValid && token && typeof token === "string" && token.includes(".")) {
@@ -6888,7 +8660,7 @@ This is an auto-generated email. Do not reply to this email.`;
       });
     }
   });
-  app.post("/api/auth/phone-login-session", async (req, res) => {
+  app.post("/api/auth/phone-login-session", phoneResolveLimiter, async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
       const { phone, fullName, preResolvedUserId } = req.body || {};
@@ -6960,7 +8732,6 @@ This is an auto-generated email. Do not reply to this email.`;
       return res.json({
         success: true,
         email: canonicalEmail,
-        password: deterministicPassword,
         effectiveUserId,
         resolvedName,
         resolvedEmail,
@@ -6973,7 +8744,7 @@ This is an auto-generated email. Do not reply to this email.`;
       });
     }
   });
-  app.post("/api/auth/resolve-google-user", async (req, res) => {
+  app.post("/api/auth/resolve-google-user", accountLookupLimiter, async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
       const { email, name, avatarUrl } = req.body || {};
@@ -7078,10 +8849,20 @@ This is an auto-generated email. Do not reply to this email.`;
         }
         if (resolvedProfile.user_id) serverProfileStore.set(resolvedProfile.user_id, toCache);
       }
+      const sessionCheck = extractServerSession(req);
+      const isAuthed = sessionCheck.valid;
+      const safeProfile = resolvedProfile ? {
+        user_id: resolvedProfile.user_id,
+        full_name: resolvedProfile.full_name,
+        email: cleanEmail,
+        phone: isAuthed ? resolvedProfile.phone : resolvedProfile.phone ? maskPhoneNumber(resolvedProfile.phone) : null,
+        avatar_url: resolvedProfile.avatar_url,
+        dob: isAuthed ? resolvedProfile.dob : null
+      } : null;
       return res.json({
         success: true,
         exists: Boolean(resolvedProfile),
-        profile: resolvedProfile || null
+        profile: safeProfile
       });
     } catch (err) {
       return res.status(500).json({
@@ -7090,7 +8871,7 @@ This is an auto-generated email. Do not reply to this email.`;
       });
     }
   });
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", loginRateLimiter, async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
       const { identifier, password } = req.body || {};
@@ -7098,6 +8879,15 @@ This is an auto-generated email. Do not reply to this email.`;
       const cleanPw = String(password || "").trim();
       if (!cleanIdent || !cleanPw) {
         return res.status(400).json({ success: false, error: "Identifier and password are required." });
+      }
+      const now = Date.now();
+      const lockoutEntry = failedLoginTracker.get(cleanIdent.toLowerCase());
+      if (lockoutEntry && lockoutEntry.lockedUntil > now) {
+        const remainingMinutes = Math.ceil((lockoutEntry.lockedUntil - now) / 6e4);
+        return res.status(429).json({
+          success: false,
+          error: `Account temporarily locked due to repeated failed login attempts. Please wait ${remainingMinutes} minute(s) before trying again or sign in with OTP.`
+        });
       }
       const sb = getServerSupabase();
       if (!sb) {
@@ -7143,11 +8933,19 @@ This is an auto-generated email. Do not reply to this email.`;
         }
       }
       if (error || !data?.user) {
+        const isExpired = Boolean(lockoutEntry && lockoutEntry.lockedUntil > 0 && lockoutEntry.lockedUntil <= now);
+        const currentCount = isExpired ? 0 : lockoutEntry?.count || 0;
+        const newCount = currentCount + 1;
+        const lockedUntil = newCount >= 5 ? now + 15 * 60 * 1e3 : 0;
+        failedLoginTracker.set(cleanIdent.toLowerCase(), { count: newCount, lockedUntil });
+        await new Promise((r) => setTimeout(r, 300 + Math.random() * 200));
+        const warningMsg = newCount >= 5 ? "Account temporarily locked due to 5 consecutive failed attempts. Please wait 15 minutes or sign in with OTP." : `Incorrect password or account not found. ${5 - newCount} attempt(s) remaining before temporary lockout.`;
         return res.status(401).json({
           success: false,
-          error: "Incorrect password or account not found. Please check your credentials or sign in with OTP."
+          error: warningMsg
         });
       }
+      failedLoginTracker.delete(cleanIdent.toLowerCase());
       const resolvedName = userFullName || data.user.user_metadata?.full_name || data.user.user_metadata?.name || "Customer";
       const resolvedPhone = userPhone || data.user.phone || data.user.user_metadata?.phone || "";
       let userProfile = null;
@@ -7189,7 +8987,7 @@ This is an auto-generated email. Do not reply to this email.`;
       });
     }
   });
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", registerRateLimiter, async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
       const { email, phone, fullName, password } = req.body || {};
@@ -7202,6 +9000,13 @@ This is an auto-generated email. Do not reply to this email.`;
       }
       if (!cleanEmail || !cleanEmail.includes("@")) {
         return res.status(400).json({ success: false, error: "Valid email address is required." });
+      }
+      const emailDomain = cleanEmail.split("@")[1];
+      if (emailDomain && DISPOSABLE_EMAIL_DOMAINS.has(emailDomain)) {
+        return res.status(400).json({
+          success: false,
+          error: "Temporary or disposable email domains are not allowed. Please register with a permanent email."
+        });
       }
       if (!cleanPw || cleanPw.length < 6) {
         return res.status(400).json({ success: false, error: "Password must be at least 6 characters." });
@@ -7753,6 +9558,36 @@ This is an auto-generated email. Do not reply to this email.`;
       ],
       appType: "spa"
     });
+    app.get(
+      [
+        "/electrical/product/:id",
+        "/construction/product/:id",
+        "/product/:id",
+        "/electrical",
+        "/construction",
+        "/technicians",
+        "/shipping",
+        "/return",
+        "/return-policy",
+        "/refund-policy"
+      ],
+      async (req, res, next) => {
+        try {
+          const { products } = await getCachedCatalog();
+          const productId = req.params.id;
+          const matchedProduct = productId ? products.find((p) => String(p.id).toLowerCase() === String(productId).toLowerCase()) : null;
+          const rawTemplate = import_fs.default.readFileSync(import_path.default.join(process.cwd(), "index.html"), "utf-8");
+          const devHtml = await vite.transformIndexHtml(req.originalUrl, rawTemplate);
+          const injectedHtml = injectSeoMetadata(devHtml, req.path, matchedProduct);
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          return res.status(200).send(injectedHtml);
+        } catch (prerenderErr) {
+          console.warn("[Dev SEO Prerender] Fallback notice:", prerenderErr);
+          next();
+        }
+      }
+    );
     app.use(vite.middlewares);
   } else {
     console.log("Serving pre-compiled production build from dist/ (Vite dev server OFF)...");
@@ -7788,6 +9623,37 @@ This is an auto-generated email. Do not reply to this email.`;
           }
         }
       })
+    );
+    app.get(
+      [
+        "/electrical/product/:id",
+        "/construction/product/:id",
+        "/product/:id",
+        "/electrical",
+        "/construction",
+        "/technicians",
+        "/shipping",
+        "/return",
+        "/return-policy",
+        "/refund-policy"
+      ],
+      async (req, res, next) => {
+        try {
+          const prodIndexFile = import_path.default.join(distPath, "index.html");
+          if (!import_fs.default.existsSync(prodIndexFile)) return next();
+          const { products } = await getCachedCatalog();
+          const productId = req.params.id;
+          const matchedProduct = productId ? products.find((p) => String(p.id).toLowerCase() === String(productId).toLowerCase()) : null;
+          const rawHtml = import_fs.default.readFileSync(prodIndexFile, "utf-8");
+          const injectedHtml = injectSeoMetadata(rawHtml, req.path, matchedProduct);
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          return res.status(200).send(injectedHtml);
+        } catch (prerenderErr) {
+          console.warn("[Prod SEO Prerender] Fallback notice:", prerenderErr);
+          next();
+        }
+      }
     );
     app.get("*", (req, res) => {
       res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
