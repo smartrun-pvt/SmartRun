@@ -52,6 +52,14 @@
   .font-baloo {
     font-family: 'Baloo 2', 'Baloo Bhai 2', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
+
+  .font-lora {
+    font-family: 'Lora', Georgia, 'Times New Roman', serif;
+  }
+
+  .font-playfair {
+    font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  }
 }
 
 /* =========================================================================

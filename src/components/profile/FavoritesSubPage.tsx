@@ -30,41 +30,51 @@ export const FavoritesSubPage = ({
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 animate-in fade-in duration-200">
-      {/* Sticky Header with Back Arrow Button */}
+      {/* Sticky Header with Back Arrow Button matching Homepage Navbar height and #f7aef8 background */}
       <div
-        className="bg-white border-b border-slate-200 shadow-2xs sticky top-0 z-30"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+        className="sticky top-0 z-30 bg-[#f7aef8] border-b border-[#e99ee7] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[100px] sm:min-h-[128px] flex flex-col justify-center transition-all"
+        style={{
+          backgroundColor: '#f7aef8',
+          paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))'
+        }}
       >
-        <div className="px-4 py-2.5 sm:py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3 sm:gap-4">
             <button
               onClick={onBack}
-              className="p-1 -ml-1 rounded-full hover:bg-slate-100 text-slate-800 hover:text-black transition-colors cursor-pointer"
+              className="p-2 -ml-1.5 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer shrink-0"
               title="Back to Profile"
               aria-label="Back"
             >
-              <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
+              <ChevronLeft className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.2]" />
             </button>
-            <div>
-              <h1 className="text-lg font-black text-slate-900 flex items-center gap-2">
+            <div className="flex flex-col justify-center">
+              <h1
+                className="text-2xl sm:text-3xl text-slate-950 flex items-center gap-2 font-normal leading-tight font-playfair tracking-normal"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
+              >
                 <span>Favourites</span>
-                <Heart className="w-5 h-5 fill-pink-500 text-pink-500" />
+                <Heart className="w-5 h-5 sm:w-6 sm:h-6 fill-pink-600 text-pink-600 drop-shadow-xs" />
               </h1>
-              <p className="text-xs text-slate-500 font-medium">
+              <p
+                className="text-xs sm:text-sm text-slate-800/90 font-normal font-lora tracking-normal mt-0.5"
+                style={{ fontFamily: "'Lora', Georgia, serif", fontWeight: 400 }}
+              >
                 {favoriteProducts.length} {favoriteProducts.length === 1 ? 'item' : 'items'} saved for quick ordering
               </p>
             </div>
           </div>
 
-        {favoriteProducts.length > 0 && (
-          <button
-            type="button"
-            onClick={onClearAllFavorites}
-            className="text-xs font-bold text-slate-500 hover:text-red-600 transition-colors cursor-pointer px-2.5 py-1.5 rounded-lg hover:bg-red-50"
-          >
-            Clear All
-          </button>
-        )}
+          {favoriteProducts.length > 0 && (
+            <button
+              type="button"
+              onClick={onClearAllFavorites}
+              className="text-xs sm:text-sm font-normal font-lora text-slate-900 hover:text-red-700 transition-colors cursor-pointer px-3.5 py-1.5 rounded-full bg-white/40 hover:bg-white/70 active:scale-95 border border-purple-300/50 shadow-2xs shrink-0"
+              style={{ fontFamily: "'Lora', Georgia, serif", fontWeight: 400 }}
+            >
+              Clear All
+            </button>
+          )}
         </div>
       </div>
 
