@@ -448,9 +448,9 @@ export const HelpCenterChat = ({
       {/* 1. UNIFIED PAGE HEADER: Chat Support, FAQ button, Refresh button */}
       <header
         id="chat-support-header"
-        className="shrink-0 sticky top-0 z-30 bg-[#f7aef8] border-b border-[#e99ee7] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
+        className="shrink-0 sticky top-0 z-30 bg-[#74c69d] border-b border-[#52b788] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
         style={{
-          backgroundColor: '#f7aef8',
+          backgroundColor: '#74c69d',
           paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))'
         }}
       >

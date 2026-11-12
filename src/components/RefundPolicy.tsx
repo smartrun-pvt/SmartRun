@@ -88,9 +88,9 @@ export const RefundPolicy = ({
 
       {/* Top Navbar: Simple Heading 'Refund Policy', Back Button & 3-Dot Menu */}
       <header
-        className="bg-[#f7aef8] border-b border-[#e99ee7] sticky top-0 z-30 shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
+        className="bg-[#74c69d] border-b border-[#52b788] sticky top-0 z-30 shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
         style={{
-          backgroundColor: '#f7aef8',
+          backgroundColor: '#74c69d',
           paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))'
         }}
       >

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle, User, Calendar } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { AlertCircle, User, Calendar, X, Loader2 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { saveUserProfile } from '../../services/supabaseService';
 import { showToast } from '../../utils/toast';
@@ -41,6 +42,26 @@ export const EditProfileModal = ({
     }
     prevIsOpenRef.current = isOpen;
   }, [isOpen, userProfile]);
+
+  // Lock body scroll and listen for Escape key when modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -93,24 +114,48 @@ export const EditProfileModal = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="text-lg font-black text-slate-900">Edit Your Profile</h3>
+  const modalNode = (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-profile-modal-title"
+      className="fixed inset-0 z-[99999] flex min-h-[100dvh] items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-xs overflow-y-auto overscroll-contain animate-in fade-in duration-200"
+      style={{ zIndex: 99999 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="relative my-auto w-full max-w-md max-h-[calc(100dvh-2rem)] flex flex-col bg-white rounded-2xl p-5 sm:p-6 shadow-2xl border border-slate-200 text-left animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-1 shrink-0">
+          <h3 id="edit-profile-modal-title" className="text-lg font-black text-slate-900">
+            Edit Your Profile
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 -mr-1.5 -mt-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        <p className="text-xs text-slate-500 mb-4 font-medium">
+        <p className="text-xs text-slate-500 mb-4 font-medium shrink-0">
           Update your personal details.
         </p>
 
         {formError && (
-          <div className="p-3 mb-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-semibold flex items-start gap-2">
+          <div className="p-3 mb-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-semibold flex items-start gap-2 shrink-0">
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
             <span>{formError}</span>
           </div>
         )}
 
-        <form onSubmit={handleProfileFormSubmit} className="space-y-4">
+        <form onSubmit={handleProfileFormSubmit} className="space-y-4 overflow-y-auto pr-0.5 overscroll-contain flex-1">
           {/* Full Name */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between h-5">
@@ -155,7 +200,7 @@ export const EditProfileModal = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2.5 pt-2">
+          <div className="flex gap-2.5 pt-2 shrink-0">
             <button
               type="button"
               onClick={onClose}
@@ -168,11 +213,25 @@ export const EditProfileModal = ({
               disabled={isSaving}
               className="flex-1 h-11 min-h-[44px] px-4 rounded-xl bg-amber-400 hover:bg-yellow-400 text-slate-950 font-black text-xs transition-all shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center"
             >
-              {isSaving ? 'Saving...' : 'Save Changes'}
+              {isSaving ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                  <span>Saving...</span>
+                </span>
+              ) : (
+                'Save Changes'
+              )}
             </button>
           </div>
         </form>
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalNode, document.body);
+  }
+
+  return modalNode;
 };
+
