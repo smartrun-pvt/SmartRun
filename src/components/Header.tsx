@@ -313,16 +313,26 @@ export const Header = ({
 
   return (
     <header
-      className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform"
-      style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+      className="sticky top-0 z-40 bg-[#f8f9fa]/90 backdrop-blur-md border-b border-[#e9ecef] shadow-2xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform"
+      style={{
+        paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))',
+        backgroundColor: 'rgba(248, 249, 250, 0.90)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)'
+      }}
     >
       {/* Main Brand & Action Bar (collapses smoothly on product detail page scroll) */}
       <div
-        className={`overflow-hidden transition-[max-height,opacity,padding] duration-200 ease-out [transform:translateZ(0)] ${
+        className={`overflow-hidden transition-[max-height,opacity,padding] duration-200 ease-out [transform:translateZ(0)] bg-[#f8f9fa]/90 backdrop-blur-md ${
           isProductDetailPage && isScrolled
             ? 'max-h-0 opacity-0 pointer-events-none py-0'
             : 'max-h-24 opacity-100 py-1.5 sm:py-2.5'
         }`}
+        style={{
+          backgroundColor: 'rgba(248, 249, 250, 0.90)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)'
+        }}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-6">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
@@ -431,7 +441,14 @@ export const Header = ({
     </div>
 
       {/* Row 2: Fixed Liquid Glass Search Bar + Right-side All Filters Button (Visible strictly on Electrical, Construction & Wiring, NOT on Home) */}
-      <div className="border-t border-slate-100/80 bg-white/95 px-3 sm:px-6 py-1.5 sm:py-2.5 [transform:translateZ(0)]">
+      <div
+        className="bg-[#f8f9fa]/90 backdrop-blur-md px-3 sm:px-6 py-1.5 sm:py-2.5 [transform:translateZ(0)]"
+        style={{
+          backgroundColor: 'rgba(248, 249, 250, 0.90)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)'
+        }}
+      >
         <div className="max-w-3xl mx-auto w-full flex items-center gap-2 sm:gap-3">
           {/* Back Button beside search bar when viewing product details - only arrow and nothing */}
           {isProductDetailPage && (
