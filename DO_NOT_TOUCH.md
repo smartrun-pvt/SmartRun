@@ -18,7 +18,11 @@ The following components, pages, and architectural modules are verified producti
    - `src/services/firebaseAuthService.ts`: Seamless phone-email linking, master user ID persistence.
    - `src/services/welcomeEmailService.ts`: One-time onboarding email dispatch with multi-layer deduplication.
 
-4. **Android Native Configuration**:
+4. **SEO Architecture & Structured Data**:
+   - `src/utils/seoHelper.ts`: SSR metadata injection (`injectSeoMetadata`), dynamic XML sitemap generator (`generateDynamicSitemap`), XSS escaping, and route SEO configurations.
+   - `src/components/SEOHead.tsx`: Dynamic client-side document head manager, multi-schema JSON-LD graphs (`Product`, `Person`, `ProfessionalService`, `CollectionPage`, `BreadcrumbList`), and root-mount clobber guard.
+
+5. **Android Native Configuration**:
    - `android/app/build.gradle`: Application ID `in.smartrun.app`, ProGuard optimization.
    - `android/app/proguard-rules.pro`: Capacitor, Firebase, AndroidX keep & dontwarn rules.
    - `android/app/missing_rules.txt`: Required R8 rules suppression file.

@@ -24,6 +24,34 @@ export interface SEOHeadProps {
     rating?: number;
     reviewsCount?: number;
     category?: string;
+    reviews?: Array<{
+      id?: string;
+      customerName?: string;
+      rating?: number;
+      comment?: string;
+      date?: string;
+    }>;
+  };
+  technicianData?: {
+    id?: string;
+    name: string;
+    title?: string;
+    experienceYears?: number;
+    primarySector?: string;
+    rating?: number;
+    reviewsCount?: number;
+    photo?: string;
+    serviceAreas?: string[];
+    licenseNumber?: string;
+    issuingAuthority?: string;
+    startingRate?: number;
+    recentReviews?: Array<{
+      id?: string;
+      customerName?: string;
+      rating?: number;
+      comment?: string;
+      date?: string;
+    }>;
   };
   structuredData?: Record<string, unknown> | Array<Record<string, unknown>>;
 }
@@ -58,12 +86,25 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
   noIndex,
   breadcrumbs,
   productData,
+  technicianData,
   structuredData
 }) => {
   const location = useLocation();
 
   useEffect(() => {
     const path = location.pathname;
+
+    // Guard against blank root fallback overwriting explicit product/technician metadata
+    const isBlankRootInstance = !title && !description && !productData && !technicianData && !structuredData;
+    if (
+      isBlankRootInstance &&
+      (path.startsWith('/electrical/product/') ||
+        path.startsWith('/construction/product/') ||
+        path.startsWith('/product/') ||
+        path.startsWith('/technicians/'))
+    ) {
+      return;
+    }
 
     // 1. Determine Title & Meta Defaults Based on Current Route
     let defaultTitle = 'SmartRun (Smart Run) - Kolkata Online Delivery App for Electrical & Construction Products';
@@ -161,10 +202,17 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
       defaultDesc = `Buy ${productData.name} online at ₹${productData.price} with 60-minute express delivery in Kolkata. 100% genuine with warranty at SmartRun.`;
     }
 
+    // Technician overrides
+    if (technicianData) {
+      defaultType = 'profile';
+      defaultTitle = `${technicianData.name} - Certified ${technicianData.primarySector || 'Electrician'} | SmartRun Kolkata`;
+      defaultDesc = `${technicianData.name} (${technicianData.rating || 4.9}★) - Certified electrical specialist in Kolkata serving ${technicianData.serviceAreas?.join(', ') || 'Kolkata'}. Book instant on-site wiring and repair.`;
+    }
+
     const computedTitle = title || defaultTitle;
     const computedDesc = description || defaultDesc;
     const computedKeywords = keywords || defaultKeywords;
-    const computedImage = image || (productData?.image) || 'https://www.smartrun.in/SmartRun.png';
+    const computedImage = image || (productData?.image) || (technicianData?.photo) || 'https://www.smartrun.in/SmartRun.png';
     const canonicalUrl = `https://www.smartrun.in${path === '/' ? '/' : path}`;
 
     // 2. Set Document Title
@@ -217,6 +265,12 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     setOrUpdateMeta('name', 'twitter:image', computedImage);
 
     // 7. Inject Structured Data (JSON-LD)
+    // Clean up any stale SSR prerender schema tag so client hydration does not create duplicate JSON-LD nodes
+    const serverScript = document.getElementById('server-prerender-schema');
+    if (serverScript) {
+      serverScript.remove();
+    }
+
     const scriptId = 'smartrun-dynamic-jsonld';
     let scriptTag = document.getElementById(scriptId) as HTMLScriptElement | null;
     if (!scriptTag) {
@@ -284,12 +338,76 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
         name: 'Certified Technicians',
         item: 'https://www.smartrun.in/technicians'
       });
+      if (technicianData) {
+        breadcrumbItems.push({
+          '@type': 'ListItem',
+          position: 3,
+          name: technicianData.name,
+          item: canonicalUrl
+        });
+      }
     } else if (path === '/sitemap') {
       breadcrumbItems.push({
         '@type': 'ListItem',
         position: 2,
         name: 'Sitemap',
         item: 'https://www.smartrun.in/sitemap'
+      });
+    } else if (path === '/faqs' || path === '/faq') {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Frequently Asked Questions',
+        item: canonicalUrl
+      });
+    } else if (path === '/about' || path === '/about-us') {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'About Us',
+        item: canonicalUrl
+      });
+    } else if (path === '/shipping' || path === '/shipping-policy' || path === '/shipping-and-return-policy') {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Shipping Policy',
+        item: canonicalUrl
+      });
+    } else if (path === '/return' || path === '/return-policy' || path === '/returns') {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Return Policy',
+        item: canonicalUrl
+      });
+    } else if (path === '/refund-policy' || path === '/refund' || path === '/refunds') {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Refund Policy',
+        item: canonicalUrl
+      });
+    } else if (path === '/terms' || path === '/terms-of-service') {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Terms of Service',
+        item: canonicalUrl
+      });
+    } else if (path === '/privacy' || path === '/privacy-policy') {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Privacy Policy',
+        item: canonicalUrl
+      });
+    } else if (path === '/how-to-use' || path === '/guide') {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'How to Use App',
+        item: canonicalUrl
       });
     }
 
@@ -314,7 +432,7 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
         ])
       ).filter(Boolean);
 
-      schemaGraph.push({
+      const prodSchema: Record<string, unknown> = {
         '@context': 'https://schema.org/',
         '@type': 'Product',
         productID: prodId,
@@ -406,13 +524,38 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
               }
             }
           }
-        },
-        aggregateRating: {
-          '@type': 'AggregateRating',
-          ratingValue: productData.rating || 4.8,
-          reviewCount: productData.reviewsCount || 42
         }
-      });
+      };
+
+      // Only add aggregateRating when genuine reviews exist
+      if (typeof productData.rating === 'number' && productData.rating > 0 && typeof productData.reviewsCount === 'number' && productData.reviewsCount > 0) {
+        prodSchema.aggregateRating = {
+          '@type': 'AggregateRating',
+          ratingValue: productData.rating,
+          reviewCount: productData.reviewsCount,
+          bestRating: 5,
+          worstRating: 1
+        };
+      }
+
+      // Add genuine customer reviews if provided
+      if (Array.isArray(productData.reviews) && productData.reviews.length > 0) {
+        prodSchema.review = productData.reviews.map((r) => ({
+          '@type': 'Review',
+          author: {
+            '@type': 'Person',
+            name: r.customerName || 'Verified Buyer'
+          },
+          reviewRating: {
+            '@type': 'Rating',
+            ratingValue: r.rating || 5,
+            bestRating: 5
+          },
+          reviewBody: r.comment || 'Verified purchase from SmartRun Kolkata depot.'
+        }));
+      }
+
+      schemaGraph.push(prodSchema);
     }
 
     // Specific FAQPage Schema
@@ -420,10 +563,14 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
       schemaGraph.push({
         '@context': 'https://schema.org',
         '@type': 'FAQPage',
+        '@id': `${canonicalUrl}#webpage`,
+        name: 'Frequently Asked Questions (FAQ) | SmartRun Kolkata',
+        url: canonicalUrl,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' },
         mainEntity: [
           {
             '@type': 'Question',
-            name: 'How fast is express delivery from SmartRun?',
+            name: 'How fast is express delivery from SmartRun in Kolkata?',
             acceptedAnswer: {
               '@type': 'Answer',
               text: 'SmartRun delivers verified electrical supplies and emergency components within 60 minutes across Kolkata and surrounding operational zones.'
@@ -444,6 +591,278 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
               '@type': 'Answer',
               text: 'Yes, every order includes a statutory GST tax invoice with your registered GSTIN for full input tax credit (ITC) claims.'
             }
+          },
+          {
+            '@type': 'Question',
+            name: 'What is the return and replacement window?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'SmartRun provides a 7-day doorstep replacement or return window on eligible electrical supplies and hardware with free reverse pickup.'
+            }
+          },
+          {
+            '@type': 'Question',
+            name: 'How are electricians on SmartRun verified?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'All electrical supervisors and technicians hold official Class-1 or Master Wireman licenses from the Govt. of West Bengal Electrical Licensing Board.'
+            }
+          }
+        ]
+      });
+    }
+
+    // Specific Technician Schema (Google Local Professional & Person schema)
+    if (technicianData) {
+      const techSchema: Record<string, unknown> = {
+        '@context': 'https://schema.org',
+        '@type': ['Person', 'ProfessionalService'],
+        name: technicianData.name,
+        jobTitle: technicianData.title || 'Certified Electrical Engineer & Master Wireman',
+        image: technicianData.photo || computedImage,
+        telephone: '+91-8777400280',
+        url: canonicalUrl,
+        priceRange: technicianData.startingRate ? `₹${technicianData.startingRate} - ₹1499` : '₹499 - ₹1499',
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: 'Kasba Industrial Estate Phase 1',
+          addressLocality: 'Kolkata',
+          addressRegion: 'West Bengal',
+          postalCode: '700107',
+          addressCountry: 'IN'
+        },
+        areaServed: (technicianData.serviceAreas || ['Kolkata', 'Kasba', 'Salt Lake', 'New Town']).map((a) => ({
+          '@type': 'AdministrativeArea',
+          name: a
+        }))
+      };
+
+      if (technicianData.licenseNumber) {
+        techSchema.hasCredential = {
+          '@type': 'EducationalOccupationalCredential',
+          credentialCategory: 'Government Electrical Supervisor / Wireman License',
+          recognizedBy: {
+            '@type': 'Organization',
+            name: technicianData.issuingAuthority || 'Govt. of West Bengal - Electrical Licensing Board'
+          }
+        };
+      }
+
+      if (typeof technicianData.rating === 'number' && technicianData.rating > 0) {
+        techSchema.aggregateRating = {
+          '@type': 'AggregateRating',
+          ratingValue: technicianData.rating,
+          reviewCount: technicianData.reviewsCount || 1,
+          bestRating: 5,
+          worstRating: 1
+        };
+      }
+
+      if (Array.isArray(technicianData.recentReviews) && technicianData.recentReviews.length > 0) {
+        techSchema.review = technicianData.recentReviews.map((r) => ({
+          '@type': 'Review',
+          author: {
+            '@type': 'Person',
+            name: r.customerName || 'Verified Client'
+          },
+          reviewRating: {
+            '@type': 'Rating',
+            ratingValue: r.rating || 5,
+            bestRating: 5
+          },
+          reviewBody: r.comment || 'Professional electrical service completed in Kolkata.'
+        }));
+      }
+
+      schemaGraph.push(techSchema);
+    }
+
+    // Category CollectionPage Schema
+    if (path === '/electrical') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        '@id': `${canonicalUrl}#webpage`,
+        name: 'Electrical Goods & House Wiring Cables Wholesale Kolkata',
+        description: 'Wholesale and retail electrical supplies with 60-minute express delivery in Kolkata.',
+        url: canonicalUrl,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' }
+      });
+    } else if (path === '/construction') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        '@id': `${canonicalUrl}#webpage`,
+        name: 'Building Materials, UltraTech Cement & Tata TMT Steel Kolkata',
+        description: 'Direct site delivery of UltraTech cement, ACC cement, Tata Tiscon TMT rebars, and building hardware in Kolkata.',
+        url: canonicalUrl,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' }
+      });
+    } else if (path === '/technicians') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        '@id': `${canonicalUrl}#webpage`,
+        name: 'Licensed Electricians & Wiring Contractors Directory Kolkata',
+        description: 'Verified professional electrical engineers and master wiremen with 60-minute emergency arrival across Kolkata.',
+        url: canonicalUrl,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' }
+      });
+    } else if (path === '/about' || path === '/about-us') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'AboutPage',
+        '@id': `${canonicalUrl}#webpage`,
+        name: 'About SmartRun Express Electricals & Construction Depot',
+        description: "SmartRun (SmartRun materials pvt. ltd) is Kolkata's premier quick-commerce depot supplying genuine electrical goods, construction materials, and certified electrician wiring services.",
+        url: canonicalUrl,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' },
+        about: { '@id': 'https://www.smartrun.in/#store' }
+      });
+    } else if (path === '/shipping' || path === '/shipping-policy' || path === '/shipping-and-return-policy') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        '@id': `${canonicalUrl}#webpage`,
+        name: 'SmartRun 60-Minute Express Shipping & Delivery Policy',
+        description: 'SmartRun shipping policy: 60-minute express doorstep delivery across Kolkata from Kasba Central Depot. Order tracking, service areas, and delivery fees.',
+        url: canonicalUrl,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' },
+        mainEntity: {
+          '@type': 'OfferShippingDetails',
+          shippingRate: {
+            '@type': 'MonetaryAmount',
+            value: '49',
+            currency: 'INR'
+          },
+          shippingDestination: {
+            '@type': 'DefinedRegion',
+            addressCountry: 'IN',
+            addressRegion: 'West Bengal',
+            addressLocality: 'Kolkata'
+          },
+          deliveryTime: {
+            '@type': 'ShippingDeliveryTime',
+            handlingTime: {
+              '@type': 'QuantitativeValue',
+              minValue: 0,
+              maxValue: 1,
+              unitCode: 'DAY'
+            },
+            transitTime: {
+              '@type': 'QuantitativeValue',
+              minValue: 0,
+              maxValue: 1,
+              unitCode: 'DAY'
+            }
+          }
+        }
+      });
+    } else if (path === '/return' || path === '/return-policy' || path === '/returns') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        '@id': `${canonicalUrl}#webpage`,
+        name: 'SmartRun 7-Day Hassle-Free Return & Replacement Policy',
+        description: 'SmartRun return policy: 7-day hassle-free return and replacement for electrical goods, wires, switches, and construction materials with doorstep pickup.',
+        url: canonicalUrl,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' },
+        mainEntity: {
+          '@type': 'MerchantReturnPolicy',
+          applicableCountry: 'IN',
+          returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+          merchantReturnDays: 7,
+          returnMethod: 'https://schema.org/ReturnAtKiosk',
+          returnFees: 'https://schema.org/FreeReturn',
+          refundType: 'https://schema.org/FullRefund'
+        }
+      });
+    } else if (path === '/refund-policy' || path === '/refund' || path === '/refunds') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        '@id': `${canonicalUrl}#webpage`,
+        name: 'SmartRun Instant Direct-to-Source Refund Policy',
+        description: 'SmartRun refund policy: 100% money-back guarantee with 2 to 4 hour instant bank settlement on verified cancellations.',
+        url: canonicalUrl,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' },
+        mainEntity: {
+          '@type': 'MerchantReturnPolicy',
+          applicableCountry: 'IN',
+          returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+          merchantReturnDays: 7,
+          returnFees: 'https://schema.org/FreeReturn',
+          refundType: 'https://schema.org/FullRefund'
+        }
+      });
+    } else if (path === '/terms' || path === '/terms-of-service') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        '@id': `${canonicalUrl}#webpage`,
+        name: 'Terms of Service | SmartRun',
+        description: 'Review the legal terms and conditions governing the use of SmartRun website, mobile app, order placement, and electrician services.',
+        url: canonicalUrl,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' }
+      });
+    } else if (path === '/privacy' || path === '/privacy-policy') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        '@id': `${canonicalUrl}#webpage`,
+        name: 'Privacy Policy | SmartRun',
+        description: 'Understand how SmartRun collects, protects, and handles personal information in compliance with Indian IT Rules and data protection standards.',
+        url: canonicalUrl,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' }
+      });
+    } else if (path === '/sitemap') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        '@id': `${canonicalUrl}#webpage`,
+        name: 'SmartRun Directory & Catalog Index',
+        description: 'Explore the complete directory of SmartRun: electrical supplies, building materials, certified electrician services, company policies, and direct links.',
+        url: canonicalUrl,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' }
+      });
+    } else if (path === '/how-to-use' || path === '/guide') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'HowTo',
+        '@id': `${canonicalUrl}#howto`,
+        name: 'How to Order Electrical & Construction Materials in Kolkata via SmartRun',
+        description: 'Step-by-step customer guide for ordering electrical supplies, booking certified electricians, tracking live GPS deliveries, and downloading GST tax invoices.',
+        totalTime: 'PT60M',
+        step: [
+          {
+            '@type': 'HowToStep',
+            position: 1,
+            name: 'Select Delivery Locality',
+            text: 'Choose your delivery location in Kolkata (Kasba, Salt Lake, New Town, Gariahat, etc.) or detect via GPS.'
+          },
+          {
+            '@type': 'HowToStep',
+            position: 2,
+            name: 'Choose Electrical or Construction Supplies',
+            text: 'Browse verified brands like Polycab, Havells, Schneider Electric, and UltraTech Cement.'
+          },
+          {
+            '@type': 'HowToStep',
+            position: 3,
+            name: 'Customize Wire Length & Color Swatches',
+            text: 'Select required wire gauges (0.75 to 6.0 sqmm) and phase colors (Red, Black, Blue, Yellow, Green).'
+          },
+          {
+            '@type': 'HowToStep',
+            position: 4,
+            name: 'Instant Razorpay UPI or Cash on Delivery',
+            text: 'Checkout seamlessly with Google Pay, PhonePe, Paytm, Cards, or pay Cash on Delivery.'
+          },
+          {
+            '@type': 'HowToStep',
+            position: 5,
+            name: 'Live GPS Tracking & 60-Minute Doorstep Delivery',
+            text: 'Track your delivery partner on live maps as they deliver to your home or construction site in 60 minutes.'
           }
         ]
       });
@@ -473,6 +892,7 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     noIndex,
     breadcrumbs,
     productData,
+    technicianData,
     structuredData
   ]);
 

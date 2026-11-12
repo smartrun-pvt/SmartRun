@@ -30,6 +30,7 @@ import {
   getDocs as firestoreGetDocs
 } from "firebase/firestore";
 import { INITIAL_PRODUCTS } from "./src/data/products";
+import { DEMO_TECHNICIANS } from "./src/data/demoTechnicians";
 import { generateDynamicSitemap, generateRssFeed, injectSeoMetadata } from "./src/utils/seoHelper";
 
 dotenv.config();
@@ -2378,7 +2379,7 @@ async function startServer() {
   app.get("/sitemap.xml", async (req, res) => {
     try {
       const { products } = await getCachedCatalog();
-      const sitemapXml = generateDynamicSitemap(products);
+      const sitemapXml = generateDynamicSitemap(products, DEMO_TECHNICIANS as any);
       res.setHeader("Content-Type", "application/xml; charset=utf-8");
       res.setHeader("Cache-Control", "public, max-age=3600");
       return res.status(200).send(sitemapXml);
@@ -9822,28 +9823,49 @@ Knowledge Base & Service Details:
     // Dynamic SSR Micro-Prerendering & SEO Meta Injection for Products & Category Pages
     app.get(
       [
+        "/",
         "/electrical/product/:id",
         "/construction/product/:id",
         "/product/:id",
         "/electrical",
         "/construction",
         "/technicians",
+        "/technicians/:id",
         "/shipping",
+        "/shipping-policy",
+        "/shipping-and-return-policy",
         "/return",
         "/return-policy",
-        "/refund-policy"
+        "/returns",
+        "/refund",
+        "/refund-policy",
+        "/refunds",
+        "/faqs",
+        "/faq",
+        "/about",
+        "/about-us",
+        "/privacy",
+        "/privacy-policy",
+        "/terms",
+        "/terms-of-service",
+        "/sitemap",
+        "/how-to-use",
+        "/guide"
       ],
       async (req, res, next) => {
         try {
           const { products } = await getCachedCatalog();
           const productId = req.params.id;
-          const matchedProduct = productId
+          const matchedProduct = productId && (req.path.includes('/product/') || req.path.startsWith('/product/'))
             ? products.find((p) => String(p.id).toLowerCase() === String(productId).toLowerCase())
+            : null;
+          const matchedTechnician = productId && req.path.startsWith('/technicians/')
+            ? (DEMO_TECHNICIANS as any[]).find((t) => String(t.id).toLowerCase() === String(productId).toLowerCase())
             : null;
 
           const rawTemplate = fs.readFileSync(path.join(process.cwd(), "index.html"), "utf-8");
           const devHtml = await vite.transformIndexHtml(req.originalUrl, rawTemplate);
-          const injectedHtml = injectSeoMetadata(devHtml, req.path, matchedProduct);
+          const injectedHtml = injectSeoMetadata(devHtml, req.path, matchedProduct, matchedTechnician);
 
           res.setHeader("Content-Type", "text/html; charset=utf-8");
           res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -9901,16 +9923,34 @@ Knowledge Base & Service Details:
     // Production SSR Micro-Prerendering & Dynamic Meta Injection for Products & Category Pages
     app.get(
       [
+        "/",
         "/electrical/product/:id",
         "/construction/product/:id",
         "/product/:id",
         "/electrical",
         "/construction",
         "/technicians",
+        "/technicians/:id",
         "/shipping",
+        "/shipping-policy",
+        "/shipping-and-return-policy",
         "/return",
         "/return-policy",
-        "/refund-policy"
+        "/returns",
+        "/refund",
+        "/refund-policy",
+        "/refunds",
+        "/faqs",
+        "/faq",
+        "/about",
+        "/about-us",
+        "/privacy",
+        "/privacy-policy",
+        "/terms",
+        "/terms-of-service",
+        "/sitemap",
+        "/how-to-use",
+        "/guide"
       ],
       async (req, res, next) => {
         try {
@@ -9919,12 +9959,15 @@ Knowledge Base & Service Details:
 
           const { products } = await getCachedCatalog();
           const productId = req.params.id;
-          const matchedProduct = productId
+          const matchedProduct = productId && (req.path.includes('/product/') || req.path.startsWith('/product/'))
             ? products.find((p) => String(p.id).toLowerCase() === String(productId).toLowerCase())
+            : null;
+          const matchedTechnician = productId && req.path.startsWith('/technicians/')
+            ? (DEMO_TECHNICIANS as any[]).find((t) => String(t.id).toLowerCase() === String(productId).toLowerCase())
             : null;
 
           const rawHtml = fs.readFileSync(prodIndexFile, "utf-8");
-          const injectedHtml = injectSeoMetadata(rawHtml, req.path, matchedProduct);
+          const injectedHtml = injectSeoMetadata(rawHtml, req.path, matchedProduct, matchedTechnician);
 
           res.setHeader("Content-Type", "text/html; charset=utf-8");
           res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");

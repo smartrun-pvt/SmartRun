@@ -437,6 +437,12 @@ export const ElectricalListingPage = ({
 
       {/* 4. PRODUCT CATALOG GRID (Borderless, 4 products in one row, reduced height) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        {/* Semantic H1 for Search Engine Topical Authority & Screen Readers */}
+        <h1 className="sr-only">
+          {searchQuery
+            ? `Electrical Goods & Supplies matching "${searchQuery}" in Kolkata`
+            : 'Electrical Goods & House Wiring Cables Wholesale Kolkata'}
+        </h1>
         {loading ? (
           <div className="py-24 text-center">
             <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mx-auto mb-3" />

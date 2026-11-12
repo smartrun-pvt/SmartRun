@@ -691,9 +691,9 @@ export const ConstructionPage = ({
                   <span>Kasba Central Depot • Kolkata</span>
                 </div>
                 
-                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                   Construction Materials Coming Soon
-                </h2>
+                </h1>
 
                 <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
                   We are currently onboarding our full wholesale catalog of UltraTech cement, Tata Tiscon TMT rebars, Astral CPVC pipes, Dr. Fixit waterproofing, and structural hardware.

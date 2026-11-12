@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Plus, Minus, Star, Eye, Heart, Check, ShoppingCart } from 'lucide-react';
 import { Product } from '../types';
 import { isProductFavorite, toggleProductFavorite } from '../services/favorites';
@@ -154,10 +155,16 @@ export const ProductCard = ({
         </button>
       </div>
 
-      {/* Image Container with Quick View overlay */}
-      <div
-        onClick={() => onOpenQuickView({ ...product, selectedColor: hasColorOptions ? selectedColor : undefined, image: displayImage })}
-        className="relative w-full aspect-square bg-slate-50 rounded-xl overflow-hidden mb-3 cursor-pointer flex items-center justify-center"
+      {/* Image Container with Quick View overlay and semantic link for crawlers */}
+      <Link
+        to={product.category === 'construction' ? `/construction/product/${product.id}` : `/electrical/product/${product.id}`}
+        onClick={(e) => {
+          if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            e.preventDefault();
+            onOpenQuickView({ ...product, selectedColor: hasColorOptions ? selectedColor : undefined, image: displayImage });
+          }
+        }}
+        className="relative w-full aspect-square bg-slate-50 rounded-xl overflow-hidden mb-3 cursor-pointer flex items-center justify-center block"
       >
         <img
           src={displayImage}
@@ -184,7 +191,7 @@ export const ProductCard = ({
             <span>Specs</span>
           </span>
         </div>
-      </div>
+      </Link>
 
       {/* Product Information */}
       <div className="flex-1 flex flex-col justify-between">
@@ -199,13 +206,23 @@ export const ProductCard = ({
             </div>
           )}
 
-          {/* Product Title */}
+          {/* Product Title with Semantic Crawler Link */}
           <h4
-            onClick={() => onOpenQuickView({ ...product, selectedColor: hasColorOptions ? selectedColor : undefined })}
-            className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-2 leading-snug hover:text-green-700 transition-colors cursor-pointer mb-1"
+            className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-2 leading-snug hover:text-green-700 transition-colors mb-1"
             title={product.name}
           >
-            {product.name}
+            <Link
+              to={product.category === 'construction' ? `/construction/product/${product.id}` : `/electrical/product/${product.id}`}
+              onClick={(e) => {
+                if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                  e.preventDefault();
+                  onOpenQuickView({ ...product, selectedColor: hasColorOptions ? selectedColor : undefined });
+                }
+              }}
+              className="hover:underline"
+            >
+              {product.name}
+            </Link>
           </h4>
 
           {/* Unit / Packaging Details */}

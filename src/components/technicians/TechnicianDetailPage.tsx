@@ -267,7 +267,28 @@ export const TechnicianDetailPage = ({
       <SEOHead
         title={tech ? `${tech.name} - Certified ${tech.primarySector || 'Electrician'} | SmartRun Kolkata` : 'Certified Electrician Specialist Profile | SmartRun Kolkata'}
         description={tech ? `${tech.name} (${tech.rating || 4.9}★) - Certified electrical specialist in Kolkata serving ${workingAreaText}. Book instant on-site wiring and repair.` : 'View certified electrician profile, service ratings, expertise, license details, and book instant on-site electrical service in Kolkata.'}
-        keywords="electrician profile kolkata, licensed electrical contractor, house wiring booking"
+        keywords="electrician profile kolkata, licensed electrical contractor, house wiring booking, smart run, smartrun"
+        image={tech?.photo}
+        type="profile"
+        technicianData={tech ? {
+          id: tech.id,
+          name: tech.name,
+          title: tech.title,
+          experienceYears: tech.experienceYears,
+          primarySector: tech.primarySector,
+          rating: tech.rating,
+          reviewsCount: tech.reviewsCount,
+          photo: tech.photo,
+          serviceAreas: tech.serviceAreas,
+          licenseNumber: tech.licenseNumber,
+          issuingAuthority: tech.issuingAuthority,
+          startingRate: tech.startingRate,
+          recentReviews: tech.recentReviews
+        } : undefined}
+        breadcrumbs={[
+          { name: 'Certified Technicians', path: '/technicians' },
+          ...(tech ? [{ name: tech.name, path: `/technicians/${tech.id}` }] : [])
+        ]}
       />
       {/* Top Header Navigation [Minimal & Clean] */}
       <div
@@ -301,6 +322,17 @@ export const TechnicianDetailPage = ({
       </div>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-6 space-y-8">
+        {/* Visual Breadcrumb Navigation */}
+        {tech && (
+          <nav aria-label="Breadcrumb" className="text-xs text-slate-500 flex items-center gap-1.5 flex-wrap -mt-2 mb-2">
+            <button type="button" onClick={() => navigate('/')} className="hover:text-slate-900 transition-colors cursor-pointer">Home</button>
+            <span>/</span>
+            <button type="button" onClick={() => navigate('/technicians')} className="hover:text-slate-900 transition-colors cursor-pointer">Technicians</button>
+            <span>/</span>
+            <span className="text-slate-800 font-semibold truncate max-w-[200px]">{tech.name}</span>
+          </nav>
+        )}
+
         {/* ========================================================================= */}
         {/* SECTION 1: PHOTO, NAME, JOB TITLE/AREA, RATING/EXP/JOBS, DESCRIPTION     */}
         {/* (No button or anything below the description as requested)               */}

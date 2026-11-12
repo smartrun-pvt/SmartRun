@@ -52,3 +52,18 @@
   2. All titles, meta tags, and OpenGraph contents undergo full character entity substitution (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&#039;`).
   3. JSON-LD scripts are serialized with standard `JSON.stringify`, preventing breakout attacks before client hydration.
   4. Unit tested against malicious payloads in `src/utils/seoHelper.test.ts`.
+
+## Threat 9: SSR Route Spoofing & Disallowed Route Exposure
+- **Attack Vector**: Malicious crawlers or scrapers target private user endpoints (`/delete`, `/account-deletion`, `/personal-info`, `/auth`) or inject wildcard paths into SSR rendering to trigger memory exhaustion or expose unauthenticated interfaces in search indexes.
+- **Defense**:
+  1. `public/robots.txt` explicitly disallows `/delete`, `/account-deletion`, `/personal-info`, and `/auth` for both prioritized search crawlers (Googlebot, Bingbot, Applebot, AhrefsBot) and generic user-agents.
+  2. `public/sitemap.xml` and dynamic sitemap generators strictly purge disallowed and private authentication routes.
+  3. Server SSR prerender matchers operate on a strict whitelist of public routes (`/`, `/electrical`, `/construction`, `/technicians`, `/technicians/:id`, `/electrical/product/:id`, `/construction/product/:id`, `/about`, `/faqs`, `/how-to-use`, `/terms`, `/privacy`, `/sitemap`, `/shipping`, `/return`, `/refund-policy`).
+  4. Non-matching or private routes bypass SSR metadata injection and fall through to standard index.html.
+
+## Threat 10: Structured Data Spam, Fabricated AggregateRatings & Google Manual Actions
+- **Attack Vector**: An adversary or naive implementation injects synthetic 5-star ratings or fabricated reviews into Schema.org JSON-LD without actual user reviews on the page. Google's Search Quality algorithms detect the discrepancy between rendered DOM content and structured data, issuing a Structured Data Manual Action penalty that de-indexes all Rich Results for the domain.
+- **Defense**:
+  1. Zero hardcoded fake rating fallbacks: `aggregateRating` is conditionally generated strictly when real numerical review data exists (`product.rating > 0 && product.reviewsCount > 0`). If unrated, the node is completely omitted.
+  2. Genuine customer reviews (`review` array) are only embedded when real database review entries are present.
+  3. Single authoritative JSON-LD instance: `#server-prerender-schema` is wiped on client mount, eliminating conflicting duplicate entity declarations across SSR and CSR.

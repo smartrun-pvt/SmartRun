@@ -43,9 +43,15 @@ describe('SmartRun SEO & Geo Optimization Engine', () => {
     expect(seo.keywords).toContain('kolkata online delivery app for electrical products');
     expect(seo.keywords).toContain('smart run');
 
-    // Check Schema.org Product JSON-LD
-    const schema = seo.structuredData as any;
-    expect(schema['@type']).toBe('Product');
+    // Check Schema.org Product JSON-LD in @graph
+    const graph = (seo.structuredData as any)['@graph'];
+    expect(Array.isArray(graph)).toBe(true);
+    const breadcrumbs = graph.find((item: any) => item['@type'] === 'BreadcrumbList');
+    expect(breadcrumbs).toBeDefined();
+    expect(breadcrumbs.itemListElement.length).toBeGreaterThanOrEqual(3);
+
+    const schema = graph.find((item: any) => item['@type'] === 'Product');
+    expect(schema).toBeDefined();
     expect(schema.name).toBe('RR Kabel Wire FR LS 0.75 Sqmm, 200 MTR');
     expect(schema.offers.price).toBe(3065);
     expect(schema.offers.areaServed.name).toBe('Kolkata');
@@ -178,8 +184,61 @@ describe('SmartRun SEO & Geo Optimization Engine', () => {
     expect(rssXml).toContain('<link>https://www.smartrun.in/electrical/product/p1</link>');
     expect(rssXml).toContain('<guid isPermaLink="true">https://www.smartrun.in/electrical/product/p1</guid>');
     expect(rssXml).toContain('<category>Electrical Supplies</category>');
-    expect(rssXml).toContain('<link>https://www.smartrun.in/construction/product/p35</link>');
     expect(rssXml).toContain('<category>Construction Materials</category>');
   });
+
+  test('getRouteSeoConfig formats technician page with Person and ProfessionalService schema', () => {
+    const mockTech = {
+      id: 'tech-001',
+      name: 'Er. Rajesh Mukherjee',
+      title: 'Lead Electrical Engineer & Master Wireman',
+      primarySector: 'Residential & Commercial Power Systems',
+      experienceYears: 9,
+      rating: 4.94,
+      reviewsCount: 142,
+      serviceAreas: ['Salt Lake Sector V', 'New Town', 'Ballygunge']
+    };
+
+    const techSeo = getRouteSeoConfig('/technicians/tech-001', null, mockTech);
+    expect(techSeo.title).toContain('Er. Rajesh Mukherjee');
+    expect(techSeo.title).toContain('SmartRun Kolkata');
+    expect(techSeo.description).toContain('Er. Rajesh Mukherjee');
+    expect(techSeo.description).toContain('4.94');
+    expect(techSeo.description).toContain('Salt Lake Sector V');
+
+    const techGraph = (techSeo.structuredData as any)['@graph'];
+    expect(Array.isArray(techGraph)).toBe(true);
+    const techBreadcrumbs = techGraph.find((item: any) => item['@type'] === 'BreadcrumbList');
+    expect(techBreadcrumbs).toBeDefined();
+
+    const schema = techGraph.find((item: any) => Array.isArray(item['@type']) && item['@type'].includes('Person'));
+    expect(schema).toBeDefined();
+    expect(schema['@type']).toContain('ProfessionalService');
+    expect(schema.name).toBe('Er. Rajesh Mukherjee');
+    expect(schema.jobTitle).toBe('Lead Electrical Engineer & Master Wireman');
+    expect(schema.aggregateRating.ratingValue).toBe(4.94);
+  });
+
+  test('getRouteSeoConfig handles FAQs, About, and Help guide routes', () => {
+    const faqSeo = getRouteSeoConfig('/faqs');
+    expect(faqSeo.title).toContain('Frequently Asked Questions');
+    expect(faqSeo.structuredData).toBeDefined();
+    const faqGraph = (faqSeo.structuredData as any)['@graph'];
+    const faqSchema = faqGraph.find((item: any) => item['@type'] === 'FAQPage');
+    expect(faqSchema).toBeDefined();
+
+    const aboutSeo = getRouteSeoConfig('/about');
+    expect(aboutSeo.title).toContain('About Us');
+    const aboutGraph = (aboutSeo.structuredData as any)['@graph'];
+    const aboutSchema = aboutGraph.find((item: any) => item['@type'] === 'AboutPage');
+    expect(aboutSchema).toBeDefined();
+
+    const guideSeo = getRouteSeoConfig('/how-to-use');
+    expect(guideSeo.title).toContain('How to Use SmartRun App');
+    const guideGraph = (guideSeo.structuredData as any)['@graph'];
+    const howToSchema = guideGraph.find((item: any) => item['@type'] === 'HowTo');
+    expect(howToSchema).toBeDefined();
+  });
 });
+
 

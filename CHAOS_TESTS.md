@@ -47,3 +47,37 @@ curl -s http://localhost:3000/electrical/product/05e97d96-5942-4e67-a5e6-5907426
 # Expectation: Immediate HTTP 200 with exact product name, brand, Kolkata price, and Kasba Central Depot Schema.org Product JSON-LD in <head>
 ```
 
+## 7. Test Certified Technician SSR Micro-Prerender & Schema
+```bash
+curl -s http://localhost:3000/technicians/tech-001 | grep -C 3 "<title>"
+# Expectation: Immediate HTTP 200 with "Er. Rajesh Mukherjee" in title, ProfessionalService + Person JSON-LD, and service area Kolkata
+```
+
+## 8. Test Static Sitemap & Disallow Integrity
+```bash
+# Verify technician profiles present and disallowed private pages absent
+curl -s http://localhost:3000/sitemap.xml | grep -E "tech-001|account-deletion|login"
+# Expectation: tech-001 is present; account-deletion and login are NOT present
+```
+
+## 9. Test Robots.txt Disallow Directives
+```bash
+curl -s http://localhost:3000/robots.txt | grep -E "Disallow: /delete|Disallow: /account-deletion|Disallow: /personal-info"
+# Expectation: All sensitive routes disallowed under both Googlebot/AhrefsBot blocks and User-agent: *
+```
+
+## 10. Test Schema.org @graph on Product Detail Route
+```bash
+curl -s http://localhost:3000/electrical/product/p1 | grep -o '{"@type":"Product"[^}]*}'
+# Expectation: Valid Product JSON-LD with SKU, price: 3065, Kolkata areaServed, and BreadcrumbList in @graph
+```
+
+## 11. Test HowTo & AboutPage Schema Injection
+```bash
+# Verify HowTo steps on guide route
+curl -s http://localhost:3000/how-to-use | grep -o '"@type":"HowTo"'
+
+# Verify AboutPage on about route
+curl -s http://localhost:3000/about | grep -o '"@type":"AboutPage"'
+```
+

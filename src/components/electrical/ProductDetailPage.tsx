@@ -680,10 +680,31 @@ export const ProductDetailPage = ({
           image: currentImage,
           images: effectiveImageUrls,
           inStock: product.stock_quantity > 0,
-          rating: 4.8,
-          reviewsCount: reviews.length || 24,
-          category: product.category || 'Electrical Supplies'
+          rating: reviews.length > 0
+            ? Number((reviews.reduce((acc, r) => acc + (r.rating || 5), 0) / reviews.length).toFixed(1))
+            : (typeof (product as any).rating === 'number' && (product as any).rating > 0 ? (product as any).rating : undefined),
+          reviewsCount: reviews.length > 0
+            ? reviews.length
+            : (typeof (product as any).reviewsCount === 'number' && (product as any).reviewsCount > 0 ? (product as any).reviewsCount : undefined),
+          category: product.category || 'Electrical Supplies',
+          reviews: reviews.length > 0
+            ? reviews.map((r: any) => ({
+                id: r.id,
+                customerName: r.customer_name || r.name || 'Verified Buyer',
+                rating: r.rating || 5,
+                comment: r.comment || r.review,
+                date: r.created_at
+              }))
+            : undefined
         }}
+        breadcrumbs={[
+          {
+            name: isConstructionCategory ? 'Construction Materials' : 'Electrical Goods',
+            path: catalogBackRoute
+          },
+          ...(product.subcategory ? [{ name: product.subcategory, path: `${catalogBackRoute}?cat=${encodeURIComponent(product.subcategory)}` }] : []),
+          { name: product.name, path: `${catalogBackRoute}/product/${product.id}` }
+        ]}
       />
       
       {/* Main Two-Column Layout */}
@@ -926,6 +947,33 @@ export const ProductDetailPage = ({
           {/* ========================================================================= */}
           <div className="lg:col-span-7 space-y-6">
             
+            {/* Visual Breadcrumb Trail */}
+            <nav aria-label="Breadcrumb" className="text-xs text-slate-500 flex items-center gap-1.5 flex-wrap -mb-2">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="hover:text-slate-900 transition-colors cursor-pointer"
+              >
+                Home
+              </button>
+              <span>/</span>
+              <button
+                type="button"
+                onClick={() => navigate(catalogBackRoute)}
+                className="hover:text-slate-900 transition-colors cursor-pointer"
+              >
+                {isConstructionCategory ? 'Construction Materials' : 'Electrical Goods'}
+              </button>
+              {product.subcategory && (
+                <>
+                  <span>/</span>
+                  <span className="text-slate-600 font-medium">{product.subcategory}</span>
+                </>
+              )}
+              <span>/</span>
+              <span className="text-slate-800 font-semibold truncate max-w-[200px] sm:max-w-xs">{product.name}</span>
+            </nav>
+
             {/* Title, Brand & Telegram-Style Share Button */}
             <div>
               <div className="flex items-center gap-2 mb-1 flex-wrap">

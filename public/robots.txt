@@ -39,6 +39,10 @@ Disallow: /orders
 Disallow: /live-order
 Disallow: /live-order/*
 Disallow: /reset-password
+Disallow: /delete
+Disallow: /account-deletion
+Disallow: /personal-info
+Disallow: /auth
 Disallow: /api/*
 
 # General Crawlers
@@ -66,8 +70,13 @@ Disallow: /orders
 Disallow: /live-order
 Disallow: /live-order/*
 Disallow: /reset-password
+Disallow: /delete
+Disallow: /account-deletion
+Disallow: /personal-info
+Disallow: /auth
 Disallow: /api/*
 
 # XML Sitemaps & Syndication Feeds for Instant Backlink Discovery
 Sitemap: https://www.smartrun.in/sitemap.xml
 Sitemap: https://www.smartrun.in/rss.xml
+
