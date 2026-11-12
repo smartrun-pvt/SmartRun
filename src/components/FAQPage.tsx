@@ -1,205 +1,22 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   ChevronLeft,
   Search,
   X,
   ChevronDown,
   ShieldAlert,
-  Zap,
-  PackageCheck,
-  ReceiptText,
-  CreditCard,
-  RotateCcw,
-  Wrench,
   HelpCircle,
   ExternalLink,
   PhoneCall,
   Mail
 } from 'lucide-react';
 import { SEOHead } from './SEOHead';
+import { Footer } from './Footer';
+import { ENRICHED_FAQ_LIST, FAQ_CATEGORIES, FAQItem } from '../data/faqData';
 
-export interface FAQItem {
-  id: string;
-  category: 'security' | 'delivery' | 'products' | 'billing' | 'payments' | 'returns' | 'electricians';
-  question: string;
-  answer: string;
-  actionLink?: {
-    text: string;
-    url: string;
-  };
-}
-
-export const FAQ_CATEGORIES = [
-  { id: 'all', label: 'All Topics', icon: HelpCircle },
-  { id: 'security', label: 'Security & Login', icon: ShieldAlert },
-  { id: 'delivery', label: '60-Min Express', icon: Zap },
-  { id: 'products', label: 'Genuine Materials', icon: PackageCheck },
-  { id: 'billing', label: 'GST Invoices', icon: ReceiptText },
-  { id: 'payments', label: 'Payments & COD', icon: CreditCard },
-  { id: 'returns', label: 'Returns & Refunds', icon: RotateCcw },
-  { id: 'electricians', label: 'Electricians & Hub', icon: Wrench },
-] as const;
-
-export const ENRICHED_FAQ_LIST: FAQItem[] = [
-  // --- SECTION 1: SECURITY & LOGIN NOTIFICATIONS ---
-  {
-    id: 'security-login-alerts',
-    category: 'security',
-    question: 'Why did I receive an email saying "Important: Login from new device and location"?',
-    answer: 'SmartRun sends automated, real-time security alerts whenever your account is accessed from a new device, mobile browser, or IP network. We do this to immediately protect your personal profile, saved delivery addresses, past order history, and saved payment preferences against unauthorized logins. If this login was made by you, you can safely disregard the notification.',
-    actionLink: {
-      text: 'Manage Account Security',
-      url: '/profile'
-    }
-  },
-  {
-    id: 'security-not-me',
-    category: 'security',
-    question: 'What should I do if this login was NOT me?',
-    answer: 'If you do not recognize the device, browser, or timestamp shown in the security alert email, your credentials may have been compromised. Tap the "forgot password" option in the email or visit our Password Reset page immediately to invalidate active sessions and create a fresh password. You can also contact our 24/7 security assistance desk at +91 87774 00280.',
-    actionLink: {
-      text: 'Reset Login Password',
-      url: '/reset-password'
-    }
-  },
-  {
-    id: 'security-was-me',
-    category: 'security',
-    question: 'What should I do if the login was made by me?',
-    answer: 'If you recently signed in using that phone, computer, or new browser session, no action is required on your part. You can safely archive or ignore the notification. SmartRun records the device so future logins from the same browser will not trigger redundant alerts.',
-  },
-  {
-    id: 'security-location',
-    category: 'security',
-    question: 'Why does the login location show "Kolkata, India" or a nearby city?',
-    answer: 'The location shown in security alerts is determined via network IP routing provided by telecommunication providers (Airtel, Jio, Vi, BSNL, etc.). Because cellular towers route traffic through regional gateway servers, the approximate city might occasionally display an adjacent hub or general metropolitan area rather than your exact physical street coordinate.',
-  },
-  {
-    id: 'security-passwords-otp',
-    category: 'security',
-    question: 'How does SmartRun protect my account and password?',
-    answer: 'SmartRun enforces end-to-end industry encryption, secure cryptographic password hashing, and phone OTP verification via Google Identity Platform / Firebase. SmartRun staff, support agents, or delivery partners will NEVER ask you for your account password or SMS OTP code.',
-  },
-
-  // --- SECTION 2: 60-MINUTE EXPRESS DELIVERY & LOGISTICS ---
-  {
-    id: 'delivery-speed',
-    category: 'delivery',
-    question: 'How fast is express delivery from SmartRun?',
-    answer: 'Standard electrical orders—including domestic house wires, switches, circuit breakers (MCBs), LED fixtures, junction boxes, and installation tools—are packed within minutes and delivered in 60 minutes across Kolkata directly from our central Kasba warehouse hub.',
-  },
-  {
-    id: 'delivery-areas',
-    category: 'delivery',
-    question: 'Which areas and pincodes in Kolkata do you deliver to?',
-    answer: 'We deliver across Kolkata including Kasba, Ballygunge, Gariahat, Jadavpur, Tollygunge, Behala, Salt Lake, New Town, Rajarhat, Central Kolkata, Bhowanipore, Park Street, EM Bypass corridor, and surrounding localities. We are actively expanding to new pincodes each week.',
-  },
-  {
-    id: 'delivery-tracking',
-    category: 'delivery',
-    question: 'Can I track my delivery partner live on a GPS map?',
-    answer: 'Yes! As soon as your order is dispatched from our Kasba depot, you can track your delivery partner’s live location, view their vehicle registration number (e.g., WB 02 AR 4491), and monitor their estimated arrival time in real time.',
-  },
-  {
-    id: 'delivery-freight',
-    category: 'delivery',
-    question: 'Do you deliver heavy construction materials and commercial freight?',
-    answer: 'Yes. For bulky items—such as bundles of rigid PVC conduit pipes, heavy armored cables, cement, sand, and structural supplies—we dispatch dedicated 4-wheeler commercial trucks (Tata Ace / pickup freight) scheduled directly to your construction job site.',
-  },
-
-  // --- SECTION 3: GENUINE MATERIALS & BRANDS ---
-  {
-    id: 'products-genuine',
-    category: 'products',
-    question: 'Are all electrical items and wires 100% genuine?',
-    answer: 'Yes, unconditionally. Every single coil of wire, circuit breaker, modular switch plate, and accessory sold on SmartRun is 100% original, sourced directly from authorized brand distributors (Polycab, Havells, RR Kabel, Finolex, Schneider Electric, Legrand, Anchor by Panasonic, Philips, etc.), and carries authentic ISI/BIS certification and original holographic seals.',
-  },
-  {
-    id: 'products-warranty',
-    category: 'products',
-    question: 'Do wires and electrical components carry manufacturer warranty?',
-    answer: 'Yes. All branded goods include the full manufacturer warranty against defects. In addition, SmartRun provides an instant 7-day doorstep replacement guarantee if an item arrives damaged or non-functional.',
-  },
-  {
-    id: 'products-colors-sizes',
-    category: 'products',
-    question: 'Can I select specific wire colors and gauge sizes?',
-    answer: 'Yes. Wires are available in all standardized ISI color codes (Red, Black, Blue, Yellow, Green, White) with real-time stock availability, custom pricing per variant, and full cross-sectional specifications (0.75 sq mm to 10.0 sq mm).',
-  },
-
-  // --- SECTION 4: GST TAX INVOICES & BULK CONTRACTOR PRICING ---
-  {
-    id: 'billing-gst',
-    category: 'billing',
-    question: 'Can I get an official GST tax invoice for business Input Tax Credit (ITC)?',
-    answer: 'Yes. Every order automatically generates a statutory GST tax invoice complete with HSN/SAC codes, itemized CGST/SGST/IGST breakdown, and your registered company GSTIN. Official A4 PDF invoices can be downloaded anytime directly from your Order History.',
-  },
-  {
-    id: 'billing-wholesale',
-    category: 'billing',
-    question: 'Do you offer contractor and wholesale volume discounts?',
-    answer: 'Yes. Electrical contractors, site supervisors, licensed electricians, and bulk commercial buyers receive tiered volume discounts automatically applied in the cart. You can also request custom bulk project quotations directly through our support desk.',
-  },
-
-  // --- SECTION 5: PAYMENTS & CASH ON DELIVERY (COD) ---
-  {
-    id: 'payments-modes',
-    category: 'payments',
-    question: 'What payment modes are supported?',
-    answer: 'We support all major Indian payment methods through Razorpay: UPI (Google Pay, PhonePe, Paytm, BHIM, CRED), Credit & Debit Cards (Visa, MasterCard, RuPay), Net Banking across 50+ banks, and Cash on Delivery (COD) for eligible pincodes.',
-  },
-  {
-    id: 'payments-cod',
-    category: 'payments',
-    question: 'Is Cash on Delivery (COD) available?',
-    answer: 'Yes, Cash on Delivery is available for retail orders up to specified order limits across our serviceable Kolkata delivery network. You can also pay the delivery partner via UPI QR code upon arrival at your doorstep.',
-  },
-  {
-    id: 'payments-security',
-    category: 'payments',
-    question: 'Is online payment secure on SmartRun?',
-    answer: 'All transactions are processed through RBI-authorized, 256-bit SSL encrypted Razorpay payment gateways adhering strictly to PCI-DSS Level 1 security standards and RBI card tokenization rules. SmartRun never stores your CVV or card PIN.',
-  },
-
-  // --- SECTION 6: RETURNS, CANCELLATIONS & REFUNDS ---
-  {
-    id: 'returns-replacements',
-    category: 'returns',
-    question: 'How do returns and replacements work?',
-    answer: 'We provide a hassle-free 7-day doorstep replacement policy for defective, damaged, or incorrect items. Simply raise a request from your Order History, and our delivery partner will inspect and swap the item directly at your premises.',
-    actionLink: {
-      text: 'View Refund Policy',
-      url: '/refund-policy'
-    }
-  },
-  {
-    id: 'returns-refund-timing',
-    category: 'returns',
-    question: 'How does the refund process work and when will I get my money back?',
-    answer: 'When an order is cancelled or a return is approved, 100% of your refund is credited directly to your original payment method (bank account, UPI, credit/debit card) within 24 to 48 banking hours via Razorpay. We never force store credits or wallet locks.',
-  },
-  {
-    id: 'returns-cancellation',
-    category: 'returns',
-    question: 'Can I cancel an order after placing it?',
-    answer: 'Yes. You can cancel your order directly from the app within the cancellation window before warehouse packing and dispatch begin. Once cancelled, an automatic refund is triggered immediately.',
-  },
-
-  // --- SECTION 7: ELECTRICIAN BOOKING & KASBA WAREHOUSE HUB ---
-  {
-    id: 'electricians-booking',
-    category: 'electricians',
-    question: 'How do I book a verified electrician on SmartRun?',
-    answer: 'You can book certified, background-checked electricians directly through the Technician tab in the app for switchboard fitting, MCB trip diagnostics, home rewiring, light fixture installation, or emergency repairs at transparent, standardized hourly/job rates.',
-  },
-  {
-    id: 'hub-contact',
-    category: 'electricians',
-    question: 'Where is your physical warehouse and how do I contact support?',
-    answer: 'Our central fulfillment depot and operations hub is located at: SmartRun materials pvt. ltd, Kheyadah Village, Bhagabanpur, Kolkata 700150. You can reach our Kolkata support team via in-app chat, by calling +91 87774 00280 (Open every day 8:00 AM – 10:00 PM IST), or by emailing team@smartrun.in.',
-  }
-];
+export { ENRICHED_FAQ_LIST, FAQ_CATEGORIES };
+export type { FAQItem };
 
 interface FAQPageProps {
   onBack: () => void;
@@ -432,13 +249,13 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onBack }) => {
 
                     {faq.actionLink && (
                       <div className="mt-3 pt-2">
-                        <a
-                          href={faq.actionLink.url}
+                        <Link
+                          to={faq.actionLink.url}
                           className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline"
                         >
                           <span>{faq.actionLink.text}</span>
                           <ExternalLink className="w-3 h-3" />
-                        </a>
+                        </Link>
                       </div>
                     )}
                   </div>
@@ -486,6 +303,7 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onBack }) => {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };

@@ -27,6 +27,7 @@ import { hapticLight, hapticSelection } from '../utils/haptics';
 import { getFlattenedSpecifications } from '../utils/productSpecifications';
 import { getPaginationPages } from '../utils/paginationHelper';
 import { SEOHead } from './SEOHead';
+import { Footer } from './Footer';
 
 interface ConstructionPageProps {
   onAddToCart: (product: Product) => void;
@@ -296,8 +297,8 @@ export const ConstructionPage = ({
               originalPrice,
               discountPercentage,
               unit: row.unit || '1 Unit',
-              rating: Number(row.rating_avg || row.rating || 4.8),
-              reviewsCount: Number(row.rating_count || row.reviewsCount || 18),
+              rating: Number(row.rating_avg || row.rating || 0),
+              reviewsCount: Number(row.rating_count || row.reviewsCount || 0),
               deliveryMinutes: Number(row.delivery_minutes || 60),
               image: imageUrl,
               images: imageList,
@@ -662,6 +663,18 @@ export const ConstructionPage = ({
 
       {/* 2. PRODUCT CATALOG LOCATION */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        {hasBackendProducts && !loading && (
+          <div className="pb-4 pt-1 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 border-b border-slate-100 mb-5">
+            <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+              {searchQuery
+                ? `Construction Materials matching "${searchQuery}" in Kolkata`
+                : 'Construction & Building Materials Delivery in Kolkata'}
+            </h1>
+            <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
+              Site-ready cement, TMT steel, pipes &amp; waterproofing • Bulk contractor &amp; GST ITC billing
+            </p>
+          </div>
+        )}
         {loading ? (
           <div className="py-24 text-center">
             <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mx-auto mb-3" />
@@ -669,7 +682,7 @@ export const ConstructionPage = ({
           </div>
         ) : !hasBackendProducts ? (
           /* =========================================================================
-             COMING SOON STATE AT PRODUCT LOCATION (When backend has no products data)
+             CONSTRUCTION SUPPLIES DESK STATE (When catalog loads dynamically from contractor desk)
              ========================================================================= */
           <div className="py-12 sm:py-16">
             <div className="max-w-3xl mx-auto bg-slate-50/70 border border-slate-200/80 rounded-3xl p-8 sm:p-12 text-center shadow-xs space-y-6">
@@ -692,11 +705,11 @@ export const ConstructionPage = ({
                 </div>
                 
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                  Construction Materials Coming Soon
+                  Construction &amp; Building Supplies Desk — Kolkata
                 </h1>
 
                 <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
-                  We are currently onboarding our full wholesale catalog of UltraTech cement, Tata Tiscon TMT rebars, Astral CPVC pipes, Dr. Fixit waterproofing, and structural hardware.
+                  Request same-day site dispatch and bulk GST quotations across Kolkata for UltraTech cement, Tata Tiscon TMT rebars, Astral CPVC pipes, Dr. Fixit waterproofing, and structural hardware.
                 </p>
               </div>
 
@@ -1284,6 +1297,7 @@ export const ConstructionPage = ({
         </div>
       )}
 
+      <Footer />
     </div>
   );
 };

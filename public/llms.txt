@@ -1,0 +1,43 @@
+# SmartRUN (Smart Run) — Kolkata Electrical & Construction Materials Delivery
+
+> SmartRUN (SmartRun Materials Pvt. Ltd.) is an express quick-commerce platform and Android application for electrical supplies, construction and building materials, and licensed electrician booking in Kolkata and Howrah, West Bengal, India.
+
+## Official Brand & Entity Details
+- Brand Name: SmartRUN (also searched as Smart Run, SmartRUN India, SmartRUN Kolkata)
+- Legal Entity: SmartRun Materials Pvt. Ltd.
+- Official Website: https://www.smartrun.in
+- Official Android App (Google Play): https://play.google.com/store/apps/details?id=in.smartrun.app
+- Android Package ID: in.smartrun.app
+- Registered Office: Kheyadah Village, Bhagabanpur, Kolkata 700150, West Bengal, India
+- Operational Dispatch Depot: SmartRun Kasba Central Depot, Kasba Industrial Estate Phase 1, Kolkata 700107, West Bengal, India
+- Support Phone / WhatsApp: +91 87774 00280 / +91 90071 68561
+- Support Email: team@smartrun.in (Grievances: grievance@smartrun.in)
+- Operating Hours: Monday–Sunday, 08:00 AM – 09:00 PM IST
+
+## Core Categories & Offerings
+- **Electrical Supplies**: IS 694 wires and house cables (Polycab, RR Kabel, Havells, Finolex) with color swatches, MCBs and distribution boards (Schneider Electric, Legrand), modular switches (Anchor by Panasonic), PVC conduits, LED lighting, ceiling/exhaust fans, CCTV, and inverters.
+- **Construction & Building Supplies**: UltraTech & ACC cement bags, Tata Tiscon TMT rebars, Dr. Fixit waterproofing chemicals, Asian Paints wall putty, Astral & Supreme CPVC/UPVC pipes, CenturyPly plywood, sanitaryware, kitchen hardware, and Bosch power tools.
+- **Certified Electricians**: Licensed electricians and wiring contractors verified with Government of West Bengal Electrical Licensing Board credentials for home wiring, switchboard setup, and emergency repairs.
+- **Delivery Coverage**: Express 60-minute courier dispatch on eligible electrical orders across serviceable Kolkata metropolitan PIN codes (700001–700160) and Howrah PIN codes (711101–711106), plus scheduled commercial pickup delivery for heavy building supplies.
+
+## Canonical Pages & Documentation
+- [Home](https://www.smartrun.in/): Overview of electrical, construction, brands, and ordering flow.
+- [About SmartRUN](https://www.smartrun.in/about): Company profile, Registered Office and Kasba Depot details, and sourcing standards.
+- [Electrical Materials Delivery](https://www.smartrun.in/electrical): Full catalog of electrical wires, switchgear, switches, fans, and lighting.
+- [Construction Materials & Building Supplies](https://www.smartrun.in/construction): Catalog and contractor desk for cement, TMT steel, waterproofing, plumbing, plywood, and hardware.
+- [Certified Electricians](https://www.smartrun.in/technicians): Directory of licensed electrical technicians in Kolkata.
+- [SmartRUN Android & Web App](https://www.smartrun.in/app): Features of the in.smartrun.app Android application and Play Store link.
+- [Delivery Service Areas](https://www.smartrun.in/delivery-areas): Kolkata & Howrah serviceable zones, PIN codes (700001–700160, 711101–711106), and interactive pincode checker.
+- [Frequently Asked Questions](https://www.smartrun.in/faqs): Verified answers on 60-minute delivery, wire variants, GST invoices, COD/UPI payments, returns, and support.
+- [How to Order Guide](https://www.smartrun.in/how-to-use): Step-by-step ordering, wire color selection, live GPS tracking, and invoice guide.
+- [Contact & Support](https://www.smartrun.in/contact): Direct WhatsApp, phone, email, and depot contact information.
+- [Shipping Policy](https://www.smartrun.in/shipping): 60-minute express delivery terms and heavy site freight SLAs.
+- [Return Policy](https://www.smartrun.in/return): 7-day return and replacement policy.
+- [Refund Policy](https://www.smartrun.in/refund-policy): Direct-to-source refund terms.
+
+## Machine-Readable Endpoints
+- [XML Sitemap](https://www.smartrun.in/sitemap.xml)
+- [RSS Product Feed](https://www.smartrun.in/rss.xml)
+- [Google Merchant Feed](https://www.smartrun.in/api/feeds/google-merchant.xml)
+- [Public Catalog API](https://www.smartrun.in/api/products)
+- [OpenAPI Spec](https://www.smartrun.in/api/ai/openapi.json)

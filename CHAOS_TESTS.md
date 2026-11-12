@@ -113,5 +113,32 @@ curl -s http://localhost:3000/robots.txt | grep -E "Disallow: /login"
 # Expectation: Disallow: /login present under both priority crawlers and wildcard User-agent
 ```
 
+## 17. Test `/llms.txt` & AI Bot Directives in `robots.txt`
+```bash
+curl -s http://localhost:3000/llms.txt | head -n 20
+curl -s http://localhost:3000/robots.txt | grep -E "OAI-SearchBot|PerplexityBot|Google-Extended|ClaudeBot"
+# Expectation: 200 OK text/plain at /llms.txt; explicit Allow/Disallow rules for AI crawlers
+```
 
+## 18. Test SSR Semantic Body Shell & Zero-JS Crawler Extraction
+```bash
+for route in "/" "/electrical" "/construction" "/app" "/delivery-areas" "/contact" "/about" "/faqs"; do
+  echo "=== $route ==="
+  curl -s "http://localhost:3000${route}" | grep -oE '<title>.*</title>|id="ssr-seo-shell"|<h1>.*</h1>'
+done
+# Expectation: Every route returns status 200 with a distinct title, main#ssr-seo-shell, and visible H1 in raw HTML
+```
+
+## 19. Test Canonical Normalization & Sitemap Alias Deduplication
+```bash
+curl -s http://localhost:3000/about-us | grep 'rel="canonical"'
+curl -s http://localhost:3000/sitemap.xml | grep -E "/about-us|/shipping-policy|/return-policy|/delivery-areas|/app|/contact"
+# Expectation: /about-us canonical points to https://www.smartrun.in/about; sitemap includes /app, /delivery-areas, /contact and excludes duplicate alias paths
+```
+
+## 20. Test Full FAQ JSON-LD Parity
+```bash
+curl -s http://localhost:3000/faqs | grep -o '"@type":"Question"' | wc -l
+# Expectation: Matches ENRICHED_FAQ_LIST.length (23 Question entries)
+```
 

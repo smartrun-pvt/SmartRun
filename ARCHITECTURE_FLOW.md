@@ -7,15 +7,17 @@ graph TD
     Client -->|Auth / Session Storage| SupabaseAuth[Supabase Auth & Database]
     Client -->|Realtime Backup / User Profiles| Firestore[Firebase Cloud Firestore]
 
-    subgraph SEO_SSR_Prerendering [Server-Side Micro-Prerendering & Structured Data Engine]
+    subgraph SEO_SSR_Prerendering [Server-Side Micro-Prerendering, SSR Shell & AI Discovery Engine]
         CloudRun --> SeoCheck{Crawlable Route?}
-        SeoCheck -->|Yes: Products/Techs/Hubs/Policies| InjectMeta[seoHelper: injectSeoMetadata]
-        InjectMeta --> SchemaGraph[JSON-LD @graph: WebSite / LocalBusiness / MobileApplication / Product / Person / Breadcrumbs / Policies]
-        SchemaGraph --> SendHtml[Serve Pre-populated HTML with single server-prerender-schema]
-        SendHtml --> ClientHydration[Client Mount: SEOHead purges server-prerender-schema, activates smartrun-dynamic-jsonld]
+        SeoCheck -->|Yes: Storefront/Products/Techs/GEO/Policies| InjectMeta[seoHelper: normalizeCanonicalPath + injectSeoMetadata]
+        InjectMeta --> SchemaGraph[JSON-LD @graph: WebSite / #store / #depot-kasba / #android-app / FAQPage / Product / Person]
+        SchemaGraph --> SsrBody[Inject SSR_SEO_SHELL_SLOT: main#ssr-seo-shell H1 + internal nav links]
+        SsrBody --> SendHtml[Serve Pre-populated HTML with single server-prerender-schema]
+        SendHtml --> ClientHydration[Client Mount: createRoot replaces #ssr-seo-shell; SEOHead purges server-prerender-schema]
         SeoCheck -->|No / Static Asset / API| NextHandler[Standard Vite/Static or API Route]
-        CloudRun --> SitemapGen[GET /sitemap.xml: Dynamic Catalog + Technician Sitemap]
-        CloudRun --> RssGen[GET /rss.xml: RSS 2.0 Syndication Feed]
+        CloudRun --> SitemapGen[GET /sitemap.xml: Deduplicated Canonical URLs + Catalog + Techs]
+        CloudRun --> LlmsGen[GET /llms.txt & /robots.txt: AI Search Entity Summary & Crawler Policy]
+        CloudRun --> RssGen[GET /rss.xml & /api/feeds/google-merchant.xml: Product Feeds]
         CloudRun --> AiOpenApi[GET /api/ai/openapi.json & /.well-known/assetlinks.json]
     end
 

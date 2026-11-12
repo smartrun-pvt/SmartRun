@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
   Search,
@@ -22,6 +22,7 @@ import {
   Boxes
 } from 'lucide-react';
 import { SEOHead } from './SEOHead';
+import { Footer } from './Footer';
 import { INITIAL_PRODUCTS } from '../data/products';
 import { trackPlayStoreClick } from '../utils/analytics';
 
@@ -43,6 +44,8 @@ export const SitemapPage: React.FC = () => {
         { name: 'Electrical Depot', path: '/electrical', desc: 'Copper wires, modular switches, MCBs, LED lighting' },
         { name: 'Construction Materials', path: '/construction', desc: 'UltraTech cement, Tata TMT steel, waterproofing' },
         { name: 'Certified Technicians', path: '/technicians', desc: 'Licensed electricians, house wiring contractors' },
+        { name: 'Delivery Service Areas', path: '/delivery-areas', desc: 'Kolkata 700001–700160 & Howrah 711101–711106 pincode coverage' },
+        { name: 'SmartRUN Android App', path: '/app', desc: 'Download on Google Play (in.smartrun.app)' },
       ]
     },
     {
@@ -65,7 +68,9 @@ export const SitemapPage: React.FC = () => {
       icon: Building2,
       iconColor: 'text-emerald-600 bg-emerald-50',
       links: [
-        { name: 'About SmartRun', path: '/about', desc: 'Kolkata express electricals and quick commerce history' },
+        { name: 'About SmartRun', path: '/about', desc: 'SmartRun Materials Pvt. Ltd. corporate profile and depots' },
+        { name: 'Contact & Support Desk', path: '/contact', desc: 'Kolkata customer support, bulk contractor quotes, and grievance desk' },
+        { name: 'How to Use SmartRun App', path: '/how-to-use', desc: 'Step-by-step guide to ordering electrical & construction supplies' },
         { name: 'Frequently Asked Questions', path: '/faqs', desc: 'Answers on 60-min delivery, bulk discounts, GST invoices' }
       ]
     },
@@ -196,9 +201,8 @@ export const SitemapPage: React.FC = () => {
                   <ul className="divide-y divide-slate-100 mt-3">
                     {matchedLinks.map((link) => (
                       <li key={link.path}>
-                        <button
-                          type="button"
-                          onClick={() => navigate(link.path)}
+                        <Link
+                          to={link.path}
                           className="w-full text-left py-2.5 px-2 -mx-2 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-between group"
                         >
                           <div>
@@ -213,7 +217,7 @@ export const SitemapPage: React.FC = () => {
                             {link.path}
                             <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                           </span>
-                        </button>
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -234,22 +238,20 @@ export const SitemapPage: React.FC = () => {
                   Featured Electrical Products
                 </h3>
               </div>
-              <button
-                type="button"
-                onClick={() => navigate('/electrical')}
+              <Link
+                to="/electrical"
                 className="text-xs font-semibold text-amber-700 hover:text-amber-800"
               >
                 View all →
-              </button>
+              </Link>
             </div>
             <ul className="divide-y divide-slate-100 text-xs">
               {electricalProducts
                 .filter((p) => !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q))
                 .map((product) => (
                   <li key={product.id}>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/electrical/product/${product.id}`)}
+                    <Link
+                      to={`/electrical/product/${product.id}`}
                       className="w-full text-left py-2 hover:bg-slate-50 px-2 -mx-2 rounded-md flex items-center justify-between group"
                     >
                       <span className="text-slate-800 group-hover:text-amber-700 font-medium truncate pr-2">
@@ -258,7 +260,7 @@ export const SitemapPage: React.FC = () => {
                       <span className="text-slate-500 shrink-0 font-semibold">
                         ₹{product.price}
                       </span>
-                    </button>
+                    </Link>
                   </li>
                 ))}
             </ul>
@@ -273,22 +275,20 @@ export const SitemapPage: React.FC = () => {
                   Featured Construction Materials
                 </h3>
               </div>
-              <button
-                type="button"
-                onClick={() => navigate('/construction')}
+              <Link
+                to="/construction"
                 className="text-xs font-semibold text-blue-700 hover:text-blue-800"
               >
                 View all →
-              </button>
+              </Link>
             </div>
             <ul className="divide-y divide-slate-100 text-xs">
               {constructionProducts
                 .filter((p) => !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q))
                 .map((product) => (
                   <li key={product.id}>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/construction/product/${product.id}`)}
+                    <Link
+                      to={`/construction/product/${product.id}`}
                       className="w-full text-left py-2 hover:bg-slate-50 px-2 -mx-2 rounded-md flex items-center justify-between group"
                     >
                       <span className="text-slate-800 group-hover:text-blue-700 font-medium truncate pr-2">
@@ -297,7 +297,7 @@ export const SitemapPage: React.FC = () => {
                       <span className="text-slate-500 shrink-0 font-semibold">
                         ₹{product.price}
                       </span>
-                    </button>
+                    </Link>
                   </li>
                 ))}
             </ul>
@@ -333,6 +333,7 @@ export const SitemapPage: React.FC = () => {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };

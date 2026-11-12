@@ -82,4 +82,16 @@
   2. Isolated `smartrun.in` and `www.smartrun.in` in their own `<intent-filter android:autoVerify="true">` block and separated legacy `girirajpower.in` hosts into a non-`autoVerify` filter.
   3. Added lifecycle guards (`isFinishing() || isDestroyed()`) around `MainActivity.java` `webView.post()` UI evaluation to prevent async crashes.
 
+## Threat 13: SSR Body Shell & JSON-LD Script Tag Breakout XSS
+- **Attack Vector**: Injecting `</script><script>alert(1)</script>` or HTML event handlers (`<img onerror=...>`) into dynamic catalog product names, brands, descriptions, or technician profiles breaks out of the SSR `<script id="server-prerender-schema">` or `<main id="ssr-seo-shell">` container during server-side rendering.
+- **Defense**:
+  1. `injectSeoMetadata` serializes JSON-LD via `JSON.stringify(...).replace(/</g, '\\u003c')`, neutralizing closing `</script>` sequences inside JSON blocks.
+  2. `renderSsrBodyShell` passes all product, brand, category, description, and technician fields through `escapeHtml()` before interpolating inside `<main id="ssr-seo-shell">`.
+  3. Automated regression check in `src/utils/seoHelper.test.ts` fuzzes `</script><script>alert(1)</script>` payloads.
+
+## Threat 14: AI Retrieval Bot Over-Access to Authenticated / Cart / Payment Endpoints
+- **Attack Vector**: Permitting `OAI-SearchBot`, `GPTBot`, `PerplexityBot`, or `ClaudeBot` to index private user routes (`/cart`, `/orders`, `/profile`, `/live-order`, `/api/auth/*`, `/api/orders/*`) could expose user session entrypoints or pollute AI citations with login-wall artifacts.
+- **Defense**:
+  1. `public/robots.txt` explicitly scopes `Allow:` rules to public storefront, GEO hub, and feed routes (`/electrical`, `/construction`, `/technicians`, `/app`, `/delivery-areas`, `/contact`, `/about`, `/faqs`, `/llms.txt`) while enforcing `Disallow:` on `/login`, `/cart`, `/profile`, `/orders`, `/live-order`, `/personal-info`, `/delete`, `/account-deletion`, and `/api/auth/`, `/api/orders/`, `/api/user-profile` across every AI and search user-agent block.
+  2. SSR micro-prerender whitelists exclusively public crawlable routes in `server.ts`.
 

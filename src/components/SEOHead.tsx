@@ -1,5 +1,8 @@
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { ENRICHED_FAQ_LIST } from '../data/faqData';
+import { KOLKATA_AREAS } from '../data/kolkataAreas';
+import { normalizeCanonicalPath } from '../utils/seoHelper';
 
 export interface SEOHeadProps {
   title?: string;
@@ -92,7 +95,8 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
   const location = useLocation();
 
   useEffect(() => {
-    const path = location.pathname;
+    const rawPath = location.pathname;
+    const path = normalizeCanonicalPath(rawPath);
 
     // Guard against blank root fallback overwriting explicit product/technician metadata
     const isBlankRootInstance = !title && !description && !productData && !technicianData && !structuredData;
@@ -190,6 +194,18 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     } else if (path === '/terms' || path === '/terms-of-service') {
       defaultTitle = 'Terms of Service | SmartRun';
       defaultDesc = 'Review the legal terms and conditions governing the use of SmartRun website, mobile app, order placement, and electrician services.';
+    } else if (path === '/app') {
+      defaultTitle = 'SmartRUN: Materials Delivery Android App (in.smartrun.app) | SmartRun Kolkata';
+      defaultDesc = 'Download SmartRUN: Materials Delivery on Google Play (in.smartrun.app) or order online at smartrun.in for 60-min electrical delivery, building supplies, live GPS tracking & GST invoices across Kolkata.';
+      defaultKeywords = 'SmartRUN app, Smart Run app, in.smartrun.app, Play Store SmartRUN, electrical materials app Kolkata';
+    } else if (path === '/delivery-areas') {
+      defaultTitle = 'Kolkata & Howrah Delivery Service Areas & Pincodes | SmartRun';
+      defaultDesc = 'Check serviceable Kolkata (700001–700160) and Howrah (711101–711106) PIN codes for 60-min express electrical delivery and construction material dispatch from SmartRun Kasba Central Depot.';
+      defaultKeywords = 'SmartRun delivery areas, Kolkata electrical delivery pincodes, Salt Lake, New Town, Kasba Central Depot';
+    } else if (path === '/contact') {
+      defaultTitle = 'Contact & Customer Support Desk | SmartRun Kolkata';
+      defaultDesc = 'Contact SmartRun Materials Pvt. Ltd. in Kolkata: helpline +91 87774 00280, +91 90071 68561, WhatsApp, team@smartrun.in, Kasba Central Depot & Bhagabanpur Registered Office.';
+      defaultKeywords = 'contact SmartRun, SmartRun helpline Kolkata, team@smartrun.in, Kasba Central Depot';
     } else if (path === '/delete' || path === '/account-deletion') {
       defaultTitle = 'Account & Data Deletion Portal | SmartRun';
       defaultDesc = 'Submit a request to permanently delete your SmartRun account and personal data in accordance with Google Play Developer policies.';
@@ -205,8 +221,9 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     // Technician overrides
     if (technicianData) {
       defaultType = 'profile';
+      const ratingPart = typeof technicianData.rating === 'number' && technicianData.rating > 0 ? `${technicianData.rating}★ - ` : '';
       defaultTitle = `${technicianData.name} - Certified ${technicianData.primarySector || 'Electrician'} | SmartRun Kolkata`;
-      defaultDesc = `${technicianData.name} (${technicianData.rating || 4.9}★) - Certified electrical specialist in Kolkata serving ${technicianData.serviceAreas?.join(', ') || 'Kolkata'}. Book instant on-site wiring and repair.`;
+      defaultDesc = `${technicianData.name} (${ratingPart}Licensed electrical specialist in Kolkata serving ${technicianData.serviceAreas?.join(', ') || 'Kolkata'}). Book on-site wiring and repair via SmartRun.`;
     }
 
     const computedTitle = title || defaultTitle;
@@ -254,12 +271,12 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     setOrUpdateMeta('name', 'ICBM', '22.5145, 88.3882');
     setOrUpdateMeta('name', 'geo.country', 'IN');
     setOrUpdateMeta('name', 'DC.title', computedTitle);
-    setOrUpdateMeta('name', 'DC.creator', 'SmartRun materials pvt. ltd');
+    setOrUpdateMeta('name', 'DC.creator', 'SmartRun Materials Pvt. Ltd.');
     setOrUpdateMeta('name', 'DC.coverage', 'Kolkata, West Bengal, India');
 
-    // 6. Set Twitter Card Meta Tags (summary_large_image for high CTR)
+    // 6. Set Twitter Card Meta Tags (summary_large_image; no unverified twitter:site handle)
+    document.querySelector('meta[name="twitter:site"]')?.remove();
     setOrUpdateMeta('name', 'twitter:card', 'summary_large_image');
-    setOrUpdateMeta('name', 'twitter:site', '@SmartRunIn');
     setOrUpdateMeta('name', 'twitter:title', computedTitle);
     setOrUpdateMeta('name', 'twitter:description', computedDesc);
     setOrUpdateMeta('name', 'twitter:image', computedImage);
@@ -409,6 +426,27 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
         name: 'How to Use App',
         item: canonicalUrl
       });
+    } else if (path === '/app') {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'SmartRUN Android App',
+        item: canonicalUrl
+      });
+    } else if (path === '/delivery-areas') {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Delivery Service Areas',
+        item: canonicalUrl
+      });
+    } else if (path === '/contact') {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Contact & Support',
+        item: canonicalUrl
+      });
     }
 
     schemaGraph.push({
@@ -445,8 +483,8 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
         '@type': ['Organization', 'ElectricalSupplyStore', 'HardwareStore', 'LocalBusiness'],
         '@id': 'https://www.smartrun.in/#store',
         name: 'SmartRUN',
-        alternateName: ['Smart Run', 'SmartRUN India', 'Smart Run India', 'SmartRUN Kolkata'],
-        legalName: 'SmartRun materials pvt. ltd',
+        alternateName: ['Smart Run', 'SmartRUN India', 'Smart Run India', 'SmartRUN Kolkata', 'SmartRun Materials Pvt. Ltd.'],
+        legalName: 'SmartRun Materials Pvt. Ltd.',
         url: 'https://www.smartrun.in/',
         logo: {
           '@type': 'ImageObject',
@@ -468,6 +506,25 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
           addressRegion: 'West Bengal',
           postalCode: '700150',
           addressCountry: 'IN'
+        },
+        location: {
+          '@type': ['Place', 'HardwareStore'],
+          '@id': 'https://www.smartrun.in/#depot-kasba',
+          name: 'SmartRun Kasba Central Depot',
+          telephone: '+91-8777400280',
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: 'Kasba Industrial Estate Phase 1',
+            addressLocality: 'Kolkata',
+            addressRegion: 'West Bengal',
+            postalCode: '700107',
+            addressCountry: 'IN'
+          },
+          geo: {
+            '@type': 'GeoCoordinates',
+            latitude: 22.5145,
+            longitude: 88.3934
+          }
         },
         geo: {
           '@type': 'GeoCoordinates',
@@ -502,21 +559,28 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
 
       schemaGraph.push({
         '@context': 'https://schema.org',
+        '@type': 'Service',
+        '@id': 'https://www.smartrun.in/#wiring-service',
+        name: 'Real Estate & Residential Electrical Wiring Services',
+        provider: { '@id': 'https://www.smartrun.in/#store' },
+        serviceType: 'Electrical Contractor & House Wiring',
+        description: 'Licensed and WBELB-verified electrical wiring contractors for residential flats, commercial complexes, and renovation electrification across Kolkata.',
+        areaServed: { '@type': 'City', name: 'Kolkata' }
+      });
+
+      schemaGraph.push({
+        '@context': 'https://schema.org',
         '@type': ['SoftwareApplication', 'MobileApplication'],
         '@id': 'https://www.smartrun.in/#android-app',
         name: 'SmartRUN: Materials Delivery',
-        alternateName: ['Smart Run', 'SmartRun', 'Smart Run App', 'SmartRun Kolkata', 'SmartRun materials pvt. ltd'],
+        alternateName: ['Smart Run', 'SmartRun', 'Smart Run App', 'SmartRun Kolkata', 'SmartRun Materials Pvt. Ltd.'],
         operatingSystem: 'ANDROID',
         applicationCategory: 'ShoppingApplication',
         applicationSubCategory: 'Quick Commerce, Electrical Supplies & Construction Depot',
         downloadUrl: 'https://play.google.com/store/apps/details?id=in.smartrun.app',
         installUrl: 'https://play.google.com/store/apps/details?id=in.smartrun.app',
         sameAs: ['https://play.google.com/store/apps/details?id=in.smartrun.app'],
-        author: {
-          '@type': 'Organization',
-          name: 'SmartRun materials pvt. ltd',
-          url: 'https://www.smartrun.in'
-        },
+        author: { '@id': 'https://www.smartrun.in/#store' },
         offers: {
           '@type': 'Offer',
           price: '0',
@@ -571,7 +635,8 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
             }
           },
           availableAtOrFrom: {
-            '@type': 'Place',
+            '@type': ['Place', 'HardwareStore'],
+            '@id': 'https://www.smartrun.in/#depot-kasba',
             name: 'SmartRun Kasba Central Depot',
             address: {
               '@type': 'PostalAddress',
@@ -589,8 +654,9 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
           },
           seller: {
             '@type': 'Organization',
-            name: 'SmartRun (Smart Run)',
-            legalName: 'SmartRun materials pvt. ltd',
+            '@id': 'https://www.smartrun.in/#store',
+            name: 'SmartRUN',
+            legalName: 'SmartRun Materials Pvt. Ltd.',
             url: 'https://www.smartrun.in/'
           },
           hasMerchantReturnPolicy: {
@@ -666,8 +732,8 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
       schemaGraph.push(prodSchema);
     }
 
-    // Specific FAQPage Schema
-    if (path === '/faqs' || path === '/faq') {
+    // Specific FAQPage Schema synced with ENRICHED_FAQ_LIST
+    if (path === '/faqs') {
       schemaGraph.push({
         '@context': 'https://schema.org',
         '@type': 'FAQPage',
@@ -675,48 +741,14 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
         name: 'Frequently Asked Questions (FAQ) | SmartRun Kolkata',
         url: canonicalUrl,
         isPartOf: { '@id': 'https://www.smartrun.in/#website' },
-        mainEntity: [
-          {
-            '@type': 'Question',
-            name: 'How fast is express delivery from SmartRun in Kolkata?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'SmartRun delivers verified electrical supplies and emergency components within 60 minutes across Kolkata and surrounding operational zones.'
-            }
-          },
-          {
-            '@type': 'Question',
-            name: 'Are all electrical goods and cables genuine?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Yes, 100% of our inventory is sourced directly from verified manufacturers including Polycab, RR Kabel, Havells, Schneider Electric, Legrand, and UltraTech.'
-            }
-          },
-          {
-            '@type': 'Question',
-            name: 'Can I get GST tax invoices for business procurement?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Yes, every order includes a statutory GST tax invoice with your registered GSTIN for full input tax credit (ITC) claims.'
-            }
-          },
-          {
-            '@type': 'Question',
-            name: 'What is the return and replacement window?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'SmartRun provides a 7-day doorstep replacement or return window on eligible electrical supplies and hardware with free reverse pickup.'
-            }
-          },
-          {
-            '@type': 'Question',
-            name: 'How are electricians on SmartRun verified?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'All electrical supervisors and technicians hold official Class-1 or Master Wireman licenses from the Govt. of West Bengal Electrical Licensing Board.'
-            }
+        mainEntity: ENRICHED_FAQ_LIST.map((faq) => ({
+          '@type': 'Question',
+          name: faq.question,
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: faq.answer
           }
-        ]
+        }))
       });
     }
 
@@ -973,6 +1005,54 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
             text: 'Track your delivery partner on live maps as they deliver to your home or construction site in 60 minutes.'
           }
         ]
+      });
+    } else if (path === '/app') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': ['SoftwareApplication', 'MobileApplication'],
+        '@id': 'https://www.smartrun.in/#android-app',
+        name: 'SmartRUN: Materials Delivery',
+        alternateName: ['Smart Run', 'SmartRun', 'in.smartrun.app'],
+        operatingSystem: 'ANDROID',
+        applicationCategory: 'ShoppingApplication',
+        downloadUrl: 'https://play.google.com/store/apps/details?id=in.smartrun.app',
+        installUrl: 'https://play.google.com/store/apps/details?id=in.smartrun.app',
+        sameAs: ['https://play.google.com/store/apps/details?id=in.smartrun.app'],
+        author: { '@id': 'https://www.smartrun.in/#store' },
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'INR' }
+      });
+    } else if (path === '/delivery-areas') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        '@id': `${canonicalUrl}#webpage`,
+        name: 'Kolkata & Howrah Delivery Service Areas & Pincodes | SmartRun',
+        description: 'Serviceable zones across Kolkata (700001–700160) and Howrah (711101–711106) dispatched from SmartRun Kasba Central Depot.',
+        url: canonicalUrl,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' },
+        mainEntity: {
+          '@type': 'Service',
+          name: 'Express Electrical & Construction Materials Delivery in Kolkata & Howrah',
+          provider: { '@id': 'https://www.smartrun.in/#store' },
+          areaServed: KOLKATA_AREAS.map((area) => ({
+            '@type': 'PostalAddress',
+            addressLocality: area.name,
+            postalCode: area.pincode,
+            addressRegion: 'West Bengal',
+            addressCountry: 'IN'
+          }))
+        }
+      });
+    } else if (path === '/contact') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'ContactPage',
+        '@id': `${canonicalUrl}#webpage`,
+        name: 'Contact & Customer Support Desk | SmartRun Kolkata',
+        description: 'Official customer support, WhatsApp, and contractor procurement channels for SmartRun Materials Pvt. Ltd.',
+        url: canonicalUrl,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' },
+        mainEntity: { '@id': 'https://www.smartrun.in/#store' }
       });
     }
 

@@ -22,6 +22,10 @@ export const Footer: React.FC<FooterProps> = () => {
           <span className="text-slate-300">•</span>
           <Link to="/technicians" className="hover:text-black hover:underline transition-colors">Certified Electricians</Link>
           <span className="text-slate-300">•</span>
+          <Link to="/delivery-areas" className="hover:text-black hover:underline transition-colors">Service Areas</Link>
+          <span className="text-slate-300">•</span>
+          <Link to="/app" className="hover:text-black hover:underline transition-colors">Android App</Link>
+          <span className="text-slate-300">•</span>
           <Link to="/faqs" className="hover:text-black hover:underline transition-colors">FAQs</Link>
           <span className="text-slate-300">•</span>
           <Link to="/how-to-use" className="hover:text-black hover:underline transition-colors">How to Use App</Link>
@@ -42,6 +46,8 @@ export const Footer: React.FC<FooterProps> = () => {
           <Link to="/privacy" className="hover:text-black hover:underline transition-colors">Privacy Policy</Link>
           <span className="text-slate-300">•</span>
           <Link to="/about" className="hover:text-black hover:underline transition-colors">About Us</Link>
+          <span className="text-slate-300">•</span>
+          <Link to="/contact" className="hover:text-black hover:underline transition-colors">Contact Us</Link>
         </div>
 
         {/* Contextual Google Play Store App Discovery Link */}

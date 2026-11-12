@@ -2,12 +2,14 @@ import { describe, test, expect } from 'vitest';
 import {
   escapeHtml,
   escapeXml,
+  normalizeCanonicalPath,
   getRouteSeoConfig,
   injectSeoMetadata,
   generateDynamicSitemap,
   generateRssFeed,
   ProductMetaSource
 } from './seoHelper.js';
+import { ENRICHED_FAQ_LIST } from '../data/faqData.js';
 
 describe('SmartRun SEO & Geo Optimization Engine', () => {
   test('escapeHtml and escapeXml properly sanitize special characters', () => {
@@ -65,12 +67,12 @@ describe('SmartRun SEO & Geo Optimization Engine', () => {
   test('getRouteSeoConfig configures category routes with local delivery targets', () => {
     const elecSeo = getRouteSeoConfig('/electrical');
     expect(elecSeo.title).toContain('Electrical Products Online Delivery Kolkata');
-    expect(elecSeo.description).toContain("Kolkata's #1 online delivery app for electrical products");
+    expect(elecSeo.description).toContain('Order electrical products online in Kolkata');
     expect(elecSeo.keywords).toContain('kolkata online delivery app for electrical products');
 
     const constSeo = getRouteSeoConfig('/construction');
     expect(constSeo.title).toContain('Construction Products & Building Materials Delivery Kolkata');
-    expect(constSeo.description).toContain("Kolkata's #1 online delivery app for construction products");
+    expect(constSeo.description).toContain('Order construction products and building supplies online in Kolkata');
     expect(constSeo.keywords).toContain('kolkata online delivery app for construction products');
 
     const techSeo = getRouteSeoConfig('/technicians');
@@ -288,12 +290,103 @@ describe('SmartRun SEO & Geo Optimization Engine', () => {
     expect(injected).toContain('CollectionPage');
   });
 
-  test('generateDynamicSitemap excludes disallowed and nonexistent routes', () => {
+  test('generateDynamicSitemap includes canonical GEO routes and excludes aliases and private routes', () => {
     const sitemapXml = generateDynamicSitemap([]);
-    expect(sitemapXml).not.toContain('/contact');
+    expect(sitemapXml).toContain('<loc>https://www.smartrun.in/app</loc>');
+    expect(sitemapXml).toContain('<loc>https://www.smartrun.in/delivery-areas</loc>');
+    expect(sitemapXml).toContain('<loc>https://www.smartrun.in/contact</loc>');
+    expect(sitemapXml).not.toContain('/about-us');
+    expect(sitemapXml).not.toContain('/shipping-policy');
+    expect(sitemapXml).not.toContain('/return-policy');
     expect(sitemapXml).not.toContain('/career');
     expect(sitemapXml).not.toContain('/login');
     expect(sitemapXml).not.toContain('/account-deletion');
+  });
+
+  test('normalizeCanonicalPath collapses route aliases cleanly', () => {
+    expect(normalizeCanonicalPath('/about-us/')).toBe('/about');
+    expect(normalizeCanonicalPath('/shipping-and-return-policy')).toBe('/shipping');
+    expect(normalizeCanonicalPath('/contact-us')).toBe('/contact');
+    expect(normalizeCanonicalPath('/download')).toBe('/app');
+    expect(normalizeCanonicalPath('/service-areas')).toBe('/delivery-areas');
+    expect(normalizeCanonicalPath('/')).toBe('/');
+  });
+
+  test('getRouteSeoConfig supports /app, /delivery-areas, /contact and full FAQ schema parity', () => {
+    const appSeo = getRouteSeoConfig('/app');
+    expect(appSeo.canonical).toBe('https://www.smartrun.in/app');
+    expect(appSeo.title).toContain('SmartRUN: Materials Delivery Android App');
+    const appGraph = (appSeo.structuredData as any)['@graph'];
+    expect(appGraph.some((n: any) => Array.isArray(n['@type']) && n['@type'].includes('MobileApplication'))).toBe(true);
+
+    const areasSeo = getRouteSeoConfig('/delivery-areas');
+    expect(areasSeo.canonical).toBe('https://www.smartrun.in/delivery-areas');
+    expect(areasSeo.description).toContain('Kolkata (700001–700160)');
+
+    const contactSeo = getRouteSeoConfig('/contact');
+    expect(contactSeo.canonical).toBe('https://www.smartrun.in/contact');
+    const contactGraph = (contactSeo.structuredData as any)['@graph'];
+    expect(contactGraph.some((n: any) => n['@type'] === 'ContactPage')).toBe(true);
+
+    const faqSeo = getRouteSeoConfig('/faqs');
+    const faqGraph = (faqSeo.structuredData as any)['@graph'];
+    const faqNode = faqGraph.find((n: any) => n['@type'] === 'FAQPage');
+    expect(faqNode.mainEntity.length).toBe(ENRICHED_FAQ_LIST.length);
+  });
+
+  test('getRouteSeoConfig does not fabricate rating when technician rating is missing', () => {
+    const unratedTech = {
+      id: 'tech-unrated',
+      name: 'Sourav Sen',
+      title: 'Licensed Wireman',
+      primarySector: 'Residential Wiring'
+    };
+    const seo = getRouteSeoConfig('/technicians/tech-unrated', null, unratedTech);
+    const graph = (seo.structuredData as any)['@graph'];
+    const person = graph.find((n: any) => Array.isArray(n['@type']) && n['@type'].includes('Person'));
+    expect(person.aggregateRating).toBeUndefined();
+    expect(seo.description).not.toContain('4.9');
+  });
+
+  test('injectSeoMetadata injects semantic SSR body shell and neutralizes XSS script breakouts', () => {
+    const templateWithSlot = `<!DOCTYPE html>
+<html>
+  <head>
+    <title>Default</title>
+    <meta name="title" content="Default" />
+    <meta name="description" content="Default" />
+    <meta name="keywords" content="default" />
+    <link rel="canonical" href="https://www.smartrun.in/" />
+    <link rel="alternate" hreflang="en-IN" href="https://www.smartrun.in/" />
+    <link rel="alternate" href="android-app://in.smartrun.app/smartrun/home" />
+    <meta property="al:android:url" content="smartrun://home" />
+    <meta property="og:title" content="Default" />
+    <meta property="og:description" content="Default" />
+    <meta property="og:url" content="https://www.smartrun.in/" />
+    <meta property="og:image" content="https://www.smartrun.in/SmartRun.png" />
+    <meta name="twitter:title" content="Default" />
+    <meta name="twitter:description" content="Default" />
+  </head>
+  <body>
+    <div id="root"><!-- SSR_SEO_SHELL_SLOT --></div>
+  </body>
+</html>`;
+
+    const xssProduct: ProductMetaSource = {
+      id: 'xss-1',
+      name: 'Cable </script><script>alert(1)</script>',
+      brand: 'TestBrand',
+      category: 'electrical',
+      price: 500,
+      description: 'Desc with </script><img onerror=alert(2)>'
+    };
+
+    const injected = injectSeoMetadata(templateWithSlot, '/electrical/product/xss-1', xssProduct);
+    expect(injected).toContain('<main id="ssr-seo-shell"');
+    expect(injected).toContain('<h1>');
+    expect(injected).not.toContain('<!-- SSR_SEO_SHELL_SLOT -->');
+    expect(injected).not.toContain('alert(1)</script>');
+    expect(injected).toContain('\\u003c/script>');
   });
 });
 

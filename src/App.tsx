@@ -33,6 +33,9 @@ import { LiveOrderPage } from './components/orders/LiveOrderPage';
 import { AccountDeletionPage } from './components/AccountDeletionPage';
 import { HowToUseAppPage } from './components/HowToUseAppPage';
 import { SitemapPage } from './components/SitemapPage';
+import { SmartRunAppPage } from './components/SmartRunAppPage';
+import { DeliveryAreasPage } from './components/DeliveryAreasPage';
+import { ContactSupportPage } from './components/ContactSupportPage';
 import { SEOHead } from './components/SEOHead';
 import {
   trackPageView,
@@ -242,9 +245,11 @@ export default function App() {
         }
       } catch (err: any) {
         console.debug('[App Location Fetch Notice]:', err?.message || err);
-        // If location is not on or access is not given to our app, prompt user with location modal box
+        // If location is not on or access is not given to our app, prompt user on storefront routes only (never block editorial/policy/info pages)
+        const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+        const isEditorialOrAuthRoute = /^\/(login|auth|reset-password|personal-info|about|about-us|app|download|delivery-areas|service-areas|contact|contact-us|support|faq|faqs|shipping|shipping-policy|shipping-and-return-policy|return|return-policy|returns|refund|refund-policy|refunds|privacy|privacy-policy|terms|terms-of-service|sitemap|how-to-use|guide|delete|account-deletion)\b/i.test(currentPath);
         const dismissedInSession = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('smartrun_location_prompt_dismissed') === 'true';
-        if (!isCancelled && !dismissedInSession) {
+        if (!isCancelled && !dismissedInSession && !isEditorialOrAuthRoute) {
           setIsDeviceLocationPromptOpen(true);
         }
       } finally {
@@ -1828,6 +1833,13 @@ export default function App() {
         !location.pathname.startsWith('/shipping') &&
         !location.pathname.startsWith('/return') &&
         !location.pathname.startsWith('/refund') &&
+        !location.pathname.startsWith('/about') &&
+        !location.pathname.startsWith('/app') &&
+        !location.pathname.startsWith('/download') &&
+        !location.pathname.startsWith('/delivery-areas') &&
+        !location.pathname.startsWith('/service-areas') &&
+        !location.pathname.startsWith('/contact') &&
+        !location.pathname.startsWith('/support') &&
         activeTab !== 'cart' &&
         !selectedProductQuickView && (
         <Header
@@ -2369,6 +2381,15 @@ export default function App() {
           {/* SITEMAP & DIRECTORY */}
           <Route path="/sitemap" element={<SitemapPage />} />
 
+          {/* GEO ENTITY, APP, SERVICE AREAS & CONTACT ROUTES */}
+          <Route path="/app" element={<SmartRunAppPage />} />
+          <Route path="/download" element={<Navigate to="/app" replace />} />
+          <Route path="/delivery-areas" element={<DeliveryAreasPage />} />
+          <Route path="/service-areas" element={<Navigate to="/delivery-areas" replace />} />
+          <Route path="/contact" element={<ContactSupportPage />} />
+          <Route path="/contact-us" element={<Navigate to="/contact" replace />} />
+          <Route path="/support" element={<Navigate to="/contact" replace />} />
+
           {/* PASSWORD RESET */}
           <Route path="/reset-password" element={<ResetPassword onOpenAuth={() => navigate('/login')} />} />
 
@@ -2473,7 +2494,10 @@ export default function App() {
       />
 
       <DeviceLocationPromptModal
-        isOpen={isDeviceLocationPromptOpen}
+        isOpen={
+          isDeviceLocationPromptOpen &&
+          !/^\/(login|auth|reset-password|personal-info|about|about-us|app|download|delivery-areas|service-areas|contact|contact-us|support|faq|faqs|shipping|shipping-policy|shipping-and-return-policy|return|return-policy|returns|refund|refund-policy|refunds|privacy|privacy-policy|terms|terms-of-service|sitemap|how-to-use|guide|delete|account-deletion)\b/i.test(location.pathname)
+        }
         onClose={() => {
           setIsDeviceLocationPromptOpen(false);
           try {

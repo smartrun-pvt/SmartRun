@@ -1,14 +1,20 @@
 # Robots.txt for SmartRun (Smart Run)
 # Official Production Domain: https://www.smartrun.in
-# Primary Backlink & Indexing Crawler Directives
 
-# Priority Search Engine Crawlers (Zero Crawl Delay)
+# Priority Search Engine & AI Discovery Crawlers (Public Pages Allowed)
 User-agent: Googlebot
 User-agent: Googlebot-Image
 User-agent: Googlebot-Mobile
-User-agent: AhrefsBot
-User-agent: Bingbot
+User-agent: Google-Extended
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: GPTBot
+User-agent: PerplexityBot
+User-agent: ClaudeBot
 User-agent: Applebot
+User-agent: Applebot-Extended
+User-agent: Bingbot
+User-agent: AhrefsBot
 User-agent: SemrushBot
 Allow: /
 Allow: /electrical
@@ -18,20 +24,26 @@ Allow: /construction/*
 Allow: /product/*
 Allow: /technicians
 Allow: /technicians/*
+Allow: /about
+Allow: /app
+Allow: /delivery-areas
+Allow: /faqs
+Allow: /how-to-use
+Allow: /contact
+Allow: /shipping
+Allow: /return
+Allow: /refund-policy
+Allow: /privacy
+Allow: /terms
 Allow: /sitemap
 Allow: /sitemap.xml
 Allow: /rss.xml
 Allow: /feed.xml
-Allow: /about
-Allow: /faqs
-Allow: /faq
-Allow: /shipping
-Allow: /shipping-policy
-Allow: /return
-Allow: /return-policy
-Allow: /refund-policy
-Allow: /privacy
-Allow: /terms
+Allow: /llms.txt
+Allow: /api/products
+Allow: /api/products/*
+Allow: /api/ai/openapi.json
+Allow: /api/feeds/google-merchant.xml
 Disallow: /login
 Disallow: /cart
 Disallow: /profile
@@ -43,7 +55,9 @@ Disallow: /delete
 Disallow: /account-deletion
 Disallow: /personal-info
 Disallow: /auth
-Disallow: /api/*
+Disallow: /api/auth/*
+Disallow: /api/orders/*
+Disallow: /api/user-profile
 
 # General Crawlers
 User-agent: *
@@ -55,14 +69,19 @@ Allow: /construction/*
 Allow: /product/*
 Allow: /technicians
 Allow: /technicians/*
-Allow: /sitemap
 Allow: /about
+Allow: /app
+Allow: /delivery-areas
 Allow: /faqs
+Allow: /how-to-use
+Allow: /contact
 Allow: /shipping
 Allow: /return
 Allow: /refund-policy
 Allow: /privacy
 Allow: /terms
+Allow: /sitemap
+Allow: /llms.txt
 Disallow: /login
 Disallow: /cart
 Disallow: /profile
@@ -74,9 +93,10 @@ Disallow: /delete
 Disallow: /account-deletion
 Disallow: /personal-info
 Disallow: /auth
-Disallow: /api/*
+Disallow: /api/auth/*
+Disallow: /api/orders/*
+Disallow: /api/user-profile
 
-# XML Sitemaps & Syndication Feeds for Instant Backlink Discovery
+# XML Sitemaps & Syndication Feeds
 Sitemap: https://www.smartrun.in/sitemap.xml
 Sitemap: https://www.smartrun.in/rss.xml
-

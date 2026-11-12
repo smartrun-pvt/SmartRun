@@ -1,10 +1,12 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { RefundPolicy } from './RefundPolicy';
 import { ReturnPolicyPage } from './ReturnPolicyPage';
 import { ShippingPolicy } from './ShippingPolicyPage';
 import { PrivacyPolicyPage } from './PrivacyPolicyPage';
 import { TermsOfServicePage } from './TermsOfServicePage';
 import { FAQPage } from './FAQPage';
+import { Footer } from './Footer';
 import {
   ChevronLeft,
   ShieldCheck,
@@ -136,27 +138,29 @@ export const LegalView = ({ onBack, type }: LegalViewProps) => {
         className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-2xs"
         style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
       >
-        <div className="max-w-3xl mx-auto px-4 py-2.5 sm:py-3.5 flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
-            title="Back"
-          >
-            <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
-          </button>
+        <div className="max-w-3xl mx-auto px-4 py-2.5 sm:py-3.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <IconComponent className="w-5 h-5 text-[#00875a]" />
-            <h1 className="text-base sm:text-lg font-black text-slate-900">
-              {meta.title}
-            </h1>
+            <button
+              onClick={onBack}
+              className="p-1.5 -ml-1 rounded-full hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
+              title="Back"
+            >
+              <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
+            </button>
+            <div className="flex items-center gap-2">
+              <IconComponent className="w-5 h-5 text-[#00875a]" />
+              <h1 className="text-base sm:text-lg font-black text-slate-900">
+                {meta.title}
+              </h1>
+            </div>
           </div>
-        </div>
 
-        {meta.badge ? (
-          <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-3 py-1 rounded-full whitespace-nowrap">
-            {meta.badge}
-          </span>
-        ) : null}
+          {meta.badge ? (
+            <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-3 py-1 rounded-full whitespace-nowrap shrink-0">
+              {meta.badge}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
@@ -189,47 +193,59 @@ export const LegalView = ({ onBack, type }: LegalViewProps) => {
           {type === 'about' && (
             <div className="space-y-6">
               <section className="space-y-2">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#00875a]"></span>
                   Who We Are
-                </h3>
+                </h2>
                 <p>
-                  <strong>SmartRun</strong> (operated by <strong>SmartRun materials pvt. ltd</strong>, operating at <em>https://www.smartrun.in</em>) is Kolkata’s premier express electrical supplies platform, quick-commerce building materials hub, and verified on-demand electrician contractor service platform. Operating from our central facility at Kheyadah Village, Bhagabanpur, Kolkata 700150, we supply retail homeowners, licensed contractors, real estate developers, architects, and electrical engineers with 100% genuine factory-certified materials with express 60-minute delivery.
+                  <strong>SmartRUN</strong> (legally operated by <strong>SmartRun Materials Pvt. Ltd.</strong> at <em>https://www.smartrun.in</em>) is a quick-commerce construction and electrical materials delivery platform serving Kolkata and Howrah, West Bengal, India. From our central dispatch depot in Kasba (Kolkata 700107) and registered corporate office at Kheyadah Village, Bhagabanpur (Kolkata 700150), we connect homeowners, site supervisors, licensed contractors, and real estate developers with OEM-sourced electrical and building supplies with automated GST tax invoicing and live GPS delivery tracking.
                 </p>
               </section>
 
               <section className="space-y-3 pt-4 border-t border-slate-100">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#00875a]"></span>
-                  What We Provide
-                </h3>
+                  What SmartRUN Provides
+                </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                    <p className="font-bold text-slate-900 text-sm">⚡ Electrical Wires, Cables &amp; Switchgear</p>
+                  <Link to="/electrical" className="block p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-emerald-300 transition-colors space-y-1">
+                    <h3 className="font-bold text-slate-900 text-sm">⚡ Electrical Wires, Cables &amp; Switchgear</h3>
                     <p className="text-slate-600 text-xs leading-relaxed">
-                      100% genuine ISI/BIS certified wires &amp; cables from Polycab, Havells, RR Kabel, Finolex, Schneider Electric MCBs/RCBOs, and Legrand modular switches.
+                      ISI/BIS certified wires &amp; cables from Polycab, Havells, RR Kabel, Finolex, Schneider Electric MCBs/RCBOs, and Legrand modular switches.
                     </p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                    <p className="font-bold text-slate-900 text-sm">🏗️ High-Grade Construction Raw Materials</p>
+                  </Link>
+                  <Link to="/construction" className="block p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-emerald-300 transition-colors space-y-1">
+                    <h3 className="font-bold text-slate-900 text-sm">🏗️ Construction &amp; Building Supplies</h3>
                     <p className="text-slate-600 text-xs leading-relaxed">
-                      Fresh UltraTech Cement, ACC Suraksha, Tata Tiscon 550D TMT rebars, Dr. Fixit waterproofing solutions, and heavy-duty CPVC/UPVC plumbing fittings.
+                      UltraTech &amp; ACC cement, Tata Tiscon 550D TMT rebars, Dr. Fixit waterproofing, tile adhesives, plywood, and UPVC/CPVC plumbing pipes.
                     </p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                    <p className="font-bold text-slate-900 text-sm">👨‍🔧 Verified On-Demand Electricians</p>
+                  </Link>
+                  <Link to="/technicians" className="block p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-emerald-300 transition-colors space-y-1">
+                    <h3 className="font-bold text-slate-900 text-sm">👨‍🔧 Verified Electricians &amp; Contractors</h3>
                     <p className="text-slate-600 text-xs leading-relaxed">
-                      Instant booking of verified, certified electricians for diagnostics, short-circuit troubleshooting, switchboard installations, and full home wiring consultations.
+                      Directory of licensed electricians for diagnostics, short-circuit troubleshooting, switchboard fitting, and full home wiring work in Kolkata.
                     </p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                    <p className="font-bold text-slate-900 text-sm">🚀 60-Minute Rapid Express Dispatch</p>
+                  </Link>
+                  <Link to="/delivery-areas" className="block p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-emerald-300 transition-colors space-y-1">
+                    <h3 className="font-bold text-slate-900 text-sm">🚀 60-Min Kasba Dispatch &amp; Site Freight</h3>
                     <p className="text-slate-600 text-xs leading-relaxed">
-                      Dedicated delivery fleet stationed at our Kasba hub ensuring urgent maintenance materials reach your site within 60 minutes across Kolkata.
+                      Rapid two-wheeler dispatch for urgent electricals and scheduled commercial vehicles for heavy building materials across Kolkata 700001–700160 &amp; Howrah 711101–711106.
                     </p>
-                  </div>
+                  </Link>
                 </div>
-                <div className="pt-2">
+                <div className="pt-2 flex flex-wrap items-center gap-4">
+                  <Link
+                    to="/app"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-900 hover:text-emerald-700 hover:underline"
+                  >
+                    <span>SmartRUN Android App Guide</span>
+                  </Link>
+                  <Link
+                    to="/contact"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-900 hover:text-emerald-700 hover:underline"
+                  >
+                    <span>Contact Support &amp; Contractor Desk</span>
+                  </Link>
                   <a
                     href="https://play.google.com/store/apps/details?id=in.smartrun.app"
                     target="_blank"
@@ -308,6 +324,7 @@ export const LegalView = ({ onBack, type }: LegalViewProps) => {
 
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

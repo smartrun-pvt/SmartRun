@@ -10,6 +10,7 @@ import { TechnicianSortModal, TechnicianSortOption } from './TechnicianSortModal
 import { hapticLight, hapticSelection } from '../../utils/haptics';
 import { getPaginationPages } from '../../utils/paginationHelper';
 import { SEOHead } from '../SEOHead';
+import { Footer } from '../Footer';
 
 interface TechniciansPageProps {
   searchQuery?: string;
@@ -399,8 +400,18 @@ export const TechniciansPage = ({
         description="Book verified, licensed electrical contractors, home wiring technicians, switchboard repair, and industrial electrification specialists in Kolkata with instant booking."
         keywords="electrician kolkata, licensed electrical contractor, home wiring specialist, switchboard repair kolkata, real estate electrification"
       />
-      {/* Top Bar for Technician Quick Actions & Active Filter Badges */}
+      {/* Top Bar for Technician Title & Active Filter Badges */}
       <div className="w-full max-w-5xl mx-auto mb-3">
+        <div className="pb-3 mb-2 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 border-b border-slate-200/80">
+          <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+            {activeQuery.trim()
+              ? `Certified Electricians matching "${activeQuery}" in Kolkata`
+              : 'Licensed Electricians & Wiring Contractors in Kolkata'}
+          </h1>
+          <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
+            WBELB-verified installation, MCB fault &amp; rewiring specialists across Kolkata &amp; Howrah
+          </p>
+        </div>
         {/* Active Filter Tags Row */}
         {hasActiveFilters && (
           <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-none py-1 mb-2">
@@ -715,6 +726,9 @@ export const TechniciansPage = ({
         selectedSort={sortOption}
         onSelectSort={(nextSort) => setSortOption(nextSort)}
       />
+      <div className="w-full mt-auto">
+        <Footer />
+      </div>
     </div>
   );
 };

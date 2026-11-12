@@ -2472,6 +2472,22 @@ async function startServer() {
     res.status(404).send("Robots.txt not found");
   });
 
+  app.get("/llms.txt", (_req, res) => {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    const candidates = [
+      path.join(process.cwd(), "public", "llms.txt"),
+      path.join(process.cwd(), "dist", "llms.txt"),
+      path.join(__dirnameResolved, "public", "llms.txt")
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        return res.sendFile(p);
+      }
+    }
+    return res.status(404).send("llms.txt not found");
+  });
+
   // =========================================================================
   // GOOGLE MERCHANT CENTER (GMC) XML PRODUCT FEED (RSS 2.0 / GOOGLE SHOPPING)
   // Compliant with Google Merchant Center feed specifications & policies
@@ -9897,7 +9913,14 @@ Knowledge Base & Service Details:
         "/terms-of-service",
         "/sitemap",
         "/how-to-use",
-        "/guide"
+        "/guide",
+        "/app",
+        "/download",
+        "/delivery-areas",
+        "/service-areas",
+        "/contact",
+        "/contact-us",
+        "/support"
       ],
       async (req, res, next) => {
         try {
@@ -9949,9 +9972,10 @@ Knowledge Base & Service Details:
       })
     );
 
-    // 2. Intelligent Cache Headers for root static files & images
+    // 2. Intelligent Cache Headers for root static files & images (index: false lets GET / pass to SSR prerender)
     app.use(
       express.static(distPath, {
+        index: false,
         setHeaders: (res, filePath) => {
           if (filePath.endsWith(".html")) {
             // HTML files should never be cached permanently so updates reflect instantly
@@ -9997,7 +10021,14 @@ Knowledge Base & Service Details:
         "/terms-of-service",
         "/sitemap",
         "/how-to-use",
-        "/guide"
+        "/guide",
+        "/app",
+        "/download",
+        "/delivery-areas",
+        "/service-areas",
+        "/contact",
+        "/contact-us",
+        "/support"
       ],
       async (req, res, next) => {
         try {
