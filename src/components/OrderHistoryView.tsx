@@ -50,6 +50,7 @@ interface OrderHistoryViewProps {
   onOpenShop: () => void;
   onBack?: () => void;
   onRefresh?: () => Promise<void> | void;
+  hideHeader?: boolean;
 }
 
 export const OrderHistoryView = ({
@@ -57,7 +58,8 @@ export const OrderHistoryView = ({
   userProfile,
   onOpenShop,
   onBack,
-  onRefresh
+  onRefresh,
+  hideHeader = false
 }: OrderHistoryViewProps) => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
@@ -1310,29 +1312,31 @@ export const OrderHistoryView = ({
         style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
       >
         {/* Top Header */}
-      <div className="flex items-center justify-between gap-4 pt-2">
-        <div className="flex items-center gap-3">
-          {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              className="p-1 -ml-1 rounded-full hover:bg-slate-100 text-slate-800 hover:text-black transition-colors cursor-pointer"
-              title="Go Back"
-              aria-label="Back"
-            >
-              <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
-            </button>
-          )}
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Orders
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">
-              {orders.length}
-            </span>
+      {!hideHeader && (
+        <div className="flex items-center justify-between gap-4 pt-2">
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="p-1 -ml-1 rounded-full hover:bg-slate-100 text-slate-800 hover:text-black transition-colors cursor-pointer"
+                title="Go Back"
+                aria-label="Back"
+              >
+                <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
+              </button>
+            )}
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Orders
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">
+                {orders.length}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {orders.length > 0 && (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">

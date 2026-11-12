@@ -66,22 +66,31 @@ export const TermsOfServicePage: React.FC<TermsOfServicePageProps> = ({ onBack }
 
       {/* Top Sticky Header: Simple Heading 'Terms of service' and Back Button in the same line */}
       <div
-        className="bg-[#F9F6F0] border-b border-[#E6DEC8] sticky top-0 z-20"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+        className="sticky top-0 z-30 bg-[#f7aef8] border-b border-[#e99ee7] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
+        style={{
+          backgroundColor: '#f7aef8',
+          paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))'
+        }}
       >
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3.5 flex items-center gap-3">
-          <button
-            id="btn-terms-of-service-back"
-            type="button"
-            onClick={handleBack}
-            className="p-1.5 -ml-1.5 rounded-full hover:bg-[#EFE9DC] active:bg-[#E5DEC7] text-[#2C261E] transition-colors cursor-pointer flex items-center justify-center shrink-0"
-            aria-label="Go back"
-          >
-            <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
-          </button>
-          <h1 className="text-lg sm:text-xl font-bold text-[#2C261E] tracking-tight whitespace-nowrap">
-            Terms of service
-          </h1>
+        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 sm:gap-3.5">
+            <button
+              id="btn-terms-of-service-back"
+              type="button"
+              onClick={handleBack}
+              className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer shrink-0"
+              title="Back"
+              aria-label="Go back"
+            >
+              <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
+            </button>
+            <h1
+              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
+            >
+              Terms of service
+            </h1>
+          </div>
         </div>
       </div>
 

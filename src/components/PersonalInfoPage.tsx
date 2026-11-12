@@ -203,24 +203,32 @@ export const PersonalInfoPage = ({
         keywords="smartrun personal info, user profile, account setup"
       />
 
-      {/* Top Header: Keep "Personal Info." alone in top header */}
+      {/* Top Header: Keep "Personal Info" in top header */}
       <div
-        className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-2xs"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+        className="sticky top-0 z-30 bg-[#f7aef8] border-b border-[#e99ee7] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
+        style={{
+          backgroundColor: '#f7aef8',
+          paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))'
+        }}
       >
-        <div className="max-w-md mx-auto px-4 py-2.5 sm:py-3.5 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleBackAction}
-            className="p-1 -ml-1 text-slate-700 hover:text-black rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
-            title="Back"
-            aria-label="Back"
-          >
-            <ArrowLeft className="w-5 h-5 stroke-[2.2]" />
-          </button>
-          <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-none">
-            Personal Info.
-          </h1>
+        <div className="max-w-md mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 sm:gap-3.5">
+            <button
+              type="button"
+              onClick={handleBackAction}
+              className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer shrink-0"
+              title="Back"
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
+            </button>
+            <h1
+              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
+            >
+              Personal Info
+            </h1>
+          </div>
         </div>
       </div>
 

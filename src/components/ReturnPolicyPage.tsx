@@ -91,22 +91,28 @@ export const ReturnPolicyPage: React.FC<ReturnPolicyProps> = ({
 
       {/* Top Navbar: Heading 'Return Policy', Back Button & 3-Dot Mobile Menu */}
       <header
-        className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-2xs"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+        className="bg-[#f7aef8] border-b border-[#e99ee7] sticky top-0 z-30 shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
+        style={{
+          backgroundColor: '#f7aef8',
+          paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))'
+        }}
       >
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between gap-3 relative">
+        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3 relative">
           {/* Left: Back Button & Title */}
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
             <button
               id="btn-return-policy-back"
               type="button"
               onClick={handleBack}
-              className="p-1.5 -ml-1.5 rounded-full hover:bg-slate-100 active:bg-slate-200 text-slate-700 transition-colors cursor-pointer flex items-center justify-center shrink-0"
+              className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer flex items-center justify-center shrink-0"
               aria-label="Go back to profile"
             >
-              <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
+              <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
             </button>
-            <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight whitespace-nowrap truncate">
+            <h1
+              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal whitespace-nowrap truncate"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
+            >
               Return Policy
             </h1>
           </div>
@@ -117,11 +123,11 @@ export const ReturnPolicyPage: React.FC<ReturnPolicyProps> = ({
               id="btn-return-policy-menu"
               type="button"
               onClick={() => setIsMenuOpen((prev) => !prev)}
-              className="p-1.5 -mr-1.5 rounded-full hover:bg-slate-100 active:bg-slate-200 text-slate-700 transition-colors cursor-pointer flex items-center justify-center"
+              className="p-1.5 -mr-1.5 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer flex items-center justify-center"
               aria-label="Navigation menu options"
               aria-expanded={isMenuOpen}
             >
-              <MoreVertical className="w-5 h-5 text-slate-700" />
+              <MoreVertical className="w-5 h-5 text-slate-900" />
             </button>
 
             {/* 3-Dot Dropdown Menu Modal */}

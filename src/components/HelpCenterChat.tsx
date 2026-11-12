@@ -448,41 +448,46 @@ export const HelpCenterChat = ({
       {/* 1. UNIFIED PAGE HEADER: Chat Support, FAQ button, Refresh button */}
       <header
         id="chat-support-header"
-        className="shrink-0 bg-white border-b border-slate-200/90 shadow-2xs z-30"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+        className="shrink-0 sticky top-0 z-30 bg-[#f7aef8] border-b border-[#e99ee7] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
+        style={{
+          backgroundColor: '#f7aef8',
+          paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))'
+        }}
       >
-        <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2.5 min-w-0">
-          {onBack && (
+        <div className="w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer shrink-0"
+                title="Back to Profile"
+                aria-label="Back to Profile"
+              >
+                <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
+              </button>
+            )}
+
+            <h1
+              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal truncate"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
+            >
+              Chat Support
+            </h1>
+          </div>
+
+          {/* Right Header Actions: Reset Chat Button */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               type="button"
-              onClick={onBack}
-              className="p-1.5 -ml-1 rounded-full hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer shrink-0"
-              title="Back to Profile"
-              aria-label="Back to Profile"
+              onClick={handleClearChat}
+              className="p-2 rounded-xl text-slate-800 hover:text-black hover:bg-black/10 active:bg-black/15 border border-black/15 transition-colors cursor-pointer"
+              title="Clear Chat History"
+              aria-label="Clear Chat History"
             >
-              <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
+              <RefreshCw className="w-4 h-4" />
             </button>
-          )}
-
-          <h1 className="text-base sm:text-lg font-black text-slate-900 leading-tight truncate">
-            Chat Support
-          </h1>
-        </div>
-
-        {/* Right Header Actions: Reset Chat Button */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Reset Chat Button */}
-          <button
-            type="button"
-            onClick={handleClearChat}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
-            title="Clear Chat History"
-            aria-label="Clear Chat History"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        </div>
+          </div>
         </div>
       </header>
 
