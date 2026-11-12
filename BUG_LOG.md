@@ -1,5 +1,10 @@
 # BUG_LOG.md (Anti-Regression Checklist)
 
+- [x] **Bug ID: BUG-UI-007 - FAQ Page Header Declutter & Category Nav Removal**
+  - **Summary**: FAQ page top header contained an extraneous "Public Portal" badge and helpline phone button alongside an unnecessary sticky category filter navigation row.
+  - **Root Cause**: FAQ page was previously styled with redundant public portal tags, phone links in the top bar, and multi-category horizontal button chips.
+  - **Permanent Guardrail**: The FAQ page header now features a clean, minimal top bar with only the tailless back button and "Help & FAQ" title on a single line, search filtering by keyword without horizontal chip clutter, and direct comprehensive question cards.
+
 - [x] **Bug ID: BUG-EMAIL-001 - Daily Welcome Email On App Open**
   - **Summary**: Users received a welcome email every day upon opening the app even if already logged in.
   - **Root Cause**: `/api/user-profile` contained auto-send welcome email logic triggered by background profile synchronization from `fetchUserProfileFromSupabase`. Because Cloud Run containers are ephemeral and restart/scale to zero, in-memory `welcomedUsersStore` was reset, causing `/api/user-profile` to falsely trigger welcome emails on startup.

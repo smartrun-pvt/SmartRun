@@ -277,7 +277,7 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onBack }) => {
         className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs"
         style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
       >
-        <div className="max-w-3xl mx-auto px-4 py-2.5 sm:py-3 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 py-2.5 sm:py-3 flex items-center">
           <div className="flex items-center gap-2.5">
             <button
               type="button"
@@ -289,22 +289,10 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onBack }) => {
             </button>
             <div className="flex items-center gap-2">
               <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-none">
-                Help & FAQ
+                Help &amp; FAQ
               </h1>
-              <span className="text-[11px] font-bold text-amber-900 bg-amber-100/90 border border-amber-300/60 px-2 py-0.5 rounded-md whitespace-nowrap">
-                Public Portal
-              </span>
             </div>
           </div>
-
-          <a
-            href="tel:8777400280"
-            className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-          >
-            <PhoneCall className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Helpline:</span>
-            <span>8777400280</span>
-          </a>
         </div>
       </header>
 
@@ -341,34 +329,6 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onBack }) => {
           </div>
         </div>
       </section>
-
-      {/* Category Filter Chips */}
-      <nav className="sticky top-[53px] z-20 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 py-2.5 overflow-x-auto no-scrollbar shadow-2xs">
-        <div className="max-w-3xl mx-auto flex items-center gap-2">
-          {FAQ_CATEGORIES.map((cat) => {
-            const Icon = cat.icon;
-            const isSelected = selectedCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => {
-                  setSelectedCategory(cat.id);
-                  setSearchQuery('');
-                }}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-amber-400' : 'text-slate-500'}`} />
-                <span>{cat.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
 
       {/* Main FAQ List Container */}
       <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-5 pb-10">

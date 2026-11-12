@@ -25,13 +25,8 @@ import {
   ShieldCheck,
   Truck
 } from 'lucide-react';
-import { PasskeysSubPage } from './profile/PasskeysSubPage';
-import { SecuritySubPage } from './profile/SecuritySubPage';
-import { UpdateMobileSubPage } from './profile/UpdateMobileSubPage';
-import { UpdateEmailSubPage } from './profile/UpdateEmailSubPage';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Order, SavedAddress, UserProfile, CartItem, Product, WalletTransaction } from '../types';
-import { OrderHistoryView } from './OrderHistoryView';
 import {
   deleteAddressFromFirestore,
   subscribeToUpiIds,
@@ -41,25 +36,34 @@ import {
 } from '../services/supabaseService';
 import { getFavoriteProductIds, toggleProductFavorite, clearAllFavorites } from '../services/favorites';
 import { SEOHead } from './SEOHead';
-import { HowToUseAppPage } from './HowToUseAppPage';
 import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack';
 
-// Sub-page component modules for each button in Profile
-import { FavoritesSubPage } from './profile/FavoritesSubPage';
-import { SavedAddressesSubPage } from './profile/SavedAddressesSubPage';
-import { SavedPaymentsSubPage } from './profile/SavedPaymentsSubPage';
-import { WalletSubPage } from './profile/WalletSubPage';
-import { ServicesSubPage } from './profile/ServicesSubPage';
-import { MembershipSubPage } from './profile/MembershipSubPage';
-import { HelpCenterSubPage } from './profile/HelpCenterSubPage';
-import { NotificationsSubPage } from './profile/NotificationsSubPage';
-import { PrivacyPolicySubPage } from './profile/PrivacyPolicySubPage';
-import { TermsOfServiceSubPage } from './profile/TermsOfServiceSubPage';
-import { ShippingPolicySubPage } from './profile/ShippingPolicySubPage';
-import { ReturnPolicySubPage } from './profile/ReturnPolicySubPage';
-import { RefundPolicySubPage } from './profile/RefundPolicySubPage';
-import { EditProfileModal } from './profile/EditProfileModal';
-import { FAQPage } from './FAQPage';
+// Individual sub-page component modules for each profile page
+import {
+  FavoritesSubPage,
+  OrdersSubPage,
+  SavedAddressesSubPage,
+  SavedPaymentsSubPage,
+  WalletSubPage,
+  ServicesSubPage,
+  MembershipSubPage,
+  HelpCenterSubPage,
+  FAQSubPage,
+  NotificationsSubPage,
+  SecuritySubPage,
+  PasskeysSubPage,
+  UpdateMobileSubPage,
+  UpdateEmailSubPage,
+  HowToUseAppSubPage,
+  PrivacyPolicySubPage,
+  TermsOfServiceSubPage,
+  ShippingPolicySubPage,
+  ReturnPolicySubPage,
+  RefundPolicySubPage,
+  AccountDeletionSubPage,
+  PersonalInfoSubPage,
+  EditProfileModal
+} from './profile';
 
 interface ProfileViewProps {
   userProfile: UserProfile | null;
@@ -368,14 +372,12 @@ export const ProfileView = ({
   // -------------------------------------------------------------
   if (subPage === 'orders') {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-900 pb-28 sm:pb-24">
-        <OrderHistoryView
-          orders={sortedOrders}
-          userProfile={userProfile}
-          onOpenShop={onOpenShop}
-          onBack={handleSubPageBack}
-        />
-      </div>
+      <OrdersSubPage
+        orders={sortedOrders}
+        userProfile={userProfile}
+        onOpenShop={onOpenShop}
+        onBack={handleSubPageBack}
+      />
     );
   }
 
@@ -462,7 +464,7 @@ export const ProfileView = ({
   // SUB-PAGE: FAQ (FREQUENTLY ASKED QUESTIONS)
   // -------------------------------------------------------------
   if (subPage === 'faq') {
-    return <FAQPage onBack={handleSubPageBack} />;
+    return <FAQSubPage onBack={handleSubPageBack} />;
   }
 
   // -------------------------------------------------------------
@@ -562,7 +564,7 @@ export const ProfileView = ({
   // SUB-PAGE 12: HOW TO USE APP (STEP-BY-STEP USER GUIDE)
   // -------------------------------------------------------------
   if (subPage === 'how-to-use') {
-    return <HowToUseAppPage onBack={handleSubPageBack} />;
+    return <HowToUseAppSubPage onBack={handleSubPageBack} />;
   }
 
   // -------------------------------------------------------------
