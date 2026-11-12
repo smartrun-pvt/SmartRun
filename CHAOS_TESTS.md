@@ -95,4 +95,23 @@ curl -s http://localhost:3000/ | grep -o '<h1[^>]*>' | wc -l
 # Expectation: Exactly 1 H1 element rendered, matching "SmartRUN (Smart Run) — Express Electrical & Construction Materials Delivery in Kolkata"
 ```
 
+## 14. Test OpenAPI 3.1.0 AI Discovery Endpoint
+```bash
+curl -s http://localhost:3000/api/ai/openapi.json | head -n 20
+# Expectation: 200 OK JSON with "openapi":"3.1.0" and paths "/api/products", "/healthz"
+```
+
+## 15. Test Homepage MobileApplication Schema & Zero Fake AggregateRating
+```bash
+curl -s http://localhost:3000/ | grep -E '"MobileApplication"|"aggregateRating"'
+# Expectation: "MobileApplication" is present; "aggregateRating" is NOT present on unrated homepage entities
+```
+
+## 16. Test Robots.txt Disallows Private Auth Routes
+```bash
+curl -s http://localhost:3000/robots.txt | grep -E "Disallow: /login"
+# Expectation: Disallow: /login present under both priority crawlers and wildcard User-agent
+```
+
+
 

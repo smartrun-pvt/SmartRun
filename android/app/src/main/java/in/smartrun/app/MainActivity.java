@@ -57,8 +57,11 @@ public class MainActivity extends BridgeActivity {
             final int finalTopDp = Math.max(topDp, 0);
             final int finalBottomDp = Math.max(bottomDp, 0);
 
-            if (getBridge() != null && getBridge().getWebView() != null) {
+            if (!isFinishing() && !isDestroyed() && getBridge() != null && getBridge().getWebView() != null) {
                 getBridge().getWebView().post(() -> {
+                    if (isFinishing() || isDestroyed() || getBridge() == null || getBridge().getWebView() == null) {
+                        return;
+                    }
                     getBridge().getWebView().evaluateJavascript(
                         "document.documentElement.style.setProperty('--safe-area-top', '" + finalTopDp + "px');" +
                         "document.documentElement.style.setProperty('--safe-area-bottom', '" + finalBottomDp + "px');",
@@ -82,6 +85,7 @@ public class MainActivity extends BridgeActivity {
                     return super.shouldOverrideUrlLoading(view, request);
                 }
 
+                @SuppressWarnings("deprecation")
                 @Override
                 public boolean shouldOverrideUrlLoading(WebView view, String url) {
                     if (handleExternalScheme(url)) {

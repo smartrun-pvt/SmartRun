@@ -75,3 +75,11 @@
   2. All company claims match authentic business operations: Kasba Central Depot (PIN 700107), genuine OEM brands (Polycab, RR Kabel, Schneider Electric, UltraTech), and verified West Bengal licensing board credentials.
   3. Zero hidden text or deceptive anchor text across all pages.
 
+## Threat 12: Global Cleartext MITM & Android 12+ App Link Verification Hijack
+- **Attack Vector**: 1) Setting `android:usesCleartextTraffic="true"` globally in `AndroidManifest.xml` permits unencrypted HTTP requests in production WebView/network layers, exposing session/payment flows on hostile public Wi-Fi; 2) Mixing legacy unverified domains (`girirajpower.in`) into the same `<intent-filter android:autoVerify="true">` as `smartrun.in` causes Android 12+ Digital Asset Links verification to fail for the entire filter, allowing malicious apps or browsers to intercept `https://www.smartrun.in` links.
+- **Defense**:
+  1. Created `android/app/src/main/res/xml/network_security_config.xml` enforcing `cleartextTrafficPermitted="false"` globally while allowing localhost/emulator dev hosts (`localhost`, `127.0.0.1`, `10.0.2.2`). Set `cleartext: false` in Capacitor configs.
+  2. Isolated `smartrun.in` and `www.smartrun.in` in their own `<intent-filter android:autoVerify="true">` block and separated legacy `girirajpower.in` hosts into a non-`autoVerify` filter.
+  3. Added lifecycle guards (`isFinishing() || isDestroyed()`) around `MainActivity.java` `webView.post()` UI evaluation to prevent async crashes.
+
+

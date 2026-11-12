@@ -71,9 +71,10 @@ export function buildTrackedShareUrl(options: ShareProductOptions): string {
   const publicOrigin = getPublicShareOrigin();
 
   const isConstruction = (options.category || '').toLowerCase().includes('construction');
+  const encodedId = encodeURIComponent(String(options.id));
   const basePath = isConstruction
-    ? `/construction`
-    : `/electrical/product/${encodeURIComponent(String(options.id))}`;
+    ? `/construction/product/${encodedId}`
+    : `/electrical/product/${encodedId}`;
 
   // If options.url is provided, sanitize it so it doesn't contain localhost
   let targetUrl = options.url;

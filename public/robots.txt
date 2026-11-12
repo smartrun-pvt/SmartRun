@@ -32,7 +32,7 @@ Allow: /return-policy
 Allow: /refund-policy
 Allow: /privacy
 Allow: /terms
-Allow: /login
+Disallow: /login
 Disallow: /cart
 Disallow: /profile
 Disallow: /orders
@@ -63,7 +63,7 @@ Allow: /return
 Allow: /refund-policy
 Allow: /privacy
 Allow: /terms
-Allow: /login
+Disallow: /login
 Disallow: /cart
 Disallow: /profile
 Disallow: /orders

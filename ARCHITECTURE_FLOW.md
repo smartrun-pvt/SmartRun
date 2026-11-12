@@ -10,12 +10,20 @@ graph TD
     subgraph SEO_SSR_Prerendering [Server-Side Micro-Prerendering & Structured Data Engine]
         CloudRun --> SeoCheck{Crawlable Route?}
         SeoCheck -->|Yes: Products/Techs/Hubs/Policies| InjectMeta[seoHelper: injectSeoMetadata]
-        InjectMeta --> SchemaGraph[JSON-LD @graph: Product / Person / ProfessionalService / LocalBusiness / Breadcrumbs / HowTo / FAQPage / AboutPage / Policies]
-        SchemaGraph --> SendHtml[Serve Pre-populated HTML with server-prerender-schema]
+        InjectMeta --> SchemaGraph[JSON-LD @graph: WebSite / LocalBusiness / MobileApplication / Product / Person / Breadcrumbs / Policies]
+        SchemaGraph --> SendHtml[Serve Pre-populated HTML with single server-prerender-schema]
         SendHtml --> ClientHydration[Client Mount: SEOHead purges server-prerender-schema, activates smartrun-dynamic-jsonld]
         SeoCheck -->|No / Static Asset / API| NextHandler[Standard Vite/Static or API Route]
         CloudRun --> SitemapGen[GET /sitemap.xml: Dynamic Catalog + Technician Sitemap]
         CloudRun --> RssGen[GET /rss.xml: RSS 2.0 Syndication Feed]
+        CloudRun --> AiOpenApi[GET /api/ai/openapi.json & /.well-known/assetlinks.json]
+    end
+
+    subgraph App_Discovery_Tracking [Web-to-App & GA4 G-E3TVJRTKRP Attribution]
+        Client -->|Play Store CTAs: Footer/Modal/About/Sitemap| PlayStore[Google Play Listing in.smartrun.app]
+        Client -->|Share Product Link| ShareHelper[shareProduct: smartrun.in/electrical or construction/product/:id]
+        Client -->|Analytics Events| GA4[Google Analytics 4: G-E3TVJRTKRP]
+        PlayStore -->|HTTPS autoVerify smartrun.in| AndroidApp[Capacitor MainActivity + network_security_config.xml]
     end
 
     subgraph Server_APIs [Cloud Run Server Routes]
@@ -37,3 +45,4 @@ graph TD
         Client --> PurgeStorage[Clear localStorage, sessionStorage, caches, IndexedDB, cookies, Preferences]
     end
 ```
+

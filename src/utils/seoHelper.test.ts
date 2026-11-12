@@ -262,6 +262,38 @@ describe('SmartRun SEO & Geo Optimization Engine', () => {
     expect(org.logo.url).toBe('https://www.smartrun.in/SmartRun.png');
     expect(org.telephone).toBe('+91-8777400280');
     expect(org.sameAs).toContain('https://play.google.com/store/apps/details?id=in.smartrun.app');
+    expect(org.aggregateRating).toBeUndefined();
+
+    const mobileApp = graph.find((item: any) => Array.isArray(item['@type']) && item['@type'].includes('MobileApplication'));
+    expect(mobileApp).toBeDefined();
+    expect(mobileApp['@id']).toBe('https://www.smartrun.in/#android-app');
+    expect(mobileApp.operatingSystem).toBe('ANDROID');
+    expect(mobileApp.downloadUrl).toBe('https://play.google.com/store/apps/details?id=in.smartrun.app');
+    expect(mobileApp.aggregateRating).toBeUndefined();
+  });
+
+  test('injectSeoMetadata deduplicates pre-existing server-prerender-schema tags', () => {
+    const templateWithExistingSchema = `<!DOCTYPE html>
+<html>
+  <head>
+    <title>SmartRun</title>
+    <script type="application/ld+json" id="server-prerender-schema">{"@context":"https://schema.org","@graph":[]}</script>
+  </head>
+  <body><div id="root"></div></body>
+</html>`;
+
+    const injected = injectSeoMetadata(templateWithExistingSchema, '/electrical');
+    const matches = injected.match(/id="server-prerender-schema"/g) || [];
+    expect(matches.length).toBe(1);
+    expect(injected).toContain('CollectionPage');
+  });
+
+  test('generateDynamicSitemap excludes disallowed and nonexistent routes', () => {
+    const sitemapXml = generateDynamicSitemap([]);
+    expect(sitemapXml).not.toContain('/contact');
+    expect(sitemapXml).not.toContain('/career');
+    expect(sitemapXml).not.toContain('/login');
+    expect(sitemapXml).not.toContain('/account-deletion');
   });
 });
 

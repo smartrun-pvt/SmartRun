@@ -26,6 +26,7 @@ import {
   Users
 } from 'lucide-react';
 import { SEOHead } from './SEOHead';
+import { trackPlayStoreClick } from '../utils/analytics';
 
 export type LegalPageType = 'privacy' | 'terms' | 'refund' | 'return' | 'shipping' | 'about' | 'faqs';
 
@@ -227,6 +228,18 @@ export const LegalView = ({ onBack, type }: LegalViewProps) => {
                       Dedicated delivery fleet stationed at our Kasba hub ensuring urgent maintenance materials reach your site within 60 minutes across Kolkata.
                     </p>
                   </div>
+                </div>
+                <div className="pt-2">
+                  <a
+                    href="https://play.google.com/store/apps/details?id=in.smartrun.app"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackPlayStoreClick('about_page')}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 hover:underline"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Download Official SmartRun Android App on Google Play</span>
+                  </a>
                 </div>
               </section>
             </div>

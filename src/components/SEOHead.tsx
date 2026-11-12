@@ -107,17 +107,17 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     }
 
     // 1. Determine Title & Meta Defaults Based on Current Route
-    let defaultTitle = 'SmartRun (Smart Run) - Kolkata Online Delivery App for Electrical & Construction Products';
+    let defaultTitle = 'SmartRun (Smart Run): Electrical & Construction App Kolkata';
     let defaultDesc =
-      'SmartRun (Smart Run) by SmartRun materials pvt. ltd: Kolkata’s #1 express online delivery app for electrical products, Polycab & Havells wires, Schneider switches, UltraTech cement, Tata steel rebars, and licensed electricians with 60-minute delivery.';
+      'Order Polycab wires, Schneider MCBs, UltraTech cement & licensed electricians in Kolkata on SmartRun (Smart Run) with 60-min express delivery.';
     let defaultKeywords =
-      'Smart Run, SmartRun, smart run, smartrun, smart run app, smartrun app, smart run kolkata, kolkata online delivery app for electrical products, kolkata online delivery app for construction products, online delivery app for electrical products, electrical products delivery app, construction products delivery app kolkata, buy electrical goods online Kolkata, electrical shop near me, house wiring contractor, electrical wiring services, modular switches, Polycab wire, Havells cables, Finolex wire, Schneider MCB, distribution board, LED lighting, construction materials Kolkata, cement delivery, UltraTech cement, ACC cement, TMT steel bars, Tata Tiscon rebars, waterproofing chemicals, real estate electrification, licensed electrician Kolkata, Kasba electrical shop, wholesale electrical market Kolkata, B2B building materials procurement, direct depot Kolkata, in.smartrun.app';
+      'SmartRun, Smart Run, SmartRun Kolkata, SmartRun India, construction materials delivery Kolkata, electrical materials delivery Kolkata, building supplies online, electrical supplies online, Polycab wire, Havells cables, Finolex wire, Schneider MCB, Anchor Roma switches, UltraTech cement, Tata Tiscon TMT rebars, licensed electrician Kolkata, in.smartrun.app';
     let defaultType = type;
     let shouldNoIndex = noIndex ?? false;
 
     if (path === '/') {
-      defaultTitle = 'SmartRun (Smart Run) - Kolkata Online Delivery App for Electrical & Construction Products';
-      defaultDesc = 'Order genuine electrical products, house wiring cables, modular switches, UltraTech cement, and TMT steel bars on SmartRun (Smart Run) with 60-minute express delivery across Kolkata.';
+      defaultTitle = 'SmartRun (Smart Run): Electrical & Construction App Kolkata';
+      defaultDesc = 'Order Polycab wires, Schneider MCBs, UltraTech cement & licensed electricians in Kolkata on SmartRun (Smart Run) with 60-min express delivery.';
     } else if (path === '/electrical') {
       defaultTitle = 'Electrical Goods & House Wiring Cables Wholesale Kolkata | SmartRun';
       defaultDesc = 'Shop RR Kabel, Polycab, Havells copper wires, Schneider MCBs, distribution boards, and modular switches at factory-direct wholesale prices in Kolkata.';
@@ -498,6 +498,30 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
             closes: '21:00'
           }
         ]
+      });
+
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': ['SoftwareApplication', 'MobileApplication'],
+        '@id': 'https://www.smartrun.in/#android-app',
+        name: 'SmartRUN: Materials Delivery',
+        alternateName: ['Smart Run', 'SmartRun', 'Smart Run App', 'SmartRun Kolkata', 'SmartRun materials pvt. ltd'],
+        operatingSystem: 'ANDROID',
+        applicationCategory: 'ShoppingApplication',
+        applicationSubCategory: 'Quick Commerce, Electrical Supplies & Construction Depot',
+        downloadUrl: 'https://play.google.com/store/apps/details?id=in.smartrun.app',
+        installUrl: 'https://play.google.com/store/apps/details?id=in.smartrun.app',
+        sameAs: ['https://play.google.com/store/apps/details?id=in.smartrun.app'],
+        author: {
+          '@type': 'Organization',
+          name: 'SmartRun materials pvt. ltd',
+          url: 'https://www.smartrun.in'
+        },
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'INR'
+        }
       });
     }
 

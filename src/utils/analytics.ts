@@ -72,7 +72,7 @@ export function formatGAProductItem(product: AnyProduct, quantity = 1, selectedV
   
   const id = product.id || '';
   const name = product.name || 'Product';
-  const brand = product.brand || 'Giriraj Power';
+  const brand = product.brand || 'SmartRun';
   const category = product.category || 'electrical';
   const subCategory = (product as Product).subCategory || (product as ElectricalProduct).subcategory || '';
   const price = typeof product.price === 'number' ? product.price : 0;
@@ -94,13 +94,36 @@ export function formatGAProductItem(product: AnyProduct, quantity = 1, selectedV
 }
 
 /**
- * Track Page Views
+ * Track Page Views (aligned with primary GA4 property G-E3TVJRTKRP)
  */
 export function trackPageView(pagePath: string, pageTitle?: string) {
   sendGAEvent('page_view', {
     page_path: pagePath,
     page_title: pageTitle || (typeof document !== 'undefined' ? document.title : ''),
-    send_to: 'G-7J0DXZDRWL'
+    send_to: 'G-E3TVJRTKRP'
+  });
+}
+
+/**
+ * Track outbound Play Store listing CTA clicks for web-to-app attribution
+ */
+export function trackPlayStoreClick(source: string, destinationUrl = 'https://play.google.com/store/apps/details?id=in.smartrun.app') {
+  sendGAEvent('play_store_click', {
+    source,
+    destination_url: destinationUrl,
+    app_package: 'in.smartrun.app',
+    send_to: 'G-E3TVJRTKRP'
+  });
+}
+
+/**
+ * Track structured client-side exceptions in GA4 without PII
+ */
+export function trackAppError(description: string, fatal = false) {
+  sendGAEvent('exception', {
+    description: String(description || 'unknown_error').slice(0, 150),
+    fatal,
+    send_to: 'G-E3TVJRTKRP'
   });
 }
 

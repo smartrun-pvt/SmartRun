@@ -2218,7 +2218,7 @@ async function startServer() {
     res.removeHeader("X-Frame-Options");
     res.setHeader("X-XSS-Protection", "1; mode=block");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("Permissions-Policy", "camera=(), microphone=(), payment=(self 'https://api.razorpay.com'), geolocation=*");
+    res.setHeader("Permissions-Policy", 'camera=(), microphone=(), payment=(self "https://api.razorpay.com"), geolocation=*');
     if (req.secure || req.headers["x-forwarded-proto"] === "https") {
       res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     }
@@ -2373,6 +2373,53 @@ async function startServer() {
       }
     }
     res.status(404).json({ error: "Manifest not found" });
+  });
+
+  // Public read-only OpenAPI specification referenced by /.well-known/ai-agent-manifest.json and ai-plugin.json
+  app.get("/api/ai/openapi.json", (_req, res) => {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    return res.json({
+      openapi: "3.1.0",
+      info: {
+        title: "SmartRun Express Electricals & Construction API",
+        version: "1.1.4",
+        description: "Public catalog, product lookup, and discovery feeds for SmartRun Kolkata (in.smartrun.app)."
+      },
+      servers: [{ url: "https://www.smartrun.in" }],
+      paths: {
+        "/api/products": {
+          get: {
+            operationId: "listProducts",
+            summary: "List active electrical and construction products available for 60-minute delivery in Kolkata",
+            responses: { "200": { description: "JSON list of active catalog products" } }
+          }
+        },
+        "/api/products/{id}": {
+          get: {
+            operationId: "getProductById",
+            summary: "Retrieve a single electrical or construction product by ID",
+            parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+            responses: { "200": { description: "Product details" }, "404": { description: "Product not found" } }
+          }
+        },
+        "/api/feeds/google-merchant.xml": {
+          get: {
+            operationId: "getGoogleMerchantFeed",
+            summary: "Retrieve Google Merchant Center RSS 2.0 XML product feed",
+            responses: { "200": { description: "XML product feed" } }
+          }
+        },
+        "/healthz": {
+          get: {
+            operationId: "getHealthStatus",
+            summary: "Service health probe",
+            responses: { "200": { description: "Service healthy" } }
+          }
+        }
+      }
+    });
   });
 
   // SEO: Dynamic XML Sitemap with full product catalog & image tags for Google Search, Bing, and Search Engine Bots

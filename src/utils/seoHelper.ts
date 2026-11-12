@@ -489,6 +489,28 @@ export function getRouteSeoConfig(
           ]
         },
         {
+          '@type': ['SoftwareApplication', 'MobileApplication'],
+          '@id': 'https://www.smartrun.in/#android-app',
+          name: 'SmartRUN: Materials Delivery',
+          alternateName: ['Smart Run', 'SmartRun', 'Smart Run App', 'SmartRun Kolkata', 'SmartRun materials pvt. ltd'],
+          operatingSystem: 'ANDROID',
+          applicationCategory: 'ShoppingApplication',
+          applicationSubCategory: 'Quick Commerce, Electrical Supplies & Construction Depot',
+          downloadUrl: 'https://play.google.com/store/apps/details?id=in.smartrun.app',
+          installUrl: 'https://play.google.com/store/apps/details?id=in.smartrun.app',
+          sameAs: ['https://play.google.com/store/apps/details?id=in.smartrun.app'],
+          author: {
+            '@type': 'Organization',
+            name: 'SmartRun materials pvt. ltd',
+            url: 'https://www.smartrun.in'
+          },
+          offers: {
+            '@type': 'Offer',
+            price: '0',
+            priceCurrency: 'INR'
+          }
+        },
+        {
           '@type': 'BreadcrumbList',
           itemListElement: [
             {
@@ -503,9 +525,9 @@ export function getRouteSeoConfig(
     };
 
     return {
-      title: 'SmartRun (Smart Run) - Kolkata Online Delivery App for Electrical & Construction Products',
-      description: "SmartRun (Smart Run) by SmartRun materials pvt. ltd: Kolkata's #1 express online delivery app for genuine electrical products, Polycab wires, Schneider MCBs, modular switches, UltraTech cement, Tata Tiscon steel rebars, and licensed electricians with 60-min delivery.",
-      keywords: 'Smart Run, SmartRun, smart run, smartrun, smart run app, smartrun app, smart run kolkata, kolkata online delivery app for electrical products, kolkata online delivery app for construction products, online delivery app for electrical products, electrical products delivery app, construction products delivery app kolkata, buy electrical goods online Kolkata, electrical shop near me, house wiring contractor, electrical wiring services, modular switches, Polycab wire, Havells cables, Finolex wire, Schneider MCB, distribution board, LED lighting, construction materials Kolkata, cement delivery, UltraTech cement, ACC cement, TMT steel bars, Tata Tiscon rebars, waterproofing chemicals, real estate electrification, licensed electrician Kolkata, emergency electrician 60 mins, Kasba electrical shop, wholesale electrical market Kolkata, B2B building materials procurement, direct factory depot Kolkata, in.smartrun.app',
+      title: 'SmartRun (Smart Run): Electrical & Construction App Kolkata',
+      description: 'Order Polycab wires, Schneider MCBs, UltraTech cement & licensed electricians in Kolkata on SmartRun (Smart Run) with 60-min express delivery.',
+      keywords: 'SmartRun, Smart Run, SmartRun Kolkata, SmartRun India, construction materials delivery Kolkata, electrical materials delivery Kolkata, building supplies online, electrical supplies online, Polycab wire, Havells cables, Finolex wire, Schneider MCB, Anchor Roma switches, UltraTech cement, Tata Tiscon TMT rebars, licensed electrician Kolkata, in.smartrun.app',
       canonical,
       ogType: 'website',
       image: 'https://www.smartrun.in/SmartRun.png',
@@ -995,21 +1017,11 @@ export function getRouteSeoConfig(
     };
   }
 
-  if (cleanPath === '/how-to-use' || cleanPath === '/guide') {
-    return {
-      title: 'How to Use SmartRun App - Ordering & Delivery Guide',
-      description: 'Step-by-step customer guide for ordering electrical supplies, booking certified electricians, tracking live GPS deliveries, and downloading GST tax invoices.',
-      keywords: 'how to use smartrun, order electrical goods online, book electrician kolkata, track order gps',
-      canonical,
-      ogType: 'website'
-    };
-  }
-
   // Fallback Default
   return {
-    title: 'SmartRun (Smart Run) - Kolkata Online Delivery App for Electrical & Construction Products',
-    description: "SmartRun (Smart Run) by SmartRun materials pvt. ltd: Kolkata's #1 express online delivery app for genuine electrical products, Polycab wires, Schneider MCBs, modular switches, UltraTech cement, Tata Tiscon steel rebars, and licensed electricians with 60-min delivery.",
-    keywords: 'Smart Run, SmartRun, smart run, smartrun, smart run app, smartrun app, smart run kolkata, kolkata online delivery app for electrical products, kolkata online delivery app for construction products, online delivery app for electrical products, electrical products delivery app, construction products delivery app kolkata, buy electrical goods online Kolkata, electrical shop near me, house wiring contractor, electrical wiring services, modular switches, Polycab wire, Havells cables, Finolex wire, Schneider MCB, distribution board, LED lighting, construction materials Kolkata, cement delivery, UltraTech cement, ACC cement, TMT steel bars, Tata Tiscon rebars, waterproofing chemicals, real estate electrification, licensed electrician Kolkata, emergency electrician 60 mins, Kasba electrical shop, wholesale electrical market Kolkata, B2B building materials procurement, direct factory depot Kolkata, in.smartrun.app',
+    title: 'SmartRun (Smart Run): Electrical & Construction App Kolkata',
+    description: 'Order Polycab wires, Schneider MCBs, UltraTech cement & licensed electricians in Kolkata on SmartRun (Smart Run) with 60-min express delivery.',
+    keywords: 'SmartRun, Smart Run, SmartRun Kolkata, electrical materials delivery Kolkata, construction materials delivery Kolkata, Polycab wire, Schneider MCB, UltraTech cement, licensed electrician Kolkata, in.smartrun.app',
     canonical,
     ogType: 'website',
     image: 'https://www.smartrun.in/SmartRun.png'
@@ -1086,8 +1098,12 @@ export function injectSeoMetadata(
     result = result.replace(/<meta\s+name="twitter:image"\s+content=".*?"\s*\/?>/i, `<meta name="twitter:image" content="${escapeHtml(seo.image)}" />`);
   }
 
-  // 8. Inject specific Schema.org JSON-LD if provided
+  // 8. Inject specific Schema.org JSON-LD cleanly (deduplicating any pre-existing SSR schema tag)
   if (seo.structuredData) {
+    result = result.replace(
+      /<script\s+type="application\/ld\+json"[^>]*id="server-prerender-schema"[^>]*>[\s\S]*?<\/script>/gi,
+      ''
+    );
     const jsonLdScript = `\n    <script type="application/ld+json" id="server-prerender-schema">${JSON.stringify(seo.structuredData)}</script>\n`;
     result = result.replace('</head>', `${jsonLdScript}</head>`);
   }
@@ -1120,9 +1136,7 @@ export function generateDynamicSitemap(
     { path: '/refund-policy', priority: '0.8', changefreq: 'monthly' },
     { path: '/terms', priority: '0.7', changefreq: 'monthly' },
     { path: '/privacy', priority: '0.7', changefreq: 'monthly' },
-    { path: '/about', priority: '0.7', changefreq: 'monthly' },
-    { path: '/contact', priority: '0.7', changefreq: 'monthly' },
-    { path: '/career', priority: '0.7', changefreq: 'monthly' }
+    { path: '/about', priority: '0.7', changefreq: 'monthly' }
   ];
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;

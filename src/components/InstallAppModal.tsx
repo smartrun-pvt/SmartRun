@@ -7,10 +7,12 @@ import {
   Share,
   PlusSquare,
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  ExternalLink
 } from 'lucide-react';
 import { useBottomSheetDismiss } from '../hooks/useBottomSheetDismiss';
 import { launchSmartRunApp } from '../utils/appLauncher';
+import { trackPlayStoreClick } from '../utils/analytics';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -250,6 +252,17 @@ export const InstallAppModal = ({
                     <Download className="w-4 h-4" />
                     <span>{isInstalling ? 'Opening Installer...' : 'Install Web App Now'}</span>
                   </button>
+
+                  <a
+                    href="https://play.google.com/store/apps/details?id=in.smartrun.app"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackPlayStoreClick('install_modal')}
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Download on Google Play</span>
+                  </a>
 
                   <button
                     type="button"

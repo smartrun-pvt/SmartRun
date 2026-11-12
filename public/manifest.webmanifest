@@ -1,7 +1,7 @@
 {
-  "name": "SmartRun (Smart Run) - Kolkata Online Delivery App for Electrical & Construction Products",
-  "short_name": "Smart Run",
-  "description": "Kolkata's #1 express online delivery app for electrical products, Polycab wires, Schneider MCB, UltraTech cement, and licensed electricians with 60-min delivery.",
+  "name": "SmartRun: Electrical & Construction Materials Delivery",
+  "short_name": "SmartRun",
+  "description": "Order genuine electrical wires, Schneider MCBs, UltraTech cement & licensed electricians in Kolkata with 60-minute express delivery.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

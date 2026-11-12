@@ -86,7 +86,7 @@
 
 ## 8. GET SSR Micro-Prerender Routes (Direct Crawler / Browser Hit)
 - **Routes Covered**:
-  - `/` (Homepage: LocalBusiness + WebSite schemas + BreadcrumbList)
+  - `/` (Homepage: LocalBusiness + WebSite + MobileApplication + BreadcrumbList schemas, zero unverified `aggregateRating`)
   - `/electrical` & `/construction` (Marketplace category hubs: CollectionPage + OfferCatalog + BreadcrumbList)
   - `/technicians` & `/technicians/:id` (Directory & Individual profiles: Person + ProfessionalService + hasCredential + BreadcrumbList)
   - `/electrical/product/:id` & `/construction/product/:id` (Product detail pages: Product + Offer + MerchantReturnPolicy + OfferShippingDetails + BreadcrumbList)
@@ -100,7 +100,7 @@
 - **Response**: `200 OK`
 - **Content-Type**: `text/html; charset=utf-8`
 - **Cache-Control**: `no-cache, no-store, must-revalidate`
-- **Payload**: Full HTML document with dynamically injected `<title>`, `<meta name="description">`, `<meta name="keywords">`, `<link rel="canonical">`, multi-aspect ratio OpenGraph preview images, and Schema.org JSON-LD `<script id="server-prerender-schema">` containing the unified `@graph`.
+- **Payload**: Full HTML document with dynamically injected `<title>`, `<meta name="description">`, `<meta name="keywords">`, `<link rel="canonical">`, multi-aspect ratio OpenGraph preview images, and Schema.org JSON-LD `<script id="server-prerender-schema">` containing the unified `@graph` (pre-existing `#server-prerender-schema` replaced before injection).
 - **Deduplication Rule**: Upon client-side hydration, `SEOHead.tsx` removes `#server-prerender-schema` from `<head>` to maintain exactly one authoritative dynamic JSON-LD node (`#smartrun-dynamic-jsonld`) and prevent duplicate entity warnings.
 - **Google Anti-Spam Compliance**: `aggregateRating` and `review` objects are generated strictly when verified ratings/reviews exist; hardcoded fallback dummy ratings are prohibited.
 
@@ -109,4 +109,10 @@
 - **Content-Type**: `application/xml; charset=utf-8`
 - **Cache-Control**: `public, max-age=3600, s-maxage=7200`
 - **Payload**: Standard RSS 2.0 XML containing channel information (`SmartRun (Smart Run) - Kolkata Express Electrical & Construction Supplies Feed`), `<atom:link>`, and `<item>` entries with canonical followed permalinks for all active catalog products.
+
+## 10. GET `/api/ai/openapi.json` (AI Discovery & Agent OpenAPI 3.1.0 Spec)
+- **Response**: `200 OK`
+- **Content-Type**: `application/json; charset=utf-8`
+- **Cache-Control**: `public, max-age=3600`
+- **Payload**: Valid OpenAPI 3.1.0 JSON matching `/.well-known/ai-plugin.json` and `/.well-known/ai-agent-manifest.json`, describing public read-only catalog search (`/api/products`), health (`/healthz`), and sitemap (`/sitemap.xml`) endpoints.
 

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { SEOHead } from './SEOHead';
 import { INITIAL_PRODUCTS } from '../data/products';
+import { trackPlayStoreClick } from '../utils/analytics';
 
 export const SitemapPage: React.FC = () => {
   const navigate = useNavigate();
@@ -311,14 +312,25 @@ export const SitemapPage: React.FC = () => {
               The automated XML sitemap is synchronized daily at <code className="bg-white px-1.5 py-0.5 rounded text-slate-800 border border-slate-200 font-mono text-[10px]">https://www.smartrun.in/sitemap.xml</code> with robots.txt directives.
             </p>
           </div>
-          <a
-            href="/sitemap.xml"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-amber-700 hover:text-amber-800 font-semibold shrink-0"
-          >
-            Open XML feed <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <a
+              href="https://play.google.com/store/apps/details?id=in.smartrun.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => trackPlayStoreClick('sitemap_page')}
+              className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 font-semibold shrink-0"
+            >
+              Google Play App <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+            <a
+              href="/sitemap.xml"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-amber-700 hover:text-amber-800 font-semibold shrink-0"
+            >
+              Open XML feed <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
         </div>
       </main>
     </div>

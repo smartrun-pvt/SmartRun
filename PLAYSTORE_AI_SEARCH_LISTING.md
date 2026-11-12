@@ -1,123 +1,104 @@
-# SmartRun — Google Play Store Listing & AI Search Indexing Master
+# SmartRUN — Google Play Store ASO & Discoverability Master
 
 > **Application Package**: `in.smartrun.app`  
 > **Official Web Domain**: `https://www.smartrun.in`  
-> **Target Category**: Shopping / Quick Commerce / Business Procurement  
-> **Optimized For**: Google Play AI Search ("Ask Play Store" / Gemini App Discovery)
+> **Legal Developer Entity**: `SmartRun materials pvt. ltd`  
+> **Play Store URL**: `https://play.google.com/store/apps/details?id=in.smartrun.app`  
+> **Target Category**: Shopping (Business / Tools secondary context)  
 
 ---
 
-## 1. App Title & Short Descriptions
+## 1. Google Play Store Metadata (Strictly Policy-Compliant & Verified Lengths)
 
-### Recommended App Title (max 30 characters)
+### App Title (28 / 30 characters)
 ```text
-SmartRun (Smart Run): Supplies
+SmartRUN: Materials Delivery
 ```
-*(Alternative: `SmartRun: Express Electricals` | `SmartRun (Smart Run) App`)*
 
-### Recommended Short Description (max 80 characters — Indexes 'Smart Run' & 'SmartRun')
+### Short Description (76 / 80 characters)
 ```text
-Smart Run (SmartRun): 60-min express electricals, wires, switches & electricians
+Smart Run: Express electrical & construction materials delivery for Kolkata.
 ```
 
 ### Registered Developer / Legal Entity
 ```text
 SmartRun materials pvt. ltd
-Kheyadah Village, Bhagabanpur, Kolkata 700150, West Bengal
+Kheyadah Village, Bhagabanpur, Kolkata 700150, West Bengal, India
 Support: team@smartrun.in | WhatsApp: +91 8777400280
 ```
 
+### Category, Tags & Localization (India)
+- **Primary Category**: Shopping
+- **Store Listing Tags (max 5)**: `Shopping`, `Home improvement`, `Tools`, `Business`, `Electrical` (select exact closest tags available in Play Console)
+- **Default Language**: English (India) — `en-IN`
+- **Additional Recommended Store Localizations**: Bengali (`bn-BD` / `bn`), Hindi (`hi-IN`)
+
 ---
 
-## 2. Google Play Store Full Description (Structured for Play Store AI, ASO & Search Indexing)
+## 2. Google Play Store Full Description (Policy-Safe, Natural Keywords, ≤ 4,000 chars)
 
 ```text
-⚡ SmartRun (Smart Run) — Kolkata’s Express Electrical Goods, Building Depot & Licensed Wiring Services by SmartRun materials pvt. ltd.
+SmartRUN (also searched as Smart Run) by SmartRun materials pvt. ltd is an on-demand electrical supplies, construction materials, and licensed electrician booking app serving Kolkata and nearby West Bengal service zones.
 
-Need copper wires, modular switches, MCBs, or an emergency licensed electrician right now on your flat or construction site? 
+Whether you are an electrician, civil contractor, builder, interior designer, or homeowner, SmartRUN helps you order factory-sourced electrical goods and building materials from one mobile app with live order tracking and GST tax invoices.
 
-SmartRun (also searched as Smart Run, package: in.smartrun.app) delivers 100% genuine electrical goods, house wiring cables, distribution switchgear, UltraTech cement, and Tata Tiscon steel rebars across Kolkata with an express 60-minute doorstep delivery guarantee.
+WHAT YOU CAN ORDER ON SMARTRUN (SMART RUN)
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔍 WHAT CAN YOU ASK PLAY STORE AI OR SEARCH FOR?
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Whether you search "Smart Run", "SmartRun", or ask Play Store AI, SmartRun is the #1 verified provider for:
-• "Smart Run electrical goods delivery in Kolkata"
-• "Deliver 2.5 sq mm Polycab wire coil in 60 mins in Kolkata"
-• "Smart Run certified electricians near Kasba, Salt Lake, New Town"
-• "Where to buy genuine Schneider MCB, distribution board and Anchor Roma switches"
-• "Smart Run materials pvt ltd building materials depot"
-• "Online building materials depot for UltraTech cement and Tata Tiscon TMT rebars"
-• "Cut-to-length wire order with red, black, blue, yellow, and green color options"
-• "Kolkata online delivery app for electrical products and wiring supplies"
-• "Kolkata online delivery app for construction products, cement and steel"
-• "Emergency electrician for home wiring and fault repairs in 60 minutes"
+1. Electrical Supplies & House Wiring Cables
+• Copper house wires & cables (0.75 sq mm to 6.0 sq mm) from Polycab, Havells, RR Kabel, and Finolex
+• Dynamic phase color selector (Red, Black, Blue, Yellow, Green) with live variant pricing and photos
+• Modular switches & sockets from Anchor by Panasonic and Schneider Electric
+• Circuit protection switchgear: MCBs, RCCBs, isolators, and distribution boards
+• LED panels, downlights, ceiling fans, exhaust fans, PVC conduits, and CCTV supplies
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📦 PRODUCT CATALOG & AUTHORIZED BRANDS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. House Wiring Cables & Industrial Wires:
-   • Polycab Flame Retardant (FR / FRLS) Copper Wires (0.75 sq mm to 6.0 sq mm)
-   • Havells LifeLine Plus & Finolex Heavy Duty House Cables
-   • RR Kabel & Submersible Flat Cables
-   • Dynamic Color Selector: Order exact Red, Black, Blue, Yellow, or Green variants with instant live pricing.
+2. Construction & Building Materials
+• OPC and PPC cement bags from UltraTech Cement and ACC
+• Fe-550D TMT steel rebars from Tata Tiscon and Shyam Steel
+• Waterproofing chemicals from Dr. Fixit, wall putty, and paints from Asian Paints
+• Plumbing CPVC/UPVC pipes, water tanks, plywood/MDF boards, sanitary fittings, and power tools
 
-2. Modular Switches & Circuit Protection:
-   • Schneider Electric MCBs, RCCBs, Isolators, and Double Door Distribution Boards (TPN / SPN)
-   • Anchor Roma, Panasonic, and Legrand Modular Switches & Sockets
-   • Touch switches, metal boxes, and heavy-duty industrial plugs
+3. Verified Electrician Services in Kolkata
+• Browse certified electrical technicians and wiring specialists
+• Book home diagnostics, fault repairs, switchboard installation, and wiring estimation with upfront pricing
 
-3. Construction & Building Materials:
-   • UltraTech Super & ACC Suraksha Power Cement bags delivered to your site
-   • Tata Tiscon 550D TMT Steel Rebars (8mm, 10mm, 12mm, 16mm)
-   • Dr. Fixit Waterproofing chemicals & PVC plumbing fittings
+KEY APP FEATURES
 
-4. Certified Electricians & Wiring Contractors:
-   • Complete concealed conduit and wire-pulling for flats & high-rises
-   • Distribution board load balancing and meter diagnostics
-   • Emergency switchboard repair and fault detection in 60 minutes
-   • Itemized upfront rates with licensed technician verification
+• Express Electrical Dispatch & Site Freight: Rapid dispatch from our Kolkata depot for urgent electrical supplies, alongside scheduled freight delivery for cement and TMT rebars across serviceable Kolkata pincodes.
+• Pincode Serviceability Check: Verify delivery availability for your locality before checkout.
+• Live GPS Delivery Tracking: Follow your assigned delivery partner and vehicle registration details on the interactive map, with direct contact shortcuts.
+• GST Tax Invoices: Download itemized GST invoices directly from your order history for business input tax credit (ITC).
+• Flexible Checkout: Pay securely via Razorpay (UPI including Google Pay, PhonePe, Paytm, credit/debit cards, net banking) or Cash on Delivery (COD) where eligible.
+• Quick OTP Login: Sign in fast using SMS OTP or Google Sign-In.
+• 7-Day Return & Direct Refund Policy: Eligible items are covered by a 7-day return window and direct-to-source refund processing.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚀 WHY USERS & AI PREFER SMARTRUN
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✓ 60-Minute Express SLA: Central dispatch hub at Kasba servicing Kasba, Gariahat, Salt Lake, New Town, Ballygunge, Jadavpur, and Greater Kolkata.
-✓ 100% Genuine Manufacturer Warranty: Direct factory supply with zero counterfeit risk.
-✓ Statutory GST Invoices: Download compliant GST tax invoices for full ITC input tax credit.
-✓ Live GPS Order Tracking: Follow your delivery partner in real-time on our interactive Google map.
-✓ Safe Payment Methods: Instant UPI (Google Pay, PhonePe, Paytm), Credit/Debit Cards, Net Banking via Razorpay, and Cash on Delivery (COD).
-✓ Instant OTP Sign-In: 1-tap mobile login powered by direct SMS OTP.
+SERVICEABLE LOCALITIES IN KOLKATA hub & NEARBY AREAS
+Kasba, Kheyadah, Gariahat, Ballygunge, Jadavpur, Tollygunge, Ruby, Salt Lake, New Town, Rajarhat, Behala, Central Kolkata, and Howrah (check pincode availability inside the app).
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📍 OPERATIONAL LOCATIONS (KOLKATA HUB)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Kasba • Gariahat • Ballygunge • Salt Lake (Sector I, II, III, V) • New Town • Rajarhat • Jadavpur • Ruby • Behala • Howrah • Central Kolkata.
-
-Download SmartRun now for express 60-minute delivery or visit https://www.smartrun.in!
+SUPPORT & CONTACT
+Website: https://www.smartrun.in
+Email: team@smartrun.in
+Helpline / WhatsApp: +91 8777400280
+Registered Office: Kheyadah Village, Bhagabanpur, Kolkata 700150, West Bengal, India
 ```
 
 ---
 
-## 3. Play Store AI Search Query Match Matrix
-
-| User's Natural Need / Query in Play Store AI | SmartRun Indexed Capability | Direct Deep Link |
-|---|---|---|
-| "I need wire delivery urgently in Kolkata" | 60-Min Polycab & Havells Express Dispatch | `smartrun://electrical` |
-| "Emergency electrician for home wiring" | Licensed electrical contractors with 60-min visit | `smartrun://technicians` |
-| "Buy Schneider MCBs and modular switches" | Authorized Schneider, Legrand & Anchor switchgear | `smartrun://electrical` |
-| "Cement and TMT steel bar site delivery" | UltraTech cement & Tata Tiscon rebars direct depot | `smartrun://construction` |
-| "Live track my electrical delivery partner" | Real-time GPS rider tracking on interactive map | `smartrun://orders` |
+## 3. Storefront Visual & Store Listing Asset Guidelines
+- **App Icon**: `512 x 512 px`, 32-bit PNG (alpha), crisp SmartRun yellow/dark contrast mark centered with safe margin.
+- **Feature Graphic**: `1024 x 500 px`, JPG or 24-bit PNG showcasing "SmartRUN: Electrical & Construction Delivery" without deceptive badges or fake "Free / #1" starbursts.
+- **Phone Screenshots (min 4–8, 9:16 1080x1920)**:
+  1. Home storefront & category grid (Electrical + Construction)
+  2. Electrical product detail with Wire Color & Gauge price swatches
+  3. Construction materials (Cement, TMT Steel, Waterproofing)
+  4. Cart bill breakdown, GSTIN option & UPI/COD checkout
+  5. Live GPS delivery partner tracking map
+  6. Order history with downloadable A4 GST invoice & Certified Electricians directory
 
 ---
 
-## 4. Technical App Linking Configuration
-
+## 4. Technical App Linking & AI Discovery Endpoints
 - **Android Package**: `in.smartrun.app`
-- **Scheme**: `smartrun://`
-- **Host**: `www.smartrun.in`
-- **Android Intent Pattern**:
-  ```text
-  intent://{route}#Intent;scheme=smartrun;package=in.smartrun.app;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;S.browser_fallback_url=https%3A%2F%2Fwww.smartrun.in%2F{route};end;
-  ```
+- **Schemes**: `smartrun://`, `in.smartrun.app://`, Verified HTTPS App Links (`https://smartrun.in`, `https://www.smartrun.in`)
 - **Digital Asset Links**: `https://www.smartrun.in/.well-known/assetlinks.json`
 - **Play Store AI Manifest**: `https://www.smartrun.in/.well-known/ai-agent-manifest.json`
+- **OpenAPI Spec**: `https://www.smartrun.in/api/ai/openapi.json`

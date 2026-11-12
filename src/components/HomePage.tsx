@@ -293,7 +293,7 @@ const HERO_POSTERS = [
     title: 'Certified Wiring Services & Material Estimation',
     subtitle: 'Book verified master electricians and transparent turnkey project support in Kolkata.',
     ctaText: 'Book Wiring Service',
-    link: '/services',
+    link: '/technicians',
     bgGradient: 'from-amber-900/90 via-slate-900/90 to-red-950/95',
     paintingImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=1600&auto=format&fit=crop'
   },
@@ -484,11 +484,7 @@ export const HomePage = ({
         ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
         : 0);
 
-    const isElectrical =
-      (product.category || '').toLowerCase().includes('electrical') ||
-      (product.category || '').toLowerCase().includes('wire') ||
-      (product.category || '').toLowerCase().includes('switch') ||
-      (product.category || '').toLowerCase().includes('cable');
+    const isElectrical = isElectricalProduct(product) && !isConstructionProduct(product);
     const detailLink = isElectrical
       ? `/electrical/product/${product.id}`
       : `/construction/product/${product.id}`;
@@ -611,9 +607,9 @@ export const HomePage = ({
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <SEOHead
-        title="SmartRun | Buy Electrical Goods, Construction Materials & Wiring Services Kolkata"
-        description="Shop genuine electrical goods, Polycab & RR Kabel wires, switches, cement, TMT rebars, and book licensed electrician wiring services in Kolkata with 60-min express delivery."
-        keywords="SmartRun, smartrun, smartrun kolkata, smartrun electricals, electrical shop near me, buy electrical goods online Kolkata, house wiring contractor, electrical wiring services, modular switches, Polycab wire, Havells cables, Finolex wire, Schneider MCB, distribution board, LED lighting, construction materials Kolkata, cement delivery, UltraTech cement, ACC cement, TMT steel bars, Tata Tiscon rebars, waterproofing chemicals, real estate electrification, licensed electrician Kolkata, Kasba electrical shop, wholesale electrical market Kolkata, B2B building materials procurement, direct depot Kolkata"
+        title="SmartRun (Smart Run): Electrical & Construction App Kolkata"
+        description="Order Polycab wires, Schneider MCBs, UltraTech cement & licensed electricians in Kolkata on SmartRun (Smart Run) with 60-min express delivery."
+        keywords="SmartRun, Smart Run, SmartRun Kolkata, SmartRun India, construction materials delivery Kolkata, electrical materials delivery Kolkata, building supplies online, electrical supplies online, Polycab wire, Havells cables, Finolex wire, Schneider MCB, Anchor Roma switches, UltraTech cement, Tata Tiscon TMT rebars, licensed electrician Kolkata, in.smartrun.app"
       />
       <div
         className="min-h-screen bg-white text-slate-900 pb-36 sm:pb-28 font-sans"
@@ -781,12 +777,12 @@ export const HomePage = ({
           <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
             {REFERENCE_CATEGORIES.map((cat) => {
               return (
-                <div
+                <Link
                   key={cat.id}
                   id={`cat-card-${cat.id}`}
+                  to={cat.targetRoute}
                   onClick={() => {
                     hapticLight();
-                    navigate(cat.targetRoute);
                   }}
                   className="w-[calc((100%-1rem)/3)] sm:w-[calc((100%-3.75rem)/6)] group flex flex-col items-center cursor-pointer select-none"
                 >
@@ -809,9 +805,12 @@ export const HomePage = ({
                       <img
                         src={cat.image}
                         alt={cat.name}
+                        width={120}
+                        height={120}
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-contain mix-blend-multiply drop-shadow-[0_4px_8px_rgba(15,23,42,0.12)] group-hover:scale-105 transition-transform duration-300"
                         loading="lazy"
+                        decoding="async"
                       />
                     </div>
                   </div>
@@ -820,7 +819,7 @@ export const HomePage = ({
                   <span className="text-center font-semibold text-[11px] sm:text-xs text-slate-800 group-hover:text-amber-800 group-hover:font-bold transition-colors mt-1 sm:mt-1.5 leading-tight line-clamp-2 px-0.5">
                     {cat.name}
                   </span>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -1107,7 +1106,7 @@ export const HomePage = ({
 
             <div className="relative z-10 pt-1">
               <button
-                onClick={() => navigate('/services')}
+                onClick={() => navigate('/technicians')}
                 className="relative overflow-hidden inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-b from-[#FDE047] via-[#FBBF24] to-[#F59E0B] hover:from-[#FEF08A] hover:via-[#FCD34D] hover:to-[#FBBF24] text-slate-950 font-black font-sf-pro text-xs transition-all duration-200 cursor-pointer active:scale-98 border border-yellow-100/80 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.85),inset_0_-2px_4px_rgba(180,83,9,0.25),0_4px_14px_rgba(245,158,11,0.32)]"
               >
                 {/* Apple-style Top Specular Liquid Glass Sheen */}

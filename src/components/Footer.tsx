@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { trackPlayStoreClick } from '../utils/analytics';
 
 export interface FooterProps {
   onOpenPrivacy?: () => void;
@@ -41,6 +42,19 @@ export const Footer: React.FC<FooterProps> = () => {
           <Link to="/privacy" className="hover:text-black hover:underline transition-colors">Privacy Policy</Link>
           <span className="text-slate-300">•</span>
           <Link to="/about" className="hover:text-black hover:underline transition-colors">About Us</Link>
+        </div>
+
+        {/* Contextual Google Play Store App Discovery Link */}
+        <div className="flex items-center justify-center pt-0.5">
+          <a
+            href="https://play.google.com/store/apps/details?id=in.smartrun.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackPlayStoreClick('footer')}
+            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 hover:underline transition-colors"
+          >
+            <span>Get SmartRun on Google Play (Android App)</span>
+          </a>
         </div>
 
         {/* Minimalist Copyright */}
