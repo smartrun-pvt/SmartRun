@@ -417,6 +417,90 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
       itemListElement: breadcrumbItems
     });
 
+    // Homepage WebSite & Organization Schema (Entity Graph for Google Brand Indexing)
+    if (path === '/') {
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        '@id': 'https://www.smartrun.in/#website',
+        url: 'https://www.smartrun.in/',
+        name: 'SmartRUN',
+        alternateName: [
+          'Smart Run',
+          'SmartRUN India',
+          'Smart Run India',
+          'SmartRUN Kolkata',
+          'Smart Run construction delivery',
+          'SmartRun materials pvt. ltd'
+        ],
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: 'https://www.smartrun.in/electrical?q={search_term_string}',
+          'query-input': 'required name=search_term_string'
+        }
+      });
+
+      schemaGraph.push({
+        '@context': 'https://schema.org',
+        '@type': ['Organization', 'ElectricalSupplyStore', 'HardwareStore', 'LocalBusiness'],
+        '@id': 'https://www.smartrun.in/#store',
+        name: 'SmartRUN',
+        alternateName: ['Smart Run', 'SmartRUN India', 'Smart Run India', 'SmartRUN Kolkata'],
+        legalName: 'SmartRun materials pvt. ltd',
+        url: 'https://www.smartrun.in/',
+        logo: {
+          '@type': 'ImageObject',
+          url: 'https://www.smartrun.in/SmartRun.png',
+          width: 512,
+          height: 512,
+          caption: 'SmartRUN - Express Electrical & Construction Materials Delivery'
+        },
+        image: 'https://www.smartrun.in/SmartRun.png',
+        telephone: '+91-8777400280',
+        email: 'team@smartrun.in',
+        priceRange: '₹₹',
+        currenciesAccepted: 'INR',
+        paymentAccepted: 'Cash, UPI, Credit Card, Debit Card, Net Banking',
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: 'Kheyadah Village, Bhagabanpur',
+          addressLocality: 'Kolkata',
+          addressRegion: 'West Bengal',
+          postalCode: '700150',
+          addressCountry: 'IN'
+        },
+        geo: {
+          '@type': 'GeoCoordinates',
+          latitude: 22.5145,
+          longitude: 88.3882
+        },
+        areaServed: [
+          { '@type': 'City', name: 'Kolkata' },
+          { '@type': 'AdministrativeArea', name: 'Kasba' },
+          { '@type': 'AdministrativeArea', name: 'Salt Lake' },
+          { '@type': 'AdministrativeArea', name: 'New Town' },
+          { '@type': 'AdministrativeArea', name: 'Ballygunge' },
+          { '@type': 'AdministrativeArea', name: 'Jadavpur' },
+          { '@type': 'AdministrativeArea', name: 'Gariahat' },
+          { '@type': 'AdministrativeArea', name: 'Behala' },
+          { '@type': 'AdministrativeArea', name: 'Rajarhat' },
+          { '@type': 'AdministrativeArea', name: 'Howrah' }
+        ],
+        sameAs: [
+          'https://play.google.com/store/apps/details?id=in.smartrun.app',
+          'https://wa.me/918777400280'
+        ],
+        openingHoursSpecification: [
+          {
+            '@type': 'OpeningHoursSpecification',
+            dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+            opens: '08:00',
+            closes: '21:00'
+          }
+        ]
+      });
+    }
+
     // Specific Product Schema (Full Google Merchant Center & Google Shopping compliance)
     if (productData) {
       const prodId = productData.id || productData.sku || 'PRD';

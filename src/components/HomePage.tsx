@@ -19,7 +19,10 @@ import {
   Info,
   Package,
   Wrench,
-  Lock
+  Lock,
+  CheckCircle2,
+  Clock,
+  MapPin
 } from 'lucide-react';
 import { Product, CartItem } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -748,9 +751,9 @@ export const HomePage = ({
                       )}
                     </div>
 
-                    <h1 className="text-xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight drop-shadow-sm font-serif line-clamp-2">
+                    <h2 className="text-xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight drop-shadow-sm font-serif line-clamp-2">
                       {poster.title}
-                    </h1>
+                    </h2>
                     <p className="text-xs sm:text-sm md:text-base text-slate-100/90 max-w-xl sm:max-w-2xl leading-relaxed font-medium line-clamp-2">
                       {poster.subtitle}
                     </p>
@@ -1134,6 +1137,222 @@ export const HomePage = ({
             </div>
           </section>
         )}
+
+        {/* =====================================================================
+            BRAND AUTHORITY & LOCAL SEO (Semantic Google Entity Anchor)
+            ===================================================================== */}
+        <section
+          id="smartrun-brand-authority"
+          className="mt-8 pt-8 pb-4 border-t border-slate-200/80 space-y-6"
+          aria-label="SmartRUN Brand Profile & Local Kolkata Delivery Network"
+        >
+          {/* Header Card */}
+          <div className="rounded-3xl bg-gradient-to-br from-white via-slate-50/80 to-amber-50/20 border border-slate-200/80 p-5 sm:p-8 shadow-xs space-y-4">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[11px] sm:text-xs font-bold uppercase tracking-wider">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>Kolkata's Official Quick-Commerce Materials Depot</span>
+            </div>
+
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black font-sf-pro text-[#0F1B2D] tracking-tight leading-tight">
+              SmartRUN (Smart Run) — Express Electrical &amp; Construction Materials Delivery in Kolkata
+            </h1>
+
+            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
+              <strong>SmartRUN</strong> (also known as <strong>Smart Run</strong>, legally operated by <em>SmartRun materials pvt. ltd</em>) is Kolkata’s premier quick-commerce delivery platform built specifically for certified electricians, civil building contractors, interior decorators, and homeowners. Headquartered with central dispatch at Kasba Depot and Kheyadah Hub, SmartRUN fulfills express orders within <strong>60 minutes</strong> across Kolkata and surrounding West Bengal localities with authentic OEM manufacturer warranties and GST tax invoicing.
+            </p>
+
+            {/* 4 Core Pillars */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3">
+              {/* Pillar 1 */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200/70 shadow-xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100/80 text-emerald-800 flex items-center justify-center shrink-0">
+                    <Zap className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                    Genuine Electrical Supplies &amp; House Wiring Cables
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Buy authentic IS 694 flame-retardant copper wires from Polycab, RR Kabel, Havells, and Finolex with live color swatches. We supply Schneider Electric &amp; Legrand MCBs, RCCBs, distribution boards, Anchor Roma modular switches, conduits, and LED fixtures at transparent wholesale depot rates.
+                </p>
+                <div className="pt-1">
+                  <Link
+                    to="/electrical"
+                    className="text-xs font-bold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1 group"
+                  >
+                    <span>Explore Electrical Depot</span>
+                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Pillar 2 */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200/70 shadow-xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100/80 text-amber-800 flex items-center justify-center shrink-0">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                    Heavy Construction Materials &amp; Cement Delivery
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Direct site delivery of fresh factory-grade Portland Pozzolana Cement (PPC) and OPC 53 from UltraTech, ACC, and Ambuja. High-ductility Fe-550D TMT rebar steel rods from Tata Tiscon and Shyam Steel, Dr. Fixit waterproofing chemicals, and Birla White Wall Care putty delivered directly to construction sites.
+                </p>
+                <div className="pt-1">
+                  <Link
+                    to="/construction"
+                    className="text-xs font-bold text-amber-700 hover:text-amber-800 inline-flex items-center gap-1 group"
+                  >
+                    <span>Explore Construction Materials</span>
+                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Pillar 3 */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200/70 shadow-xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100/80 text-blue-800 flex items-center justify-center shrink-0">
+                    <Wrench className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                    Verified Electricians &amp; On-Demand Site Wiring
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Book certified electrical supervisors and licensed wiremen holding West Bengal Electrical Licensing Board credentials. On-demand doorstep arrival within 60 minutes for short-circuit troubleshooting, modular switchboard installations, phase load balancing, and turnkey residential electrification.
+                </p>
+                <div className="pt-1">
+                  <Link
+                    to="/technicians"
+                    className="text-xs font-bold text-blue-700 hover:text-blue-800 inline-flex items-center gap-1 group"
+                  >
+                    <span>Browse Certified Electricians</span>
+                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Pillar 4 */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200/70 shadow-xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-rose-100/80 text-rose-800 flex items-center justify-center shrink-0">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                    60-Minute Rapid Delivery Localities in Kolkata
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Dispatched directly via express couriers and mini-trucks from Kasba Central Depot (PIN 700107). Express 60-minute delivery active across South Kolkata (Kasba, Ballygunge, Gariahat, Jadavpur, Tollygunge, Behala), East Kolkata (Salt Lake Sector V, New Town, Rajarhat), and Central Kolkata (Park Street, Howrah).
+                </p>
+                <div className="pt-1">
+                  <Link
+                    to="/shipping"
+                    className="text-xs font-bold text-rose-700 hover:text-rose-800 inline-flex items-center gap-1 group"
+                  >
+                    <span>View Delivery Network &amp; SLAs</span>
+                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* How to Order on SmartRUN */}
+            <div className="pt-4 border-t border-slate-200/70 space-y-3">
+              <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                How to Order on SmartRUN (Smart Run)
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-white border border-slate-100 space-y-1">
+                  <span className="font-black text-amber-600 text-sm">01</span>
+                  <p className="font-bold text-slate-900">Select Gauge &amp; Color</p>
+                  <p className="text-[11px] text-slate-500">Pick wire gauge (0.75-6 sqmm) &amp; phase color swatches.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-white border border-slate-100 space-y-1">
+                  <span className="font-black text-amber-600 text-sm">02</span>
+                  <p className="font-bold text-slate-900">Check Pincode</p>
+                  <p className="text-[11px] text-slate-500">Instant verification for 60-minute Kolkata dispatch.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-white border border-slate-100 space-y-1">
+                  <span className="font-black text-amber-600 text-sm">03</span>
+                  <p className="font-bold text-slate-900">Flexible Payment</p>
+                  <p className="text-[11px] text-slate-500">Pay via UPI (GPay/PhonePe), Cards, NetBanking, or COD.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-white border border-slate-100 space-y-1">
+                  <span className="font-black text-amber-600 text-sm">04</span>
+                  <p className="font-bold text-slate-900">Live GPS &amp; Invoice</p>
+                  <p className="text-[11px] text-slate-500">Track rider on live maps &amp; download GST invoices.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Followed Internal Links Directory */}
+            <div className="pt-4 border-t border-slate-200/70 space-y-2">
+              <p className="text-[11px] uppercase tracking-wider font-bold text-slate-500">
+                Quick Category Directory &amp; Helpful Guides
+              </p>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <Link
+                  to="/electrical?subcategory=Wiring"
+                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-black hover:border-slate-300 transition-colors font-medium"
+                >
+                  Polycab &amp; RR Kabel Wires Kolkata
+                </Link>
+                <Link
+                  to="/electrical?subcategory=MCBs"
+                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-black hover:border-slate-300 transition-colors font-medium"
+                >
+                  Schneider MCB &amp; Distribution Boards
+                </Link>
+                <Link
+                  to="/electrical?subcategory=Switches"
+                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-black hover:border-slate-300 transition-colors font-medium"
+                >
+                  Anchor Roma Modular Switches
+                </Link>
+                <Link
+                  to="/construction?subcategory=Cement%20%26%20Concrete"
+                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-black hover:border-slate-300 transition-colors font-medium"
+                >
+                  UltraTech &amp; ACC Cement Kolkata
+                </Link>
+                <Link
+                  to="/construction?subcategory=TMT%20Steel"
+                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-black hover:border-slate-300 transition-colors font-medium"
+                >
+                  Tata Tiscon TMT Steel Rebars
+                </Link>
+                <Link
+                  to="/technicians"
+                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-black hover:border-slate-300 transition-colors font-medium"
+                >
+                  Book Certified Electrician Kasba
+                </Link>
+                <Link
+                  to="/how-to-use"
+                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-black hover:border-slate-300 transition-colors font-medium"
+                >
+                  SmartRUN How-to-Order Guide
+                </Link>
+                <Link
+                  to="/about"
+                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-black hover:border-slate-300 transition-colors font-medium"
+                >
+                  Kasba Depot &amp; Company Profile
+                </Link>
+                <Link
+                  to="/faqs"
+                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-black hover:border-slate-300 transition-colors font-medium"
+                >
+                  Frequently Asked Questions
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
 
       </div>
 

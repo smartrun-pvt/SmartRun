@@ -67,3 +67,11 @@
   1. Zero hardcoded fake rating fallbacks: `aggregateRating` is conditionally generated strictly when real numerical review data exists (`product.rating > 0 && product.reviewsCount > 0`). If unrated, the node is completely omitted.
   2. Genuine customer reviews (`review` array) are only embedded when real database review entries are present.
   3. Single authoritative JSON-LD instance: `#server-prerender-schema` is wiped on client mount, eliminating conflicting duplicate entity declarations across SSR and CSR.
+
+## Threat 11: Hidden Text, Keyword Stuffing & Spam Penalties
+- **Attack Vector**: A naive SEO attempt hides dense keyword lists via CSS (`display: none`, `opacity: 0`, offscreen margins) to game search algorithms, violating Google Search Essentials spam policies and resulting in a site-wide manual penalty.
+- **Defense**:
+  1. All brand identity statements, product categories, and Kolkata delivery localities are rendered in 100% visible, accessible semantic HTML (`<h1>`, `<h2>`, `<p>`, `<Link>`) inside a clean, styled Brand Authority section.
+  2. All company claims match authentic business operations: Kasba Central Depot (PIN 700107), genuine OEM brands (Polycab, RR Kabel, Schneider Electric, UltraTech), and verified West Bengal licensing board credentials.
+  3. Zero hidden text or deceptive anchor text across all pages.
+

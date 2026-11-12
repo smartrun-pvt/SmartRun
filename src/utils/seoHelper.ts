@@ -415,8 +415,15 @@ export function getRouteSeoConfig(
           '@type': 'WebSite',
           '@id': 'https://www.smartrun.in/#website',
           url: 'https://www.smartrun.in/',
-          name: 'SmartRun',
-          alternateName: ['Smart Run', 'SmartRun materials pvt. ltd', 'SmartRun Kolkata'],
+          name: 'SmartRUN',
+          alternateName: [
+            'Smart Run',
+            'SmartRUN India',
+            'Smart Run India',
+            'SmartRUN Kolkata',
+            'Smart Run construction delivery',
+            'SmartRun materials pvt. ltd'
+          ],
           potentialAction: {
             '@type': 'SearchAction',
             target: 'https://www.smartrun.in/electrical?q={search_term_string}',
@@ -426,9 +433,18 @@ export function getRouteSeoConfig(
         {
           '@type': ['Organization', 'ElectricalSupplyStore', 'HardwareStore', 'LocalBusiness'],
           '@id': 'https://www.smartrun.in/#store',
-          name: 'SmartRun',
+          name: 'SmartRUN',
+          alternateName: ['Smart Run', 'SmartRUN India', 'Smart Run India', 'SmartRUN Kolkata'],
           legalName: 'SmartRun materials pvt. ltd',
           url: 'https://www.smartrun.in/',
+          logo: {
+            '@type': 'ImageObject',
+            url: 'https://www.smartrun.in/SmartRun.png',
+            width: 512,
+            height: 512,
+            caption: 'SmartRUN - Express Electrical & Construction Materials Delivery'
+          },
+          image: 'https://www.smartrun.in/SmartRun.png',
           telephone: '+91-8777400280',
           email: 'team@smartrun.in',
           priceRange: '₹₹',
@@ -452,7 +468,16 @@ export function getRouteSeoConfig(
             { '@type': 'AdministrativeArea', name: 'Kasba' },
             { '@type': 'AdministrativeArea', name: 'Salt Lake' },
             { '@type': 'AdministrativeArea', name: 'New Town' },
-            { '@type': 'AdministrativeArea', name: 'Ballygunge' }
+            { '@type': 'AdministrativeArea', name: 'Ballygunge' },
+            { '@type': 'AdministrativeArea', name: 'Jadavpur' },
+            { '@type': 'AdministrativeArea', name: 'Gariahat' },
+            { '@type': 'AdministrativeArea', name: 'Behala' },
+            { '@type': 'AdministrativeArea', name: 'Rajarhat' },
+            { '@type': 'AdministrativeArea', name: 'Howrah' }
+          ],
+          sameAs: [
+            'https://play.google.com/store/apps/details?id=in.smartrun.app',
+            'https://wa.me/918777400280'
           ],
           openingHoursSpecification: [
             {

@@ -239,6 +239,30 @@ describe('SmartRun SEO & Geo Optimization Engine', () => {
     const howToSchema = guideGraph.find((item: any) => item['@type'] === 'HowTo');
     expect(howToSchema).toBeDefined();
   });
+
+  test('getRouteSeoConfig formats homepage with WebSite and Organization schema', () => {
+    const homeSeo = getRouteSeoConfig('/');
+    expect(homeSeo.title).toContain('SmartRun (Smart Run)');
+    expect(homeSeo.title).toContain('Kolkata');
+    expect(homeSeo.description).toContain('SmartRun (Smart Run)');
+    expect(homeSeo.canonical).toBe('https://www.smartrun.in/');
+
+    const graph = (homeSeo.structuredData as any)['@graph'];
+    expect(Array.isArray(graph)).toBe(true);
+
+    const website = graph.find((item: any) => item['@type'] === 'WebSite');
+    expect(website).toBeDefined();
+    expect(website.name).toBe('SmartRUN');
+    expect(website.alternateName).toContain('Smart Run');
+    expect(website.alternateName).toContain('SmartRUN Kolkata');
+
+    const org = graph.find((item: any) => Array.isArray(item['@type']) && item['@type'].includes('Organization'));
+    expect(org).toBeDefined();
+    expect(org.name).toBe('SmartRUN');
+    expect(org.logo.url).toBe('https://www.smartrun.in/SmartRun.png');
+    expect(org.telephone).toBe('+91-8777400280');
+    expect(org.sameAs).toContain('https://play.google.com/store/apps/details?id=in.smartrun.app');
+  });
 });
 
 

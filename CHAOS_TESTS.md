@@ -81,3 +81,18 @@ curl -s http://localhost:3000/how-to-use | grep -o '"@type":"HowTo"'
 curl -s http://localhost:3000/about | grep -o '"@type":"AboutPage"'
 ```
 
+## 12. Test Homepage WebSite & Organization Brand Entity Graph
+```bash
+# Verify WebSite search action and Organization with Smart Run alternate names and Kasba depot address
+curl -s http://localhost:3000/ | grep -E '"@type":"WebSite"|"@type":\["Organization"|"Smart Run"|SmartRUN Kolkata'
+# Expectation: Immediate HTTP 200 with WebSite potentialAction, Organization logo, phone, sameAs, and Kolkata areas
+```
+
+## 13. Test Single Authoritative H1 Heading on Homepage
+```bash
+# Verify exactly one H1 tag exists on Homepage pointing to brand identity
+curl -s http://localhost:3000/ | grep -o '<h1[^>]*>' | wc -l
+# Expectation: Exactly 1 H1 element rendered, matching "SmartRUN (Smart Run) — Express Electrical & Construction Materials Delivery in Kolkata"
+```
+
+
