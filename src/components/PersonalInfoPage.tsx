@@ -204,19 +204,24 @@ export const PersonalInfoPage = ({
       />
 
       {/* Top Header: Keep "Personal Info." alone in top header */}
-      <div className="bg-white border-b border-slate-200 px-4 py-3.5 flex items-center gap-3 sticky top-0 z-20 shadow-2xs">
-        <button
-          type="button"
-          onClick={handleBackAction}
-          className="p-1 -ml-1 text-slate-700 hover:text-black rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
-          title="Back"
-          aria-label="Back"
-        >
-          <ArrowLeft className="w-5 h-5 stroke-[2.2]" />
-        </button>
-        <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-none">
-          Personal Info.
-        </h1>
+      <div
+        className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-2xs"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+      >
+        <div className="max-w-md mx-auto px-4 py-2.5 sm:py-3.5 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleBackAction}
+            className="p-1 -ml-1 text-slate-700 hover:text-black rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Back"
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-5 h-5 stroke-[2.2]" />
+          </button>
+          <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-none">
+            Personal Info.
+          </h1>
+        </div>
       </div>
 
       {/* Main Form Body */}

@@ -869,10 +869,10 @@ export const CartView = ({
         />
         <div
           className="max-w-2xl mx-auto px-3 sm:px-4 pb-4 sm:pb-6"
-          style={{ paddingTop: 'calc(1rem + max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px)))' }}
+          style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
         >
           {/* Header */}
-          <div className="flex items-center gap-2.5 mb-6">
+          <div className="flex items-center gap-2.5 pt-2 sm:pt-4 mb-6">
             <button
               onClick={() => {
                 if (window.history.length > 1) {
@@ -976,11 +976,11 @@ export const CartView = ({
       />
       <div
         className="max-w-2xl mx-auto px-3 sm:px-4 pb-4 sm:pb-6"
-        style={{ paddingTop: 'calc(1rem + max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px)))' }}
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
       >
         
         {/* 1. HEADER */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between pt-2 sm:pt-4 mb-4">
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => {

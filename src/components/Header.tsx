@@ -321,7 +321,7 @@ export const Header = ({
         className={`overflow-hidden transition-[max-height,opacity,padding] duration-200 ease-out [transform:translateZ(0)] ${
           isProductDetailPage && isScrolled
             ? 'max-h-0 opacity-0 pointer-events-none py-0'
-            : 'max-h-24 opacity-100 py-2 sm:py-2.5'
+            : 'max-h-24 opacity-100 py-1.5 sm:py-2.5'
         }`}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-6">
@@ -344,7 +344,7 @@ export const Header = ({
               <button
                 id="header-location-selector-btn"
                 onClick={onOpenLocationModal}
-                className="flex items-center gap-1.5 text-xs font-normal text-slate-700 hover:text-black transition-colors text-left cursor-pointer group leading-none mt-1 py-1 min-h-[28px] focus:outline-none max-w-[210px] sm:max-w-[340px] truncate"
+                className="flex items-center gap-1.5 text-xs font-normal text-slate-700 hover:text-black transition-colors text-left cursor-pointer group leading-none mt-0.5 py-0.5 min-h-[22px] focus:outline-none max-w-[210px] sm:max-w-[340px] truncate"
                 title="View full address or change location"
                 aria-label={`Current delivery address: ${locationInfo.houseNameOnly}. Click to change address`}
               >
@@ -431,7 +431,7 @@ export const Header = ({
     </div>
 
       {/* Row 2: Fixed Liquid Glass Search Bar + Right-side All Filters Button (Visible strictly on Electrical, Construction & Wiring, NOT on Home) */}
-      <div className="border-t border-slate-100/80 bg-white/95 px-3 sm:px-6 py-2 sm:py-2.5 [transform:translateZ(0)]">
+      <div className="border-t border-slate-100/80 bg-white/95 px-3 sm:px-6 py-1.5 sm:py-2.5 [transform:translateZ(0)]">
         <div className="max-w-3xl mx-auto w-full flex items-center gap-2 sm:gap-3">
           {/* Back Button beside search bar when viewing product details - only arrow and nothing */}
           {isProductDetailPage && (

@@ -45,23 +45,22 @@ export const ProductCardImage = ({
 
   const hasMultipleImages = allImages.length > 1;
 
-  // Auto-cycle through images every cycle interval when product has > 1 image
+  // Auto-cycle through images on desktop hover, eliminating background timer thrashing & lag on mobile phones
   useEffect(() => {
     if (!hasMultipleImages) return;
-
-    // Faster rotation on hover (1800ms) or standard auto rotation (3200ms)
-    const intervalTime = isHovered && enableHoverRotate ? 1800 : autoRotateInterval;
+    // Strictly cycle only when hovered to prevent background CPU/battery drain and scroll stutter on phones
+    if (!isHovered || !enableHoverRotate) return;
 
     timerRef.current = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % allImages.length);
-    }, intervalTime);
+    }, 1800);
 
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
     };
-  }, [hasMultipleImages, allImages.length, isHovered, enableHoverRotate, autoRotateInterval]);
+  }, [hasMultipleImages, allImages.length, isHovered, enableHoverRotate]);
 
   const handlePrev = (e: React.MouseEvent) => {
     e.preventDefault();

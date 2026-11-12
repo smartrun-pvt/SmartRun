@@ -40,8 +40,11 @@ export const HowToUseAppPage: React.FC<HowToUseAppPageProps> = ({ onBack }) => {
       />
 
       {/* Top Header: Simple Heading 'How to use app' and Arrow Back Button in the same line with Beige Background */}
-      <div className="bg-[#F9F6F0] border-b border-[#E6DEC8] sticky top-0 z-20 px-4 sm:px-6 py-3.5">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
+      <div
+        className="bg-[#F9F6F0] border-b border-[#E6DEC8] sticky top-0 z-20"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+      >
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3.5 flex items-center gap-3">
           <button
             id="btn-how-to-use-back"
             type="button"

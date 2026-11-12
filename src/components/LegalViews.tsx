@@ -132,10 +132,10 @@ export const LegalView = ({ onBack, type }: LegalViewProps) => {
       />
       {/* Top Header */}
       <div
-        className="bg-white border-b border-slate-200 px-4 pb-3.5 flex items-center justify-between shadow-2xs sticky top-0 z-20"
-        style={{ paddingTop: 'calc(0.875rem + max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px)))' }}
+        className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-2xs"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
       >
-        <div className="flex items-center gap-3">
+        <div className="max-w-3xl mx-auto px-4 py-2.5 sm:py-3.5 flex items-center justify-between">
           <button
             onClick={onBack}
             className="p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"

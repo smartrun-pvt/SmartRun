@@ -5,6 +5,7 @@ import {
   getRouteSeoConfig,
   injectSeoMetadata,
   generateDynamicSitemap,
+  generateRssFeed,
   ProductMetaSource
 } from './seoHelper.js';
 
@@ -79,6 +80,9 @@ describe('SmartRun SEO & Geo Optimization Engine', () => {
     <meta name="description" content="Default Description" />
     <meta name="keywords" content="default, keywords" />
     <link rel="canonical" href="https://www.smartrun.in/" />
+    <link rel="alternate" hreflang="en-IN" href="https://www.smartrun.in/" />
+    <link rel="alternate" href="android-app://in.smartrun.app/smartrun/home" />
+    <meta property="al:android:url" content="smartrun://home" />
     <meta property="og:title" content="Default Title" />
     <meta property="og:description" content="Default Description" />
     <meta property="og:url" content="https://www.smartrun.in/" />
@@ -103,6 +107,9 @@ describe('SmartRun SEO & Geo Optimization Engine', () => {
 
     expect(injected).toContain('Schneider Acti9 32A Double Pole MCB C-Curve - Buy Online in Kolkata | SmartRun (Smart Run)');
     expect(injected).toContain('href="https://www.smartrun.in/electrical/product/p25"');
+    expect(injected).toContain('hreflang="en-IN" href="https://www.smartrun.in/electrical/product/p25"');
+    expect(injected).toContain('android-app://in.smartrun.app/smartrun/electrical/product/p25');
+    expect(injected).toContain('content="smartrun://electrical/product/p25"');
     expect(injected).toContain('id="server-prerender-schema"');
     expect(injected).toContain('"@type":"Product"');
     expect(injected).toContain('"SmartRun Kasba Central Depot"');
@@ -140,4 +147,39 @@ describe('SmartRun SEO & Geo Optimization Engine', () => {
     expect(sitemapXml).toContain('<image:title>RR Kabel Wire FR LS 0.75 Sqmm, 200 MTR</image:title>');
     expect(sitemapXml).toContain('<image:title>UltraTech Super Cement 50kg Bag</image:title>');
   });
+
+  test('generateRssFeed builds valid RSS 2.0 XML with followed permalinks and channel metadata', () => {
+    const sampleProducts: ProductMetaSource[] = [
+      {
+        id: 'p1',
+        name: 'RR Kabel Wire FR LS 0.75 Sqmm, 200 MTR',
+        brand: 'RR Kabel',
+        category: 'electrical',
+        description: 'FR-LSH flame retardant pure copper wire.'
+      },
+      {
+        id: 'p35',
+        name: 'UltraTech Super Cement 50kg Bag',
+        brand: 'UltraTech',
+        category: 'construction',
+        description: 'High performance structural building cement.'
+      }
+    ];
+
+    const rssXml = generateRssFeed(sampleProducts);
+
+    expect(rssXml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
+    expect(rssXml).toContain('<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">');
+    expect(rssXml).toContain('<title>SmartRun (Smart Run) - Kolkata Express Electrical &amp; Construction Supplies Feed</title>');
+    expect(rssXml).toContain('<link>https://www.smartrun.in</link>');
+    expect(rssXml).toContain('<atom:link href="https://www.smartrun.in/rss.xml" rel="self" type="application/rss+xml" />');
+    expect(rssXml).toContain('<item>');
+    expect(rssXml).toContain('<title>RR Kabel Wire FR LS 0.75 Sqmm, 200 MTR - RR Kabel | SmartRun Kolkata</title>');
+    expect(rssXml).toContain('<link>https://www.smartrun.in/electrical/product/p1</link>');
+    expect(rssXml).toContain('<guid isPermaLink="true">https://www.smartrun.in/electrical/product/p1</guid>');
+    expect(rssXml).toContain('<category>Electrical Supplies</category>');
+    expect(rssXml).toContain('<link>https://www.smartrun.in/construction/product/p35</link>');
+    expect(rssXml).toContain('<category>Construction Materials</category>');
+  });
 });
+

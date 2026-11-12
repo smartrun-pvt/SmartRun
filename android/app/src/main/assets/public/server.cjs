@@ -1661,6 +1661,13 @@ function injectSeoMetadata(html, reqPath, product) {
   if (result.includes('rel="canonical"')) {
     result = result.replace(/<link\s+rel="canonical"\s+href=".*?"\s*\/?>/i, `<link rel="canonical" href="${seo.canonical}" />`);
   }
+  result = result.replace(/<link\s+rel="alternate"\s+hreflang="en-IN"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="en-IN" href="${seo.canonical}" />`);
+  result = result.replace(/<link\s+rel="alternate"\s+hreflang="bn-IN"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="bn-IN" href="${seo.canonical}" />`);
+  result = result.replace(/<link\s+rel="alternate"\s+hreflang="hi-IN"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="hi-IN" href="${seo.canonical}" />`);
+  result = result.replace(/<link\s+rel="alternate"\s+hreflang="x-default"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="x-default" href="${seo.canonical}" />`);
+  const cleanSubPath = reqPath.replace(/^\//, "");
+  result = result.replace(/<link\s+rel="alternate"\s+href="android-app:\/\/.*?"\s*\/?>/i, `<link rel="alternate" href="android-app://in.smartrun.app/smartrun/${cleanSubPath}" />`);
+  result = result.replace(/<meta\s+property="al:android:url"\s+content=".*?"\s*\/?>/i, `<meta property="al:android:url" content="smartrun://${cleanSubPath || "home"}" />`);
   result = result.replace(/<meta\s+property="og:title"\s+content=".*?"\s*\/?>/i, `<meta property="og:title" content="${escapeHtml(seo.title)}" />`);
   result = result.replace(/<meta\s+property="og:description"\s+content=".*?"\s*\/?>/i, `<meta property="og:description" content="${escapeHtml(seo.description)}" />`);
   result = result.replace(/<meta\s+property="og:url"\s+content=".*?"\s*\/?>/i, `<meta property="og:url" content="${seo.canonical}" />`);
@@ -1755,6 +1762,59 @@ function generateDynamicSitemap(products) {
     }
   }
   xml += `</urlset>`;
+  return xml;
+}
+function generateRssFeed(products) {
+  const now = (/* @__PURE__ */ new Date()).toUTCString();
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+`;
+  xml += `<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+`;
+  xml += `  <channel>
+`;
+  xml += `    <title>SmartRun (Smart Run) - Kolkata Express Electrical &amp; Construction Supplies Feed</title>
+`;
+  xml += `    <link>https://www.smartrun.in</link>
+`;
+  xml += `    <description>Latest genuine electrical products, Polycab copper cables, Schneider switchgear, UltraTech cement, and licensed electricians with 60-min express delivery in Kolkata.</description>
+`;
+  xml += `    <language>en-in</language>
+`;
+  xml += `    <lastBuildDate>${now}</lastBuildDate>
+`;
+  xml += `    <atom:link href="https://www.smartrun.in/rss.xml" rel="self" type="application/rss+xml" />
+`;
+  if (Array.isArray(products)) {
+    for (const prod of products) {
+      if (!prod || !prod.id) continue;
+      const isConst = prod.category === "construction";
+      const prodPath = isConst ? `/construction/product/${prod.id}` : `/electrical/product/${prod.id}`;
+      const prodUrl = `https://www.smartrun.in${prodPath}`;
+      const prodName = escapeXml(prod.name);
+      const prodDesc = escapeXml(prod.description || `${prod.name} available at SmartRun Kolkata with 60-min express delivery.`);
+      const brand = escapeXml(prod.brand || "SmartRun");
+      const category = isConst ? "Construction Materials" : "Electrical Supplies";
+      xml += `    <item>
+`;
+      xml += `      <title>${prodName} - ${brand} | SmartRun Kolkata</title>
+`;
+      xml += `      <link>${prodUrl}</link>
+`;
+      xml += `      <guid isPermaLink="true">${prodUrl}</guid>
+`;
+      xml += `      <description>${prodDesc}</description>
+`;
+      xml += `      <category>${category}</category>
+`;
+      xml += `      <pubDate>${now}</pubDate>
+`;
+      xml += `    </item>
+`;
+    }
+  }
+  xml += `  </channel>
+`;
+  xml += `</rss>`;
   return xml;
 }
 
@@ -3628,6 +3688,19 @@ async function startServer() {
       return res.status(500).send("<error>Failed to render sitemap</error>");
     }
   });
+  const handleRssFeed = async (req, res) => {
+    try {
+      const { products } = await getCachedCatalog();
+      const rssXml = generateRssFeed(products);
+      res.setHeader("Content-Type", "application/xml; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=7200");
+      return res.status(200).send(rssXml);
+    } catch (err) {
+      console.error("[RSS Feed Handler] Error rendering dynamic RSS feed:", err);
+      return res.status(500).send("<error>Failed to render RSS feed</error>");
+    }
+  };
+  app.get(["/rss.xml", "/feed.xml", "/rss", "/feed"], handleRssFeed);
   app.get("/robots.txt", (req, res) => {
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=86400");

@@ -46,7 +46,8 @@ public class MainActivity extends BridgeActivity {
                 androidx.core.view.WindowInsetsCompat.Type.navigationBars()
             );
             androidx.core.graphics.Insets statusInsets = windowInsets.getInsets(
-                androidx.core.view.WindowInsetsCompat.Type.statusBars()
+                androidx.core.view.WindowInsetsCompat.Type.statusBars() |
+                androidx.core.view.WindowInsetsCompat.Type.displayCutout()
             );
 
             float density = getResources().getDisplayMetrics().density;

@@ -89,3 +89,10 @@
 - **Content-Type**: `text/html; charset=utf-8`
 - **Cache-Control**: `no-cache, no-store, must-revalidate`
 - **Payload**: Full HTML document with dynamically injected product `<title>`, `<meta name="description">`, `<meta name="keywords">`, `<link rel="canonical">`, OpenGraph multi-aspect ratio images, and Schema.org `Product` JSON-LD before client-side hydration.
+
+## 9. GET `/rss.xml`, `/feed.xml` (RSS 2.0 Product & News Syndication Feed)
+- **Response**: `200 OK`
+- **Content-Type**: `application/xml; charset=utf-8`
+- **Cache-Control**: `public, max-age=3600, s-maxage=7200`
+- **Payload**: Standard RSS 2.0 XML containing channel information (`SmartRun (Smart Run) - Kolkata Express Electrical & Construction Supplies Feed`), `<atom:link>`, and `<item>` entries with canonical followed permalinks for all active catalog products.
+

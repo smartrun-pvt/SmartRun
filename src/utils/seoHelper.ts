@@ -301,6 +301,18 @@ export function injectSeoMetadata(html: string, reqPath: string, product?: Produ
     result = result.replace(/<link\s+rel="canonical"\s+href=".*?"\s*\/?>/i, `<link rel="canonical" href="${seo.canonical}" />`);
   }
 
+  // 5b. Sync international & regional hreflang alternates
+  result = result.replace(/<link\s+rel="alternate"\s+hreflang="en-IN"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="en-IN" href="${seo.canonical}" />`);
+  result = result.replace(/<link\s+rel="alternate"\s+hreflang="bn-IN"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="bn-IN" href="${seo.canonical}" />`);
+  result = result.replace(/<link\s+rel="alternate"\s+hreflang="hi-IN"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="hi-IN" href="${seo.canonical}" />`);
+  result = result.replace(/<link\s+rel="alternate"\s+hreflang="x-default"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="x-default" href="${seo.canonical}" />`);
+
+  // 5c. Sync Google App Indexing deep link backlink
+  const cleanSubPath = reqPath.replace(/^\//, '');
+  result = result.replace(/<link\s+rel="alternate"\s+href="android-app:\/\/.*?"\s*\/?>/i, `<link rel="alternate" href="android-app://in.smartrun.app/smartrun/${cleanSubPath}" />`);
+  result = result.replace(/<meta\s+property="al:android:url"\s+content=".*?"\s*\/?>/i, `<meta property="al:android:url" content="smartrun://${cleanSubPath || 'home'}" />`);
+
+
   // 6. Replace OpenGraph properties
   result = result.replace(/<meta\s+property="og:title"\s+content=".*?"\s*\/?>/i, `<meta property="og:title" content="${escapeHtml(seo.title)}" />`);
   result = result.replace(/<meta\s+property="og:description"\s+content=".*?"\s*\/?>/i, `<meta property="og:description" content="${escapeHtml(seo.description)}" />`);
@@ -393,3 +405,48 @@ export function generateDynamicSitemap(products: ProductMetaSource[]): string {
   xml += `</urlset>`;
   return xml;
 }
+
+/**
+ * Dynamically generates a valid RSS 2.0 XML syndication feed
+ * containing channel metadata and product entries with followed permalinks.
+ */
+export function generateRssFeed(products: ProductMetaSource[]): string {
+  const now = new Date().toUTCString();
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  xml += `<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n`;
+  xml += `  <channel>\n`;
+  xml += `    <title>SmartRun (Smart Run) - Kolkata Express Electrical &amp; Construction Supplies Feed</title>\n`;
+  xml += `    <link>https://www.smartrun.in</link>\n`;
+  xml += `    <description>Latest genuine electrical products, Polycab copper cables, Schneider switchgear, UltraTech cement, and licensed electricians with 60-min express delivery in Kolkata.</description>\n`;
+  xml += `    <language>en-in</language>\n`;
+  xml += `    <lastBuildDate>${now}</lastBuildDate>\n`;
+  xml += `    <atom:link href="https://www.smartrun.in/rss.xml" rel="self" type="application/rss+xml" />\n`;
+
+  if (Array.isArray(products)) {
+    for (const prod of products) {
+      if (!prod || !prod.id) continue;
+      const isConst = prod.category === 'construction';
+      const prodPath = isConst ? `/construction/product/${prod.id}` : `/electrical/product/${prod.id}`;
+      const prodUrl = `https://www.smartrun.in${prodPath}`;
+      const prodName = escapeXml(prod.name);
+      const prodDesc = escapeXml(prod.description || `${prod.name} available at SmartRun Kolkata with 60-min express delivery.`);
+      const brand = escapeXml(prod.brand || 'SmartRun');
+      const category = isConst ? 'Construction Materials' : 'Electrical Supplies';
+
+      xml += `    <item>\n`;
+      xml += `      <title>${prodName} - ${brand} | SmartRun Kolkata</title>\n`;
+      xml += `      <link>${prodUrl}</link>\n`;
+      xml += `      <guid isPermaLink="true">${prodUrl}</guid>\n`;
+      xml += `      <description>${prodDesc}</description>\n`;
+      xml += `      <category>${category}</category>\n`;
+      xml += `      <pubDate>${now}</pubDate>\n`;
+      xml += `    </item>\n`;
+    }
+  }
+
+  xml += `  </channel>\n`;
+  xml += `</rss>`;
+  return xml;
+}
+

@@ -56,7 +56,7 @@
       "name": "Wiring Services",
       "short_name": "Wiring",
       "description": "Book certified electrical contractors",
-      "url": "/services",
+      "url": "/technicians",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]

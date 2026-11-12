@@ -30,7 +30,7 @@ import {
   getDocs as firestoreGetDocs
 } from "firebase/firestore";
 import { INITIAL_PRODUCTS } from "./src/data/products";
-import { generateDynamicSitemap, injectSeoMetadata } from "./src/utils/seoHelper";
+import { generateDynamicSitemap, generateRssFeed, injectSeoMetadata } from "./src/utils/seoHelper";
 
 dotenv.config();
 
@@ -2391,6 +2391,22 @@ async function startServer() {
       return res.status(500).send("<error>Failed to render sitemap</error>");
     }
   });
+
+  // SEO & Syndication Backlinks: Dynamic RSS 2.0 Product & News Feed for automated aggregators and search crawlers
+  const handleRssFeed = async (req: express.Request, res: express.Response) => {
+    try {
+      const { products } = await getCachedCatalog();
+      const rssXml = generateRssFeed(products);
+      res.setHeader("Content-Type", "application/xml; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=7200");
+      return res.status(200).send(rssXml);
+    } catch (err: any) {
+      console.error("[RSS Feed Handler] Error rendering dynamic RSS feed:", err);
+      return res.status(500).send("<error>Failed to render RSS feed</error>");
+    }
+  };
+
+  app.get(["/rss.xml", "/feed.xml", "/rss", "/feed"], handleRssFeed);
 
   app.get("/robots.txt", (req, res) => {
     res.setHeader("Content-Type", "text/plain; charset=utf-8");

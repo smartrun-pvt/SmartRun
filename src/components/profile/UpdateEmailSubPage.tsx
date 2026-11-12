@@ -193,18 +193,23 @@ export const UpdateEmailSubPage: React.FC<UpdateEmailSubPageProps> = ({
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
       {/* Header: Tailless arrow back button and clean title */}
-      <div className="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3.5 flex items-center gap-2.5 shadow-2xs">
-        <button
-          type="button"
-          onClick={onBack}
-          className="p-1 -ml-1 text-slate-800 hover:text-black hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
-          aria-label="Back"
-        >
-          <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
-        </button>
-        <h1 className="text-lg font-bold text-slate-900 leading-none">
-          Email Update
-        </h1>
+      <div
+        className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-2xs"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+      >
+        <div className="max-w-md mx-auto px-4 py-2.5 sm:py-3 flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={onBack}
+            className="p-1 -ml-1 text-slate-800 hover:text-black hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+            aria-label="Back"
+          >
+            <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
+          </button>
+          <h1 className="text-lg font-bold text-slate-900 leading-none">
+            Email Update
+          </h1>
+        </div>
       </div>
 
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">

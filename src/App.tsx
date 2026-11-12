@@ -105,10 +105,14 @@ export default function App() {
       StatusBar.setStyle({ style: Style.Light }).catch(() => {});
 
       // Respect measured Android navigation bar insets from MainActivity.
-      // If unset, default gracefully to CSS safe-area-inset-bottom
+      // If unset, default gracefully to CSS safe-area-inset-bottom / safe-area-inset-top
       const currentBottom = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-bottom');
       if (!currentBottom || currentBottom.trim() === '') {
         document.documentElement.style.setProperty('--safe-area-bottom', 'env(safe-area-inset-bottom, 0px)');
+      }
+      const currentTop = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-top');
+      if (!currentTop || currentTop.trim() === '') {
+        document.documentElement.style.setProperty('--safe-area-top', 'env(safe-area-inset-top, 0px)');
       }
     }
   }, []);
@@ -1851,8 +1855,8 @@ export default function App() {
         />
       )}
 
-      {/* Main App Content View with Routes */}
-      <main className="flex-1">
+      {/* Main App Content View with Routes (Smooth GPU-accelerated page transitions) */}
+      <main key={location.pathname} className="flex-1 animate-page-enter gpu-layer">
         <Routes>
           {/* FLIPKART-STYLE ELECTRICAL LISTING PAGE */}
           <Route

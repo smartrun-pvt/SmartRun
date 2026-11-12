@@ -448,8 +448,10 @@ export const HelpCenterChat = ({
       {/* 1. UNIFIED PAGE HEADER: Chat Support, FAQ button, Refresh button */}
       <header
         id="chat-support-header"
-        className="shrink-0 bg-white border-b border-slate-200/90 px-3 sm:px-4 py-3 flex items-center justify-between shadow-2xs z-30"
+        className="shrink-0 bg-white border-b border-slate-200/90 shadow-2xs z-30"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
       >
+        <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5 min-w-0">
           {onBack && (
             <button
@@ -480,6 +482,7 @@ export const HelpCenterChat = ({
           >
             <RefreshCw className="w-4 h-4" />
           </button>
+        </div>
         </div>
       </header>
 
@@ -676,7 +679,8 @@ export const HelpCenterChat = ({
           e.preventDefault();
           handleSendMessage();
         }}
-        className="shrink-0 bg-white border-t border-slate-200 px-3 py-2.5 sm:py-3 flex items-center gap-2 shadow-md z-20"
+        className="shrink-0 bg-white border-t border-slate-200 px-3 pt-2.5 sm:pt-3 flex items-center gap-2 shadow-md z-20"
+        style={{ paddingBottom: 'max(0.75rem, max(env(safe-area-inset-bottom, 0px), var(--safe-area-bottom, 0px)))' }}
       >
         {/* Input Field */}
         <input

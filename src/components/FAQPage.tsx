@@ -273,34 +273,39 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onBack }) => {
       />
 
       {/* Sticky Top Header with Tailless Arrow Back Button and Simple Heading on exact same line */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 py-3 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={onBack}
-            className="p-1 -ml-1 text-slate-800 hover:text-black hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
-            aria-label="Back"
-          >
-            <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
-          </button>
-          <div className="flex items-center gap-2">
-            <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-none">
-              Help & FAQ
-            </h1>
-            <span className="text-[11px] font-bold text-amber-900 bg-amber-100/90 border border-amber-300/60 px-2 py-0.5 rounded-md whitespace-nowrap">
-              Public Portal
-            </span>
+      <header
+        className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+      >
+        <div className="max-w-3xl mx-auto px-4 py-2.5 sm:py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={onBack}
+              className="p-1 -ml-1 text-slate-800 hover:text-black hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+              aria-label="Back"
+            >
+              <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
+            </button>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-none">
+                Help & FAQ
+              </h1>
+              <span className="text-[11px] font-bold text-amber-900 bg-amber-100/90 border border-amber-300/60 px-2 py-0.5 rounded-md whitespace-nowrap">
+                Public Portal
+              </span>
+            </div>
           </div>
-        </div>
 
-        <a
-          href="tel:8777400280"
-          className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-        >
-          <PhoneCall className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Helpline:</span>
-          <span>8777400280</span>
-        </a>
+          <a
+            href="tel:8777400280"
+            className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+          >
+            <PhoneCall className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Helpline:</span>
+            <span>8777400280</span>
+          </a>
+        </div>
       </header>
 
       {/* Hero Search & Title Section */}

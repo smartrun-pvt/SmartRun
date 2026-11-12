@@ -617,7 +617,7 @@ export const ProfileView = ({
   // -------------------------------------------------------------
   return (
     <div
-      className="min-h-screen bg-slate-50 text-slate-900 pb-28 sm:pb-24"
+      className="min-h-screen animate-page-enter bg-slate-50 text-slate-900 pb-28 sm:pb-24"
       style={{ paddingBottom: 'max(7rem, calc(5rem + env(safe-area-inset-bottom, 1rem)))' }}
     >
       <SEOHead
@@ -627,11 +627,11 @@ export const ProfileView = ({
       />
       {/* 1. TOP HEADER BANNER (Full width touching top & both sides, bottom curves only) */}
       <div
-        className="bg-gradient-to-b from-[#8B0000] via-[#A30000] to-[#B31B1B] text-white pb-5 px-4 sm:px-6 relative shadow-md rounded-b-2xl border-b border-red-950/30"
-        style={{ paddingTop: 'calc(0.875rem + max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px)))' }}
+        className="bg-gradient-to-b from-[#8B0000] via-[#A30000] to-[#B31B1B] text-white pb-4 sm:pb-5 px-4 sm:px-6 relative shadow-md rounded-b-2xl border-b border-red-950/30"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
       >
         {/* Top Control Bar with Back Arrow & Actions */}
-        <div className="max-w-3xl mx-auto flex items-center justify-between mb-2.5">
+        <div className="max-w-3xl mx-auto flex items-center justify-between pt-2 pb-1 mb-2">
           {/* Arrow Back Button */}
           <button
             onClick={onBack}

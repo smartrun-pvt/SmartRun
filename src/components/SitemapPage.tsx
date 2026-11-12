@@ -74,10 +74,11 @@ export const SitemapPage: React.FC = () => {
       icon: ShieldCheck,
       iconColor: 'text-indigo-600 bg-indigo-50',
       links: [
-        { name: 'Refund & Cancellation Policy', path: '/refund-policy', desc: '7-day replacement, direct source refund guarantees' },
-        { name: 'Shipping & Delivery Policy', path: '/shipping-policy', desc: '60-minute express courier delivery rules and zones' },
-        { name: 'Privacy Policy', path: '/privacy', desc: 'Data protection and information security practices' },
-        { name: 'Terms of Service', path: '/terms', desc: 'Platform usage agreement, warranties, and jurisdiction' },
+        { name: 'Shipping Policy & 60-Min Delivery', path: '/shipping', desc: '60-minute express courier delivery rules and zones across Kolkata' },
+        { name: 'Return Policy & 7-Day Guarantee', path: '/return', desc: 'Hassle-free 7-day doorstep replacement for electrical goods & construction materials' },
+        { name: 'Refund & Cancellation Policy', path: '/refund-policy', desc: 'Direct source instant refund guarantee on order cancellations' },
+        { name: 'Privacy Policy', path: '/privacy', desc: 'Data protection, account security, and information practices' },
+        { name: 'Terms of Service', path: '/terms', desc: 'Platform usage agreement, warranties, and Kolkata jurisdiction' },
         { name: 'Account & Data Deletion Portal', path: '/account-deletion', desc: 'Google Play policy compliant permanent deletion' }
       ]
     }
@@ -94,7 +95,10 @@ export const SitemapPage: React.FC = () => {
       />
 
       {/* Sticky Header */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200">
+      <header
+        className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+      >
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button

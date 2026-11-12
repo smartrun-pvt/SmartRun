@@ -876,7 +876,7 @@ export const HomePage = ({
             {/* Horizontal Product Scroll Row */}
             <div
               ref={electricalScrollRef}
-              className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar scroll-smooth py-1 -mx-4 px-4 sm:mx-0 sm:px-0 items-stretch"
+              className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar momentum-scroll scroll-smooth py-1 -mx-4 px-4 sm:mx-0 sm:px-0 items-stretch"
             >
               {newlyLaunchedElectrical.map((p) => (
                 <div key={p.id} className="w-44 sm:w-56 shrink-0 flex flex-col">
@@ -932,7 +932,7 @@ export const HomePage = ({
             {/* Horizontal Product Scroll Row */}
             <div
               ref={constructionScrollRef}
-              className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar scroll-smooth py-1 -mx-4 px-4 sm:mx-0 sm:px-0 items-stretch"
+              className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar momentum-scroll scroll-smooth py-1 -mx-4 px-4 sm:mx-0 sm:px-0 items-stretch"
             >
               {newlyLaunchedConstruction.map((p) => (
                 <div key={p.id} className="w-44 sm:w-56 shrink-0 flex flex-col">

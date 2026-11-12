@@ -1,6 +1,47 @@
-# Robots.txt for SmartRun
+# Robots.txt for SmartRun (Smart Run)
 # Official Production Domain: https://www.smartrun.in
+# Primary Backlink & Indexing Crawler Directives
 
+# Priority Search Engine Crawlers (Zero Crawl Delay)
+User-agent: Googlebot
+User-agent: Googlebot-Image
+User-agent: Googlebot-Mobile
+User-agent: AhrefsBot
+User-agent: Bingbot
+User-agent: Applebot
+User-agent: SemrushBot
+Allow: /
+Allow: /electrical
+Allow: /electrical/*
+Allow: /construction
+Allow: /construction/*
+Allow: /product/*
+Allow: /technicians
+Allow: /technicians/*
+Allow: /sitemap
+Allow: /sitemap.xml
+Allow: /rss.xml
+Allow: /feed.xml
+Allow: /about
+Allow: /faqs
+Allow: /faq
+Allow: /shipping
+Allow: /shipping-policy
+Allow: /return
+Allow: /return-policy
+Allow: /refund-policy
+Allow: /privacy
+Allow: /terms
+Allow: /login
+Disallow: /cart
+Disallow: /profile
+Disallow: /orders
+Disallow: /live-order
+Disallow: /live-order/*
+Disallow: /reset-password
+Disallow: /api/*
+
+# General Crawlers
 User-agent: *
 Allow: /
 Allow: /electrical
@@ -13,17 +54,12 @@ Allow: /technicians/*
 Allow: /sitemap
 Allow: /about
 Allow: /faqs
-Allow: /refund-policy
-Allow: /shipping-policy
 Allow: /shipping
-Allow: /return-policy
 Allow: /return
+Allow: /refund-policy
 Allow: /privacy
 Allow: /terms
-Allow: /account-deletion
 Allow: /login
-
-# Disallow private user sessions and transactional paths from crawling
 Disallow: /cart
 Disallow: /profile
 Disallow: /orders
@@ -32,8 +68,6 @@ Disallow: /live-order/*
 Disallow: /reset-password
 Disallow: /api/*
 
-# Crawl Delay
-Crawl-delay: 1
-
-# XML Sitemap
+# XML Sitemaps & Syndication Feeds for Instant Backlink Discovery
 Sitemap: https://www.smartrun.in/sitemap.xml
+Sitemap: https://www.smartrun.in/rss.xml

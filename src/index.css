@@ -10,6 +10,9 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overscroll-behavior-y: contain;
   }
 
   /* Disable browser native search cancel and decoration buttons to eliminate duplicate cross buttons */
@@ -27,6 +30,11 @@
     background-color: #f8fafc;
     color: #0f172a;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    -webkit-overflow-scrolling: touch;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, .font-display {
@@ -380,3 +388,71 @@ button[aria-label^="Previous product image"] {
   pointer-events: none !important;
   visibility: hidden !important;
 }
+
+/* =========================================================================
+   MOBILE PERFORMANCE, SMOOTH SCROLLING & GPU COMPOSITING (ZERO LAG)
+   ========================================================================= */
+
+/* Hardware-Accelerated Compositing & Zero-Lag Layer Promotion */
+.gpu-layer {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Off-screen Content Virtualization for Fast Scrolling on Low-End / Mid-Range Phones */
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 320px;
+}
+
+/* Snappy, Native-feel Momentum Scrolling for Horizontal Product & Category Carousels */
+.momentum-scroll {
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior-x: contain !important;
+  touch-action: pan-x pan-y !important;
+  scroll-behavior: smooth !important;
+}
+
+/* Silky Smooth 60/120fps GPU-Accelerated Page Entrance Animation */
+@keyframes page-enter {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-page-enter {
+  animation: page-enter 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+/* Native Mobile Tap Micro-feedback */
+.tap-active {
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.12s ease;
+  will-change: transform;
+}
+
+.tap-active:active {
+  transform: scale(0.975);
+  opacity: 0.92;
+}
+
+/* Accessibility: Respect User's Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
