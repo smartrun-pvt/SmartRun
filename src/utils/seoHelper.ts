@@ -1285,6 +1285,81 @@ export function renderSsrBodyShell(
 }
 
 /**
+ * Generates clean Markdown output for AI browsing agents sending `Accept: text/markdown`.
+ */
+export function renderMarkdownRepresentation(
+  reqPath: string,
+  product?: ProductMetaSource | null,
+  technician?: TechnicianMetaSource | null
+): string {
+  const cleanPath = normalizeCanonicalPath(reqPath);
+  const seo = getRouteSeoConfig(cleanPath, product, technician);
+
+  const lines: string[] = [
+    `# ${seo.title}`,
+    '',
+    `> ${seo.description}`,
+    '',
+    `- **Canonical URL**: ${seo.canonical}`,
+    `- **Organization**: SmartRun Materials Pvt. Ltd. (Kasba Central Depot, Kolkata 700107)`,
+    `- **Serviceable PIN Codes**: Kolkata 700001–700160 & Howrah 711101–711106`,
+    `- **Contact**: +91 87774 00280 | team@smartrun.in`,
+    ''
+  ];
+
+  if (product) {
+    lines.push(
+      '## Product Details',
+      `- **Name**: ${product.name}`,
+      `- **Brand**: ${product.brand || 'SmartRun'}`,
+      `- **Category**: ${product.category === 'construction' ? 'Construction Materials' : 'Electrical Supplies'}`,
+      `- **Subcategory**: ${product.subCategory || 'General'}`,
+      `- **Price**: ₹${Number(product.price || 0).toLocaleString('en-IN')}`,
+      `- **Availability**: ${product.inStock !== false ? 'In Stock' : 'Check Availability'}`,
+      ''
+    );
+    if (product.description) {
+      lines.push(product.description, '');
+    }
+  } else if (technician) {
+    lines.push(
+      '## Certified Electrician Profile',
+      `- **Name**: ${technician.name}`,
+      `- **Role**: ${technician.title || 'Certified Electrical Specialist'}`,
+      `- **Primary Sector**: ${technician.primarySector || 'Residential & Commercial Wiring'}`,
+      `- **Service Areas**: ${(technician.serviceAreas || ['Kolkata']).join(', ')}`,
+      ''
+    );
+    if (technician.about) {
+      lines.push(technician.about, '');
+    }
+  } else if (cleanPath === '/faqs') {
+    lines.push('## Frequently Asked Questions', '');
+    for (const faq of ENRICHED_FAQ_LIST) {
+      lines.push(`### ${faq.question}`, '', faq.answer, '');
+    }
+  } else if (cleanPath === '/delivery-areas') {
+    lines.push('## Active Delivery Zones', '');
+    for (const area of KOLKATA_AREAS) {
+      lines.push(`- **${area.name} (${area.pincode})** — ${area.zone} Kolkata (~${area.deliveryMinutes} min from ${area.hub})`);
+    }
+    lines.push('');
+  }
+
+  lines.push(
+    '## Machine-Readable Discovery',
+    '- [LLMs Context](https://www.smartrun.in/llms.txt)',
+    '- [Agentic Resource Discovery (ARD)](https://www.smartrun.in/.well-known/ard.json)',
+    '- [OpenAPI 3.1 Spec](https://www.smartrun.in/api/ai/openapi.json)',
+    '- [Public Product Catalog JSON](https://www.smartrun.in/api/products)',
+    '- [XML Sitemap](https://www.smartrun.in/sitemap.xml)',
+    ''
+  );
+
+  return lines.join('\n');
+}
+
+/**
  * Injects SEO metadata, OpenGraph tags, Twitter cards, Schema.org JSON-LD,
  * and semantic SSR HTML body content before serving to crawlers or clients.
  */

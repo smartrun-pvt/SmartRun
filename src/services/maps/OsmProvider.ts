@@ -1,5 +1,7 @@
-import L from 'leaflet';
+import { L, applyLeafletSafetyPatch } from '../../utils/leafletPatch';
 import { IMapProvider, IMapInstance, MapCoordinates, MapInitOptions, MapSearchResult, ReverseGeocodeResult } from './types';
+
+applyLeafletSafetyPatch();
 
 export class OsmProvider implements IMapProvider {
   readonly name = 'osm' as const;

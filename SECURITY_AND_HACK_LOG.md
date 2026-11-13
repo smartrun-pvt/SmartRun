@@ -95,3 +95,16 @@
   1. `public/robots.txt` explicitly scopes `Allow:` rules to public storefront, GEO hub, and feed routes (`/electrical`, `/construction`, `/technicians`, `/app`, `/delivery-areas`, `/contact`, `/about`, `/faqs`, `/llms.txt`) while enforcing `Disallow:` on `/login`, `/cart`, `/profile`, `/orders`, `/live-order`, `/personal-info`, `/delete`, `/account-deletion`, and `/api/auth/`, `/api/orders/`, `/api/user-profile` across every AI and search user-agent block.
   2. SSR micro-prerender whitelists exclusively public crawlable routes in `server.ts`.
 
+## Threat 15: WebMCP Untrusted Argument Injection, Prototype/Path Traversal & SSR Mutation
+- **Attack Vector**: An AI agent or malicious page script calls WebMCP `search_smartrun_products` or `get_smartrun_product_details` with unbounded `limit` (`100000`), path traversal `productId` (`../../etc/passwd` or `?admin=true`), oversized query strings, hanging network fetches, or write actions (checkout/cart tampering).
+- **Defense**:
+  1. All 4 registered WebMCP tools (`src/utils/webMcp.ts`) are strictly read-only (`annotations: { readOnlyHint: true }`) — no cart mutation, order creation, or auth state access is exposed.
+  2. `get_smartrun_product_details` rejects empty IDs or characters matching `[/?#]`; `search_smartrun_products` clamps `limit` strictly to `[1, 25]` and query strings to `120` chars; `check_kolkata_pincode_delivery` validates exact 6-digit regex `^\d{6}$`.
+  3. All network calls in `webMcp.ts` enforce `AbortController` 5s timeouts and idempotent WeakSet guard (`registeredToolsSet`) preventing double registration.
+
+## Threat 16: Cache Poisoning & Unauthenticated Catalog Write Abuse
+- **Attack Vector**: 1) A CDN caches a `text/markdown` response under an HTML URL without `Vary: Accept`, serving raw Markdown to human browsers; 2) Unauthenticated page loads invoke `POST /rest/v1/products?on_conflict=id` triggering RLS `400` errors; 3) Failed or empty responses get poisoned into `productFetchCache` for `30s`.
+- **Defense**:
+  1. Both dev and prod SSR handlers in `server.ts` emit `Vary: Accept` alongside `Link:` discovery headers before returning `text/markdown` or `text/html`.
+  2. Removed anonymous client-side `updateOrMigrateDaldaPipeInSupabase` startup/fetch calls from `supabaseService.ts`.
+  3. `createInFlightCachedLoader` only caches results passing `isValidResult` (non-empty arrays) and clears in-flight promises cleanly in `finally` on rejection.

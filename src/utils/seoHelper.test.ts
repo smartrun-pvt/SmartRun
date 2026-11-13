@@ -7,6 +7,7 @@ import {
   injectSeoMetadata,
   generateDynamicSitemap,
   generateRssFeed,
+  renderMarkdownRepresentation,
   ProductMetaSource
 } from './seoHelper.js';
 import { ENRICHED_FAQ_LIST } from '../data/faqData.js';
@@ -387,6 +388,28 @@ describe('SmartRun SEO & Geo Optimization Engine', () => {
     expect(injected).not.toContain('<!-- SSR_SEO_SHELL_SLOT -->');
     expect(injected).not.toContain('alert(1)</script>');
     expect(injected).toContain('\\u003c/script>');
+  });
+
+  test('renderMarkdownRepresentation emits structured markdown with ARD/LLMs links for agentic crawlers', () => {
+    const prodMd = renderMarkdownRepresentation('/electrical/product/p1', {
+      id: 'p1',
+      name: 'Polycab 1.5 Sqmm FR Wire',
+      brand: 'Polycab',
+      category: 'electrical',
+      subCategory: 'Wires',
+      price: 1850,
+      description: 'Flame retardant copper wire 90m coil.'
+    });
+
+    expect(prodMd).toContain('# Polycab 1.5 Sqmm FR Wire');
+    expect(prodMd).toContain('## Product Details');
+    expect(prodMd).toContain('₹1,850');
+    expect(prodMd).toContain('https://www.smartrun.in/.well-known/ard.json');
+    expect(prodMd).toContain('https://www.smartrun.in/llms.txt');
+
+    const areasMd = renderMarkdownRepresentation('/delivery-areas');
+    expect(areasMd).toContain('## Active Delivery Zones');
+    expect(areasMd).toContain('700107');
   });
 });
 

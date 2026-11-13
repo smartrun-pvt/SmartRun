@@ -22,6 +22,9 @@ import {
 import firebaseConfig from '../../firebase-applet-config.json';
 import { apiUrl } from '../lib/apiBase';
 import { Capacitor } from '@capacitor/core';
+import { sanitizeCustomerName } from '../utils/nameHelper';
+
+export { sanitizeCustomerName };
 
 // Initialize Firebase App singleton
 export const firebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -34,31 +37,6 @@ let lastSentPhoneNumber: string | null = null;
 let activeBackendOtpToken: string | null = null;
 let activeBackendOtpPhone: string | null = null;
 let activeNativeVerificationId: string | null = null;
-
-/**
- * Sanitize customer name to filter out auto-generated place-holder names
- */
-export function sanitizeCustomerName(nameCandidate?: string | null): string {
-  if (!nameCandidate) return '';
-  const trimmed = nameCandidate.trim();
-  const lower = trimmed.toLowerCase();
-  if (
-    lower.startsWith('giriraj power') ||
-    lower.startsWith('giriraj member') ||
-    lower.startsWith('giriraj customer') ||
-    lower.startsWith('p9') ||
-    lower.startsWith('p8') ||
-    lower.startsWith('p7') ||
-    lower.startsWith('p6') ||
-    lower.startsWith('phone_') ||
-    /^p\d{10}$/i.test(trimmed) ||
-    /^\+?91\d{10}$/.test(trimmed) ||
-    /^\d{10}$/.test(trimmed)
-  ) {
-    return '';
-  }
-  return trimmed;
-}
 
 /**
  * Format any Indian phone number into strict E.164 (+91XXXXXXXXXX)

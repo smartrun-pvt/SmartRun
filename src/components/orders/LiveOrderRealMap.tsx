@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { APIProvider, Map, AdvancedMarker, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
-import L from 'leaflet';
+import { L, applyLeafletSafetyPatch } from '../../utils/leafletPatch';
 import { Navigation, Store, CheckCircle, Zap } from 'lucide-react';
 import { getGoogleMapsStatus, getSynchronousGoogleMapsKey, GoogleMapsStatus } from '../../services/maps/googleMapsConfig';
+
+applyLeafletSafetyPatch();
 
 const ATTRIBUTION_ID = 'gmp_mcp_codeassist_v1_aistudio';
 

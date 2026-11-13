@@ -93,9 +93,12 @@ export const ProductCardImage = ({
         className={`max-h-full max-w-full object-contain transition-all duration-300 drop-shadow-2xs ${className}`}
         loading="lazy"
         decoding="async"
+        referrerPolicy="no-referrer"
         onError={(e) => {
-          // Fallback if image fails to load
+          // One-shot fallback if external CDN blocks hotlinking or fails
           const target = e.target as HTMLImageElement;
+          if (target.dataset.fallbackApplied === '1') return;
+          target.dataset.fallbackApplied = '1';
           target.src = NEUTRAL_PRODUCT_PLACEHOLDER;
         }}
       />
@@ -104,7 +107,7 @@ export const ProductCardImage = ({
       {hasMultipleImages && (
         <>
           {/* Subtle multi-image count badge at top right */}
-          <div className="absolute top-1.5 right-1.5 z-10 flex items-center gap-1 bg-slate-900/70 hover:bg-slate-900/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md backdrop-blur-xs transition-opacity duration-200 shadow-xs pointer-events-none">
+          <div className="absolute top-1.5 right-1.5 z-10 flex items-center gap-1 bg-slate-900/85 hover:bg-slate-900/95 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md backdrop-blur-xs transition-opacity duration-200 shadow-xs pointer-events-none">
             <Images className="w-2.5 h-2.5" />
             <span>
               {currentIndex + 1}/{allImages.length}

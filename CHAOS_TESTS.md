@@ -142,3 +142,22 @@ curl -s http://localhost:3000/faqs | grep -o '"@type":"Question"' | wc -l
 # Expectation: Matches ENRICHED_FAQ_LIST.length (23 Question entries)
 ```
 
+## 21. Test Agentic Resource Discovery (`/.well-known/ard.json`) & `robots.txt` Agentmap
+```bash
+curl -sI http://localhost:3000/.well-known/ard.json
+curl -s http://localhost:3000/robots.txt | grep -E "ard\.json|Agentmap"
+# Expectation: 200 OK application/json with CORS *, valid resources & webmcp entries; robots.txt allows and references ard.json
+```
+
+## 22. Test `Accept: text/markdown` Content Negotiation & `Vary: Accept` Header
+```bash
+curl -s -D - -H "Accept: text/markdown" http://localhost:3000/electrical/product/p1 | head -n 25
+curl -s -D - -H "Accept: text/html" http://localhost:3000/ | grep -iE "^(link|vary):"
+# Expectation: text/markdown request returns 200 text/markdown; charset=utf-8 with Vary: Accept and Link: </.well-known/ard.json>; rel="ard"
+```
+
+## 23. Test Zero Blocking Launch Modal & Zero Supabase/Imgur Console Errors
+```bash
+# Run headless browser on http://localhost:3000/ without granted geolocation:
+# Expectation: #device-location-prompt-sheet is NOT rendered on initial load, 0 console errors, 0 HTTP 400/403 errors
+```

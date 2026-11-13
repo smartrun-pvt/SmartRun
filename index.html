@@ -127,12 +127,11 @@
         }
       }
     </script>
-    <!-- Google tag (gtag.js) with Consent Mode -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-E3TVJRTKRP"></script>
+    <!-- Google tag (gtag.js) with Consent Mode (Deferred network load after first paint) -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
-      
+
       // Default consent state: Check saved user consent from localStorage
       var savedConsent = 'granted';
       try {
@@ -155,7 +154,7 @@
       gtag('config', 'G-E3TVJRTKRP', {
         send_page_view: true
       });
-      
+
       // Global helper for quick-commerce tracking events
       window.trackSmartRunEvent = function(eventName, params) {
         if (typeof window.gtag === 'function') {
@@ -163,6 +162,25 @@
         }
       };
       window.trackGirirajEvent = window.trackSmartRunEvent;
+
+      // Load external gtag.js script after window load (with fallback timeout) to prioritize FCP/LCP
+      (function() {
+        var gtagLoaded = false;
+        function loadGtagScript() {
+          if (gtagLoaded) return;
+          gtagLoaded = true;
+          var s = document.createElement('script');
+          s.async = true;
+          s.src = 'https://www.googletagmanager.com/gtag/js?id=G-E3TVJRTKRP';
+          document.head.appendChild(s);
+        }
+        if (document.readyState === 'complete') {
+          setTimeout(loadGtagScript, 50);
+        } else {
+          window.addEventListener('load', function() { setTimeout(loadGtagScript, 50); }, { once: true });
+          setTimeout(loadGtagScript, 3500);
+        }
+      })();
     </script>
 
     <meta charset="UTF-8" />
@@ -204,8 +222,10 @@
     <link rel="alternate" hreflang="hi-IN" href="https://www.smartrun.in/" />
     <link rel="alternate" hreflang="x-default" href="https://www.smartrun.in/" />
 
-    <!-- Google App Indexing & Authoritative Native App Deep Link Backlinks -->
+    <!-- Google App Indexing, Authoritative Native App Deep Link & Agentic Discovery Links -->
     <link rel="alternate" href="android-app://in.smartrun.app/smartrun/home" />
+    <link rel="ard" href="/.well-known/ard.json" />
+    <link rel="alternate" type="text/markdown" title="SmartRun LLMs Context" href="/llms.txt" />
     <link rel="author" href="https://www.smartrun.in/about" />
     <link rel="publisher" href="https://play.google.com/store/apps/details?id=in.smartrun.app" />
 
@@ -503,7 +523,7 @@
       <!-- Instant Branded Preloader: Pure white background, zero box behind logo -->
       <div id="initial-smartrun-loader" style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #ffffff; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; padding: 24px;">
         <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 16px; background: transparent !important; background-color: transparent !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; animation: smartrun-pulse 2s ease-in-out infinite;">
-          <img src="/SmartRun.png" alt="SmartRun" style="width: 64px; height: 64px; object-fit: contain; background: transparent !important; background-color: transparent !important; border: none !important; box-shadow: none !important; mix-blend-mode: multiply;" />
+          <img src="/SmartRun.png" alt="SmartRun" width="64" height="64" style="width: 64px; height: 64px; object-fit: contain; background: transparent !important; background-color: transparent !important; border: none !important; box-shadow: none !important; mix-blend-mode: multiply;" />
         </div>
         <div style="font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">SmartRun</div>
         <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-top: 4px; letter-spacing: 0.2px;">Kolkata's Express Electrical &amp; Construction Hub</div>

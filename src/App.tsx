@@ -1,42 +1,43 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense, lazy } from 'react';
 import { flushSync } from 'react-dom';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Product, CartItem, KolkataArea, SavedAddress, Order, WiringServiceBooking, UserProfile } from './types';
 import { KOLKATA_AREAS, getKolkataAreaByPincode, isKolkataServiceable } from './data/kolkataAreas';
-import { mapManager } from './services/maps';
 import { getResilientCurrentPosition, reverseGeocodeWithFallback } from './utils/geolocationHelper';
 import { Header } from './components/Header';
-import { LocationModal } from './components/LocationModal';
-import { LoginPage } from './components/LoginPage';
-import { PersonalInfoPage } from './components/PersonalInfoPage';
-import { ProfileView } from './components/ProfileView';
-import { ProductDetailModal } from './components/ProductDetailModal';
-import { CartView } from './components/CartView';
-import { MapsGroundingAssistant } from './components/MapsGroundingAssistant';
-import { OrderHistoryView } from './components/OrderHistoryView';
-import { LegalView } from './components/LegalViews';
-import { ResetPassword } from './components/ResetPassword';
-import { ElectricalListingPage } from './components/electrical/ElectricalListingPage';
-import { supabase } from './lib/supabaseClient';
-import { ProductDetailPage } from './components/electrical/ProductDetailPage';
-import { ConstructionPage } from './components/ConstructionPage';
 import { HomePage } from './components/HomePage';
-import { TechniciansPage } from './components/technicians/TechniciansPage';
-import { TechnicianDetailPage } from './components/technicians/TechnicianDetailPage';
 import { FloatingBottomNav } from './components/FloatingBottomNav';
-import { InstallAppModal } from './components/InstallAppModal';
-import { DeviceLocationPromptModal } from './components/DeviceLocationPromptModal';
-import { AddProductModal } from './components/AddProductModal';
 import { FloatingLiveOrderButton, isProfileOrSubpage } from './components/orders/FloatingLiveOrderButton';
-import { LiveOrderDetailsModal } from './components/orders/LiveOrderDetailsModal';
-import { LiveOrderPage } from './components/orders/LiveOrderPage';
-import { AccountDeletionPage } from './components/AccountDeletionPage';
-import { HowToUseAppPage } from './components/HowToUseAppPage';
-import { SitemapPage } from './components/SitemapPage';
-import { SmartRunAppPage } from './components/SmartRunAppPage';
-import { DeliveryAreasPage } from './components/DeliveryAreasPage';
-import { ContactSupportPage } from './components/ContactSupportPage';
 import { SEOHead } from './components/SEOHead';
+
+const LocationModal = lazy(() => import('./components/LocationModal').then((m) => ({ default: m.LocationModal })));
+const LoginPage = lazy(() => import('./components/LoginPage').then((m) => ({ default: m.LoginPage })));
+const PersonalInfoPage = lazy(() => import('./components/PersonalInfoPage').then((m) => ({ default: m.PersonalInfoPage })));
+const ProfileView = lazy(() => import('./components/ProfileView').then((m) => ({ default: m.ProfileView })));
+const ProductDetailModal = lazy(() => import('./components/ProductDetailModal').then((m) => ({ default: m.ProductDetailModal })));
+const CartView = lazy(() => import('./components/CartView').then((m) => ({ default: m.CartView })));
+const MapsGroundingAssistant = lazy(() => import('./components/MapsGroundingAssistant').then((m) => ({ default: m.MapsGroundingAssistant })));
+const OrderHistoryView = lazy(() => import('./components/OrderHistoryView').then((m) => ({ default: m.OrderHistoryView })));
+const LegalView = lazy(() => import('./components/LegalViews').then((m) => ({ default: m.LegalView })));
+const ResetPassword = lazy(() => import('./components/ResetPassword').then((m) => ({ default: m.ResetPassword })));
+const ElectricalListingPage = lazy(() => import('./components/electrical/ElectricalListingPage').then((m) => ({ default: m.ElectricalListingPage })));
+const ProductDetailPage = lazy(() => import('./components/electrical/ProductDetailPage').then((m) => ({ default: m.ProductDetailPage })));
+const ConstructionPage = lazy(() => import('./components/ConstructionPage').then((m) => ({ default: m.ConstructionPage })));
+const TechniciansPage = lazy(() => import('./components/technicians/TechniciansPage').then((m) => ({ default: m.TechniciansPage })));
+const TechnicianDetailPage = lazy(() => import('./components/technicians/TechnicianDetailPage').then((m) => ({ default: m.TechnicianDetailPage })));
+const InstallAppModal = lazy(() => import('./components/InstallAppModal').then((m) => ({ default: m.InstallAppModal })));
+const DeviceLocationPromptModal = lazy(() => import('./components/DeviceLocationPromptModal').then((m) => ({ default: m.DeviceLocationPromptModal })));
+const AddProductModal = lazy(() => import('./components/AddProductModal').then((m) => ({ default: m.AddProductModal })));
+const LiveOrderDetailsModal = lazy(() => import('./components/orders/LiveOrderDetailsModal').then((m) => ({ default: m.LiveOrderDetailsModal })));
+const LiveOrderPage = lazy(() => import('./components/orders/LiveOrderPage').then((m) => ({ default: m.LiveOrderPage })));
+const AccountDeletionPage = lazy(() => import('./components/AccountDeletionPage').then((m) => ({ default: m.AccountDeletionPage })));
+const HowToUseAppPage = lazy(() => import('./components/HowToUseAppPage').then((m) => ({ default: m.HowToUseAppPage })));
+const SitemapPage = lazy(() => import('./components/SitemapPage').then((m) => ({ default: m.SitemapPage })));
+const SmartRunAppPage = lazy(() => import('./components/SmartRunAppPage').then((m) => ({ default: m.SmartRunAppPage })));
+const DeliveryAreasPage = lazy(() => import('./components/DeliveryAreasPage').then((m) => ({ default: m.DeliveryAreasPage })));
+const ContactSupportPage = lazy(() => import('./components/ContactSupportPage').then((m) => ({ default: m.ContactSupportPage })));
+
+import { supabase } from './lib/supabaseClient';
 import {
   trackPageView,
   trackAddToCart as trackGAAddToCart,
@@ -86,7 +87,7 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { Browser } from '@capacitor/browser';
 import { initPushNotifications, syncStoredPushTokenToSupabase } from './services/pushNotificationService';
 import { showToast } from './utils/toast';
-import { sanitizeCustomerName } from './services/firebaseAuthService';
+import { sanitizeCustomerName } from './utils/nameHelper';
 import { isNativePhoneApp } from './utils/platformDetection';
 import { fetchServerCurrentUser, syncServerSession, serverLogout } from './services/serverAuthService';
 
@@ -170,7 +171,7 @@ export default function App() {
 
   const [isLocationFetching, setIsLocationFetching] = useState(false);
 
-  // Automatic non-intrusive location fetch when user opens site or app
+  // Automatic non-intrusive location fetch when permission is already granted (prevents geolocation-on-start prompts and backdrop obstruction)
   useEffect(() => {
     let isCancelled = false;
 
@@ -186,17 +187,34 @@ export default function App() {
         } catch {}
       }
 
+      // On web browsers, only auto-fetch GPS on load when geolocation permission is already granted
+      if (!Capacitor.isNativePlatform() && !isNativePhoneApp()) {
+        try {
+          if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
+            const perm = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+            if (perm.state !== 'granted') {
+              return;
+            }
+          } else {
+            return;
+          }
+        } catch {
+          return;
+        }
+      }
+
       try {
         setIsLocationFetching(true);
 
-        // Fetch user device GPS / network position (Capacitor Geolocation on Android, HTML5 on web)
+        // Fetch user device GPS / network position
         const coords = await getResilientCurrentPosition();
         if (isCancelled) return;
 
-        // Reverse geocode coordinates to street and PIN code
+        // Dynamically load map reverse-geocoder only when coordinates resolve
         let street = '';
         let pincode = '';
         try {
+          const { mapManager } = await import('./services/maps');
           const revRes = await mapManager.reverseGeocode(coords);
           street = revRes.street || revRes.formattedAddress || '';
           pincode = revRes.pincode && /^\d{6}$/.test(revRes.pincode) ? revRes.pincode : '';
@@ -245,13 +263,6 @@ export default function App() {
         }
       } catch (err: any) {
         console.debug('[App Location Fetch Notice]:', err?.message || err);
-        // If location is not on or access is not given to our app, prompt user on storefront routes only (never block editorial/policy/info pages)
-        const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
-        const isEditorialOrAuthRoute = /^\/(login|auth|reset-password|personal-info|about|about-us|app|download|delivery-areas|service-areas|contact|contact-us|support|faq|faqs|shipping|shipping-policy|shipping-and-return-policy|return|return-policy|returns|refund|refund-policy|refunds|privacy|privacy-policy|terms|terms-of-service|sitemap|how-to-use|guide|delete|account-deletion)\b/i.test(currentPath);
-        const dismissedInSession = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('smartrun_location_prompt_dismissed') === 'true';
-        if (!isCancelled && !dismissedInSession && !isEditorialOrAuthRoute) {
-          setIsDeviceLocationPromptOpen(true);
-        }
       } finally {
         if (!isCancelled) {
           setIsLocationFetching(false);
@@ -1869,7 +1880,8 @@ export default function App() {
 
       {/* Main App Content View with Routes (Smooth GPU-accelerated page transitions) */}
       <main key={location.pathname} className="flex-1 animate-page-enter gpu-layer">
-        <Routes>
+        <Suspense fallback={<div className="min-h-screen bg-white" aria-busy="true" />}>
+          <Routes>
           {/* FLIPKART-STYLE ELECTRICAL LISTING PAGE */}
           <Route
             path="/electrical"
@@ -2466,6 +2478,7 @@ export default function App() {
           {/* Wildcard Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </main>
 
       {/* Floating Liquid Glass Bottom Navigation (Visible on discovery & catalog views: Home, Electrical, Construction, Technicians, and Wiring/Services) */}
@@ -2487,114 +2500,135 @@ export default function App() {
         />
       )}
 
-      {/* Modals & Slide-Overs */}
-      <InstallAppModal
-        isOpen={isInstallModalOpen}
-        onClose={() => setIsInstallModalOpen(false)}
-      />
+      {/* Lazy Modals & Slide-Overs (only downloaded when opened) */}
+      <Suspense fallback={null}>
+        {isInstallModalOpen && (
+          <InstallAppModal
+            isOpen={isInstallModalOpen}
+            onClose={() => setIsInstallModalOpen(false)}
+          />
+        )}
 
-      <DeviceLocationPromptModal
-        isOpen={
-          isDeviceLocationPromptOpen &&
-          !/^\/(login|auth|reset-password|personal-info|about|about-us|app|download|delivery-areas|service-areas|contact|contact-us|support|faq|faqs|shipping|shipping-policy|shipping-and-return-policy|return|return-policy|returns|refund|refund-policy|refunds|privacy|privacy-policy|terms|terms-of-service|sitemap|how-to-use|guide|delete|account-deletion)\b/i.test(location.pathname)
-        }
-        onClose={() => {
-          setIsDeviceLocationPromptOpen(false);
-          try {
-            sessionStorage.setItem('smartrun_location_prompt_dismissed', 'true');
-          } catch {}
-        }}
-        savedAddresses={savedAddresses}
-        currentArea={currentArea}
-        activeAddress={activeSavedAddress}
-        onSelectArea={(area, addr) => {
-          setCurrentArea(area);
-          try {
-            safeSetItem('smartrun_selected_area', JSON.stringify(area));
-            if (area?.pincode) {
-              safeSetItem('smartrun_user_pincode', area.pincode);
-            }
-          } catch (e) {}
-          if (addr) {
-            setActiveSavedAddress(addr);
-          } else {
-            setActiveSavedAddress(null);
-          }
-          setIsDeviceLocationPromptOpen(false);
-        }}
-        onOpenManualSearch={() => {
-          setIsDeviceLocationPromptOpen(false);
-          setIsLocationModalOpen(true);
-        }}
-      />
-
-      <LocationModal
-        isOpen={isLocationModalOpen}
-        onClose={() => {
-          setIsLocationModalOpen(false);
-          setAddressToEdit(null);
-        }}
-        savedAddresses={savedAddresses}
-        currentArea={currentArea}
-        activeAddress={activeSavedAddress}
-        initialAddressToEdit={addressToEdit}
-        userProfile={userProfile}
-        userPhone={userPhone}
-        onSelectArea={(area, addr) => {
-          setCurrentArea(area);
-          try {
-            safeSetItem('smartrun_selected_area', JSON.stringify(area));
-            if (area?.pincode) {
-              safeSetItem('smartrun_user_pincode', area.pincode);
-            }
-          } catch (e) {}
-          if (addr) {
-            setActiveSavedAddress(addr);
-          } else {
-            setActiveSavedAddress(null);
-          }
-          setAddressToEdit(null);
-        }}
-      />
-
-      <ProductDetailModal
-        product={selectedProductQuickView}
-        onClose={() => setSelectedProductQuickView(null)}
-        quantityInCart={
-          selectedProductQuickView
-            ? cartItems
-                .filter((i) => String(i.product.id) === String(selectedProductQuickView.id))
-                .reduce((acc, it) => acc + it.quantity, 0)
-            : 0
-        }
-        onAddToCart={handleAddToCart}
-        onUpdateQuantity={handleUpdateCartQuantity}
-        onOpenAuth={() => navigate('/auth')}
-        currentArea={currentArea}
-        activeAddress={activeSavedAddress}
-      />
-
-      <MapsGroundingAssistant
-        isOpen={isAiAssistantOpen}
-        onClose={() => setIsAiAssistantOpen(false)}
-        currentArea={currentArea}
-      />
-
-      <AddProductModal
-        isOpen={isAddProductOpen}
-        onClose={() => setIsAddProductOpen(false)}
-        onProductAdded={(newProduct) => {
-          showToast(`Product "${newProduct.name || 'Item'}" published successfully!`);
-          // Trigger catalog refresh
-          fetchProductsFromSupabase()
-            .then((fresh) => {
-              if (Array.isArray(fresh) && fresh.length > 0) {
-                setProducts(fresh);
+        {isDeviceLocationPromptOpen &&
+          !/^\/(login|auth|reset-password|personal-info|about|about-us|app|download|delivery-areas|service-areas|contact|contact-us|support|faq|faqs|shipping|shipping-policy|shipping-and-return-policy|return|return-policy|returns|refund|refund-policy|refunds|privacy|privacy-policy|terms|terms-of-service|sitemap|how-to-use|guide|delete|account-deletion)\b/i.test(location.pathname) && (
+          <DeviceLocationPromptModal
+            isOpen={isDeviceLocationPromptOpen}
+            onClose={() => {
+              setIsDeviceLocationPromptOpen(false);
+              try {
+                sessionStorage.setItem('smartrun_location_prompt_dismissed', 'true');
+              } catch {}
+            }}
+            savedAddresses={savedAddresses}
+            currentArea={currentArea}
+            activeAddress={activeSavedAddress}
+            onSelectArea={(area, addr) => {
+              setCurrentArea(area);
+              try {
+                safeSetItem('smartrun_selected_area', JSON.stringify(area));
+                if (area?.pincode) {
+                  safeSetItem('smartrun_user_pincode', area.pincode);
+                }
+              } catch (e) {}
+              if (addr) {
+                setActiveSavedAddress(addr);
+              } else {
+                setActiveSavedAddress(null);
               }
-            })
-            .catch(() => {});
-        }}
-      />
+              setIsDeviceLocationPromptOpen(false);
+            }}
+            onOpenManualSearch={() => {
+              setIsDeviceLocationPromptOpen(false);
+              setIsLocationModalOpen(true);
+            }}
+          />
+        )}
+
+        {isLocationModalOpen && (
+          <LocationModal
+            isOpen={isLocationModalOpen}
+            onClose={() => {
+              setIsLocationModalOpen(false);
+              setAddressToEdit(null);
+            }}
+            savedAddresses={savedAddresses}
+            currentArea={currentArea}
+            activeAddress={activeSavedAddress}
+            initialAddressToEdit={addressToEdit}
+            userProfile={userProfile}
+            userPhone={userPhone}
+            onSelectArea={(area, addr) => {
+              setCurrentArea(area);
+              try {
+                safeSetItem('smartrun_selected_area', JSON.stringify(area));
+                if (area?.pincode) {
+                  safeSetItem('smartrun_user_pincode', area.pincode);
+                }
+              } catch (e) {}
+              if (addr) {
+                setActiveSavedAddress(addr);
+              } else {
+                setActiveSavedAddress(null);
+              }
+              setAddressToEdit(null);
+            }}
+          />
+        )}
+
+        {Boolean(selectedProductQuickView) && (
+          <ProductDetailModal
+            product={selectedProductQuickView}
+            onClose={() => setSelectedProductQuickView(null)}
+            quantityInCart={
+              selectedProductQuickView
+                ? cartItems
+                    .filter((i) => String(i.product.id) === String(selectedProductQuickView.id))
+                    .reduce((acc, it) => acc + it.quantity, 0)
+                : 0
+            }
+            onAddToCart={handleAddToCart}
+            onUpdateQuantity={handleUpdateCartQuantity}
+            onOpenAuth={() => navigate('/auth')}
+            currentArea={currentArea}
+            activeAddress={activeSavedAddress}
+          />
+        )}
+
+        {isAiAssistantOpen && (
+          <MapsGroundingAssistant
+            isOpen={isAiAssistantOpen}
+            onClose={() => setIsAiAssistantOpen(false)}
+            currentArea={currentArea}
+          />
+        )}
+
+        {isAddProductOpen && (
+          <AddProductModal
+            isOpen={isAddProductOpen}
+            onClose={() => setIsAddProductOpen(false)}
+            onProductAdded={(newProduct) => {
+              showToast(`Product "${newProduct.name || 'Item'}" published successfully!`);
+              // Trigger catalog refresh
+              fetchProductsFromSupabase({ forceRefresh: true })
+                .then((fresh) => {
+                  if (Array.isArray(fresh) && fresh.length > 0) {
+                    setProducts(fresh);
+                  }
+                })
+                .catch(() => {});
+            }}
+          />
+        )}
+
+        {/* Legacy/Fallback Live Order Handler (Safely redirects to dedicated page across all devices) */}
+        {isLiveOrderModalOpen && (
+          <LiveOrderDetailsModal
+            isOpen={isLiveOrderModalOpen}
+            order={activeLiveOrder}
+            onClose={() => setIsLiveOrderModalOpen(false)}
+          />
+        )}
+      </Suspense>
 
       {/* Zomato-style Floating Map Route Circle Button for Current Active Order (Navigates directly to dedicated live order page, hidden on profile tab, all pages opened from profile buttons, cart page, product details, and live-order pages) */}
       {!isProfileOrSubpage(location.pathname) && activeTab !== 'cart' && activeTab !== 'profile' && (
@@ -2603,13 +2637,6 @@ export default function App() {
           onClick={() => navigate('/live-order')}
         />
       )}
-
-      {/* Legacy/Fallback Live Order Handler (Safely redirects to dedicated page across all devices) */}
-      <LiveOrderDetailsModal
-        isOpen={isLiveOrderModalOpen}
-        order={activeLiveOrder}
-        onClose={() => setIsLiveOrderModalOpen(false)}
-      />
 
     </div>
   );

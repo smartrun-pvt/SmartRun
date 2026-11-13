@@ -159,6 +159,7 @@ export const DeviceLocationPromptModal = ({
         onClick={onClose}
         className="mb-2.5 sm:mb-3 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-900/90 hover:bg-slate-950 text-white shadow-xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer border border-white/20"
         title="Close"
+        aria-label="Close location prompt"
       >
         <X className="w-4.5 h-4.5 stroke-[2.5]" />
       </button>
@@ -166,6 +167,9 @@ export const DeviceLocationPromptModal = ({
       {/* Bottom Sheet Container - Perfectly fitted for mobile phone screens */}
       <div
         id="device-location-prompt-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Choose delivery location"
         style={dragStyle}
         className="w-full max-w-lg bg-[#f8fafc] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-200/90 animate-in slide-in-from-bottom duration-300 flex flex-col max-h-[85vh] sm:max-h-[80vh] text-slate-900"
       >

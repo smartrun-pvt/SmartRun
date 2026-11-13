@@ -1,0 +1,101 @@
+{
+  "version": "1.0",
+  "name": "SmartRun — Express Electrical & Construction Materials Depot (Kolkata)",
+  "description": "60-minute express delivery of electrical wires, MCB switchgear, switches, UltraTech cement, TMT rebars, and licensed electrician booking across Kolkata and Howrah.",
+  "publisher": {
+    "name": "SmartRun Materials Pvt. Ltd.",
+    "url": "https://www.smartrun.in/",
+    "contact": "team@smartrun.in",
+    "telephone": "+91-8777400280",
+    "location": "SmartRun Kasba Central Depot, Kolkata 700107, West Bengal, India"
+  },
+  "resources": [
+    {
+      "id": "llms-txt",
+      "type": "llms_txt",
+      "url": "https://www.smartrun.in/llms.txt",
+      "mediaType": "text/plain",
+      "description": "Concise markdown summary of SmartRun brand, dispatch depot, Kolkata/Howrah PIN coverage, and key catalog links."
+    },
+    {
+      "id": "catalog-api",
+      "type": "rest_api",
+      "url": "https://www.smartrun.in/api/products",
+      "mediaType": "application/json",
+      "auth": "none",
+      "description": "Read-only public JSON catalog of electrical and construction products with pricing, brands, and stock status."
+    },
+    {
+      "id": "openapi-spec",
+      "type": "openapi",
+      "url": "https://www.smartrun.in/api/ai/openapi.json",
+      "mediaType": "application/json",
+      "auth": "none",
+      "description": "OpenAPI 3.1.0 machine specification for public SmartRun read endpoints."
+    },
+    {
+      "id": "ai-agent-manifest",
+      "type": "agent_manifest",
+      "url": "https://www.smartrun.in/.well-known/ai-agent-manifest.json",
+      "mediaType": "application/json",
+      "auth": "none",
+      "description": "Agent capabilities, Android deep link schemes (in.smartrun.app), and intent templates."
+    },
+    {
+      "id": "xml-sitemap",
+      "type": "sitemap",
+      "url": "https://www.smartrun.in/sitemap.xml",
+      "mediaType": "application/xml",
+      "auth": "none",
+      "description": "Canonical XML sitemap covering storefront categories, all active products, and verified Kolkata technicians."
+    },
+    {
+      "id": "rss-feed",
+      "type": "feed",
+      "url": "https://www.smartrun.in/rss.xml",
+      "mediaType": "application/xml",
+      "auth": "none",
+      "description": "RSS 2.0 catalog syndication feed."
+    },
+    {
+      "id": "google-merchant-feed",
+      "type": "feed",
+      "url": "https://www.smartrun.in/api/feeds/google-merchant.xml",
+      "mediaType": "application/xml",
+      "auth": "none",
+      "description": "Google Merchant Center RSS 2.0 XML product feed."
+    }
+  ],
+  "capabilities": {
+    "contentNegotiation": {
+      "markdown": true,
+      "acceptHeader": "text/markdown",
+      "routes": [
+        "/",
+        "/electrical",
+        "/construction",
+        "/technicians",
+        "/app",
+        "/delivery-areas",
+        "/about",
+        "/faqs",
+        "/how-to-use",
+        "/contact"
+      ]
+    },
+    "webmcp": {
+      "imperativeTools": [
+        "search_smartrun_products",
+        "get_smartrun_product_details",
+        "check_kolkata_pincode_delivery",
+        "list_kolkata_electricians"
+      ],
+      "declarativeForms": [
+        {
+          "toolname": "search_smartrun_catalog",
+          "url": "https://www.smartrun.in/electrical?q={q}"
+        }
+      ]
+    }
+  }
+}

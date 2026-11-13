@@ -7,16 +7,18 @@ graph TD
     Client -->|Auth / Session Storage| SupabaseAuth[Supabase Auth & Database]
     Client -->|Realtime Backup / User Profiles| Firestore[Firebase Cloud Firestore]
 
-    subgraph SEO_SSR_Prerendering [Server-Side Micro-Prerendering, SSR Shell & AI Discovery Engine]
+    subgraph SEO_SSR_Prerendering [Server-Side Micro-Prerendering, ARD, Markdown & WebMCP]
         CloudRun --> SeoCheck{Crawlable Route?}
-        SeoCheck -->|Yes: Storefront/Products/Techs/GEO/Policies| InjectMeta[seoHelper: normalizeCanonicalPath + injectSeoMetadata]
+        SeoCheck -->|Yes & Accept text/markdown| RenderMd[seoHelper.renderMarkdownRepresentation + Vary Accept + Link ard]
+        SeoCheck -->|Yes & Accept text/html| InjectMeta[seoHelper: normalizeCanonicalPath + injectSeoMetadata]
         InjectMeta --> SchemaGraph[JSON-LD @graph: WebSite / #store / #depot-kasba / #android-app / FAQPage / Product / Person]
         SchemaGraph --> SsrBody[Inject SSR_SEO_SHELL_SLOT: main#ssr-seo-shell H1 + internal nav links]
-        SsrBody --> SendHtml[Serve Pre-populated HTML with single server-prerender-schema]
-        SendHtml --> ClientHydration[Client Mount: createRoot replaces #ssr-seo-shell; SEOHead purges server-prerender-schema]
+        SsrBody --> SendHtml[Serve Pre-populated HTML with Link ARD & single server-prerender-schema]
+        SendHtml --> ClientHydration[Client Boot: registerSmartRunWebMcpTools + lazy-route Suspense]
         SeoCheck -->|No / Static Asset / API| NextHandler[Standard Vite/Static or API Route]
         CloudRun --> SitemapGen[GET /sitemap.xml: Deduplicated Canonical URLs + Catalog + Techs]
-        CloudRun --> LlmsGen[GET /llms.txt & /robots.txt: AI Search Entity Summary & Crawler Policy]
+        CloudRun --> LlmsGen[GET /llms.txt & /robots.txt: AI Entity Summary + Agentmap ARD]
+        CloudRun --> ArdJson[GET /.well-known/ard.json: Agentic Resource Discovery]
         CloudRun --> RssGen[GET /rss.xml & /api/feeds/google-merchant.xml: Product Feeds]
         CloudRun --> AiOpenApi[GET /api/ai/openapi.json & /.well-known/assetlinks.json]
     end

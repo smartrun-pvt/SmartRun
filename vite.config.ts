@@ -56,6 +56,43 @@ export default defineConfig(({ command }) => {
         ignored: ['**/ios/**', '**/android/**', '**/dist/**'],
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined;
+            if (id.includes('react-dom') || id.includes('/react/') || id.includes('scheduler')) {
+              return 'vendor-react';
+            }
+            if (id.includes('react-router')) {
+              return 'vendor-router';
+            }
+            if (id.includes('@supabase')) {
+              return 'vendor-supabase';
+            }
+            if (id.includes('firebase')) {
+              return 'vendor-firebase';
+            }
+            if (id.includes('leaflet')) {
+              return 'vendor-leaflet';
+            }
+            if (id.includes('@vis.gl/react-google-maps')) {
+              return 'vendor-gmaps';
+            }
+            if (id.includes('html2canvas') || id.includes('jspdf')) {
+              return 'vendor-pdf';
+            }
+            if (id.includes('motion')) {
+              return 'vendor-motion';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            return undefined;
+          },
+        },
+      },
+    },
     optimizeDeps: {
       entries: ['index.html'],
     },

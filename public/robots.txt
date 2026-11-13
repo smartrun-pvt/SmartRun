@@ -40,6 +40,7 @@ Allow: /sitemap.xml
 Allow: /rss.xml
 Allow: /feed.xml
 Allow: /llms.txt
+Allow: /.well-known/ard.json
 Allow: /api/products
 Allow: /api/products/*
 Allow: /api/ai/openapi.json
@@ -82,6 +83,7 @@ Allow: /privacy
 Allow: /terms
 Allow: /sitemap
 Allow: /llms.txt
+Allow: /.well-known/ard.json
 Disallow: /login
 Disallow: /cart
 Disallow: /profile
@@ -97,6 +99,7 @@ Disallow: /api/auth/*
 Disallow: /api/orders/*
 Disallow: /api/user-profile
 
-# XML Sitemaps & Syndication Feeds
+# XML Sitemaps, Agentic Discovery & Syndication Feeds
 Sitemap: https://www.smartrun.in/sitemap.xml
 Sitemap: https://www.smartrun.in/rss.xml
+Agentmap: https://www.smartrun.in/.well-known/ard.json

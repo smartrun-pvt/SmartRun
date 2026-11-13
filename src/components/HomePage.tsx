@@ -403,7 +403,7 @@ export const HomePage = ({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
         () => {
-          fetchProductsFromSupabase()
+          fetchProductsFromSupabase({ forceRefresh: true })
             .then((data) => {
               if (isMounted && data) {
                 setDbProducts(data);
@@ -627,6 +627,7 @@ export const HomePage = ({
               return (
                 <div
                   key={poster.id}
+                  aria-hidden={!isActive}
                   className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ease-in-out ${
                     isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                   } bg-gradient-to-r ${poster.bgGradient} text-white px-6 sm:px-10 md:px-12 py-5 sm:py-7 overflow-hidden flex flex-col justify-center`}
@@ -638,7 +639,9 @@ export const HomePage = ({
                         {/* Realistic Architectural / Oil Art Background Layer */}
                         <img
                           src={poster.paintingImage}
-                          alt="Artistic Backdrop"
+                          alt=""
+                          loading={index === 0 ? 'eager' : 'lazy'}
+                          decoding="async"
                           className="absolute inset-0 w-full h-full object-cover object-center opacity-30 mix-blend-luminosity scale-105 transition-transform duration-10000 ease-out"
                         />
 
@@ -756,6 +759,7 @@ export const HomePage = ({
                     <div className="pt-1.5 sm:pt-2 flex flex-wrap items-center gap-3">
                       <Link
                         to={poster.link}
+                        tabIndex={isActive ? 0 : -1}
                         className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs sm:text-sm backdrop-blur-md border border-white/40 shadow-xs hover:shadow-sm transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2 cursor-pointer"
                       >
                         {poster.ctaText}
@@ -1266,24 +1270,24 @@ export const HomePage = ({
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div className="p-3 rounded-xl bg-white border border-slate-100 space-y-1">
-                  <span className="font-black text-amber-600 text-sm">01</span>
+                  <span className="font-black text-amber-700 text-sm">01</span>
                   <p className="font-bold text-slate-900">Select Gauge &amp; Color</p>
-                  <p className="text-[11px] text-slate-500">Pick wire gauge (0.75-6 sqmm) &amp; phase color swatches.</p>
+                  <p className="text-[11px] text-slate-600">Pick wire gauge (0.75-6 sqmm) &amp; phase color swatches.</p>
                 </div>
                 <div className="p-3 rounded-xl bg-white border border-slate-100 space-y-1">
-                  <span className="font-black text-amber-600 text-sm">02</span>
+                  <span className="font-black text-amber-700 text-sm">02</span>
                   <p className="font-bold text-slate-900">Check Pincode</p>
-                  <p className="text-[11px] text-slate-500">Instant verification for 60-minute Kolkata dispatch.</p>
+                  <p className="text-[11px] text-slate-600">Instant verification for 60-minute Kolkata dispatch.</p>
                 </div>
                 <div className="p-3 rounded-xl bg-white border border-slate-100 space-y-1">
-                  <span className="font-black text-amber-600 text-sm">03</span>
+                  <span className="font-black text-amber-700 text-sm">03</span>
                   <p className="font-bold text-slate-900">Flexible Payment</p>
-                  <p className="text-[11px] text-slate-500">Pay via UPI (GPay/PhonePe), Cards, NetBanking, or COD.</p>
+                  <p className="text-[11px] text-slate-600">Pay via UPI (GPay/PhonePe), Cards, NetBanking, or COD.</p>
                 </div>
                 <div className="p-3 rounded-xl bg-white border border-slate-100 space-y-1">
-                  <span className="font-black text-amber-600 text-sm">04</span>
+                  <span className="font-black text-amber-700 text-sm">04</span>
                   <p className="font-bold text-slate-900">Live GPS &amp; Invoice</p>
-                  <p className="text-[11px] text-slate-500">Track rider on live maps &amp; download GST invoices.</p>
+                  <p className="text-[11px] text-slate-600">Track rider on live maps &amp; download GST invoices.</p>
                 </div>
               </div>
             </div>

@@ -31,7 +31,7 @@ import {
 } from "firebase/firestore";
 import { INITIAL_PRODUCTS } from "./src/data/products";
 import { DEMO_TECHNICIANS } from "./src/data/demoTechnicians";
-import { generateDynamicSitemap, generateRssFeed, injectSeoMetadata } from "./src/utils/seoHelper";
+import { generateDynamicSitemap, generateRssFeed, injectSeoMetadata, renderMarkdownRepresentation } from "./src/utils/seoHelper";
 
 dotenv.config();
 
@@ -2356,7 +2356,24 @@ async function startServer() {
     ]);
   });
 
-  // Google Play AI Search, Gemini, and LLM Agent Discovery Manifests
+  // Agentic Resource Discovery (ARD) manifest + Google Play AI Search / LLM Agent Manifests
+  app.get("/.well-known/ard.json", (_req, res) => {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    const candidates = [
+      path.join(process.cwd(), "public", ".well-known", "ard.json"),
+      path.join(process.cwd(), "dist", ".well-known", "ard.json"),
+      path.join(__dirnameResolved, "public", ".well-known", "ard.json")
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        return res.sendFile(p);
+      }
+    }
+    return res.status(404).json({ error: "ARD manifest not found" });
+  });
+
   app.get(["/.well-known/ai-agent-manifest.json", "/.well-known/ai-plugin.json"], (req, res) => {
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -2474,6 +2491,8 @@ async function startServer() {
 
   app.get("/llms.txt", (_req, res) => {
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Link", '</.well-known/ard.json>; rel="ard"; type="application/json"');
     res.setHeader("Cache-Control", "public, max-age=86400");
     const candidates = [
       path.join(process.cwd(), "public", "llms.txt"),
@@ -9933,6 +9952,17 @@ Knowledge Base & Service Details:
             ? (DEMO_TECHNICIANS as any[]).find((t) => String(t.id).toLowerCase() === String(productId).toLowerCase())
             : null;
 
+          res.setHeader("Vary", "Accept");
+          res.setHeader("Link", '</.well-known/ard.json>; rel="ard"; type="application/json", </llms.txt>; rel="alternate"; type="text/markdown"');
+
+          const acceptHeader = String(req.headers.accept || "").toLowerCase();
+          if (acceptHeader.includes("text/markdown") && !acceptHeader.includes("text/html")) {
+            const markdownBody = renderMarkdownRepresentation(req.path, matchedProduct, matchedTechnician);
+            res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+            res.setHeader("Cache-Control", "public, max-age=300");
+            return res.status(200).send(markdownBody);
+          }
+
           const rawTemplate = fs.readFileSync(path.join(process.cwd(), "index.html"), "utf-8");
           const devHtml = await vite.transformIndexHtml(req.originalUrl, rawTemplate);
           const injectedHtml = injectSeoMetadata(devHtml, req.path, matchedProduct, matchedTechnician);
@@ -10043,6 +10073,17 @@ Knowledge Base & Service Details:
           const matchedTechnician = productId && req.path.startsWith('/technicians/')
             ? (DEMO_TECHNICIANS as any[]).find((t) => String(t.id).toLowerCase() === String(productId).toLowerCase())
             : null;
+
+          res.setHeader("Vary", "Accept");
+          res.setHeader("Link", '</.well-known/ard.json>; rel="ard"; type="application/json", </llms.txt>; rel="alternate"; type="text/markdown"');
+
+          const acceptHeader = String(req.headers.accept || "").toLowerCase();
+          if (acceptHeader.includes("text/markdown") && !acceptHeader.includes("text/html")) {
+            const markdownBody = renderMarkdownRepresentation(req.path, matchedProduct, matchedTechnician);
+            res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+            res.setHeader("Cache-Control", "public, max-age=300");
+            return res.status(200).send(markdownBody);
+          }
 
           const rawHtml = fs.readFileSync(prodIndexFile, "utf-8");
           const injectedHtml = injectSeoMetadata(rawHtml, req.path, matchedProduct, matchedTechnician);

@@ -1,5 +1,3 @@
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import { Order } from '../types';
 import { getShortOrderUuid } from './cryptoHelper';
 
@@ -89,7 +87,12 @@ export async function downloadInvoicePDF(order: Order): Promise<void> {
   document.body.appendChild(container);
 
   try {
-    const pdf = new jsPDF({
+    const [{ default: html2canvas }, jsPdfModule] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf')
+    ]);
+    const JsPDFCtor = (jsPdfModule as any).jsPDF || (jsPdfModule as any).default;
+    const pdf = new JsPDFCtor({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4'

@@ -453,6 +453,8 @@ export const Header = ({
             onSubmit={handleSearchSubmit}
             className="relative flex-1 group"
             role="search"
+            toolname="search_smartrun_catalog"
+            tooldescription="Search SmartRun Kolkata express catalog for electrical wires, switches, MCBs, construction materials, or licensed electricians."
           >
             <div className="relative flex items-center w-full rounded-full bg-slate-100 hover:bg-slate-100/90 focus-within:bg-white border border-slate-200/80 focus-within:border-[#00875a]/50 focus-within:ring-2 focus-within:ring-[#00875a]/20 shadow-[0_2px_12px_rgba(0,0,0,0.03)] focus-within:shadow-[0_4px_20px_rgba(0,135,90,0.12)] transition-colors duration-150">
               {/* Google-style Magnifying Glass Icon */}
@@ -462,8 +464,16 @@ export const Header = ({
 
               <input
                 id="universal-search-input"
+                name="q"
                 type="text"
                 inputMode="search"
+                aria-label={
+                  isTechniciansPage
+                    ? 'Search electrical technicians or skills'
+                    : 'Search electrical products, construction materials, wires, switches, and brands'
+                }
+                toolparamtitle="Search Query"
+                toolparamdescription="Keyword for product name, brand, wire gauge, construction material, or electrician specialization"
                 value={searchQuery || ''}
                 onChange={(e) => {
                   if (onSearchChange) onSearchChange(e.target.value);
@@ -534,6 +544,7 @@ export const Header = ({
                           <img
                             src={product.image || (product.images && product.images[0]) || ''}
                             alt={product.name}
+                            referrerPolicy="no-referrer"
                             className="w-10 h-10 object-contain rounded-lg bg-slate-50 border border-slate-200/80 p-0.5 shrink-0 group-hover:scale-105 transition-transform"
                             onError={(e) => {
                               (e.currentTarget as HTMLElement).style.display = 'none';

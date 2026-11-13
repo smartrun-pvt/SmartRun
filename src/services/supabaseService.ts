@@ -11,6 +11,7 @@ import { API_BASE_URL, apiUrl } from '../lib/apiBase';
 import { generateUUID as secureGenerateUUID, generateSecureOrderNumber, generateSecureToken } from '../utils/cryptoHelper';
 import { NEUTRAL_PRODUCT_PLACEHOLDER } from '../data/productColorImages';
 import { sendOrderDeliveredEmail } from './emailService';
+import { createInFlightCachedLoader } from '../utils/productFetchCache';
 
 // Offline Sync Queue Types & Constants
 export interface PendingSyncItem {
@@ -4461,98 +4462,96 @@ export async function updateOrMigrateDaldaPipeInSupabase(): Promise<{ success: b
   }
 }
 
-// Auto-run migration once on client initialization
-if (typeof window !== 'undefined') {
-  setTimeout(() => {
-    updateOrMigrateDaldaPipeInSupabase().catch(() => {});
-  }, 1000);
-}
+const productsCatalogLoader = createInFlightCachedLoader<Product[]>(
+  async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (!error && data) {
+        const dbProducts: Product[] = data.map((row): Product => {
+          const rawImageUrls: string[] = Array.isArray(row.image_urls)
+            ? row.image_urls.filter((u: any) => typeof u === 'string' && u.trim().length > 0)
+            : typeof row.image_urls === 'string' && row.image_urls.startsWith('http')
+            ? [row.image_urls]
+            : [];
+
+          if (row.image && typeof row.image === 'string' && row.image.trim() && !rawImageUrls.includes(row.image.trim())) {
+            rawImageUrls.unshift(row.image.trim());
+          }
+
+          const primaryImage =
+            rawImageUrls[0] ||
+            row.image ||
+            NEUTRAL_PRODUCT_PLACEHOLDER;
+          const finalImages = rawImageUrls.length > 0 ? rawImageUrls : [primaryImage];
+
+          return {
+            id: String(row.id),
+            name: row.name || 'Product',
+            brand: row.brand || 'Giriraj Genuine',
+            category: row.category || 'electrical',
+            subCategory: row.sub_category || row.subcategory || row.subCategory || 'General',
+            price: Number(row.price || 0),
+            originalPrice: Number(row.original_price || row.originalPrice || row.mrp || (row.price ? row.price * 1.15 : 0)),
+            discountPercentage: Number(row.discount_percentage || row.discountPercentage || 0),
+            unit: row.unit || '1 pc',
+            rating: Number(row.rating || row.rating_avg || 4.8),
+            reviewsCount: Number(row.reviews_count || row.rating_count || 50),
+            deliveryMinutes: Number(row.delivery_minutes || row.deliveryMinutes || 30),
+            image: primaryImage,
+            images: finalImages,
+            image_urls: finalImages,
+            inStock: row.in_stock ?? row.inStock ?? true,
+            stockCount: Number(row.stock_count || row.stock_quantity || 50),
+            tags: row.tags || [],
+            isEmergency: !!(row.is_emergency ?? row.isEmergency),
+            isBestSeller: !!(row.is_best_seller ?? row.isBestSeller),
+            specs: row.specs || (typeof row.specifications === 'object' ? row.specifications : {}),
+            colors: Array.isArray(row.color_variants)
+              ? row.color_variants
+              : Array.isArray(row.colors)
+              ? row.colors
+              : typeof row.colors === 'string'
+              ? [row.colors]
+              : Array.isArray(row.colours)
+              ? row.colours
+              : undefined,
+            colours: Array.isArray(row.color_variants)
+              ? row.color_variants
+              : Array.isArray(row.colors)
+              ? row.colors
+              : typeof row.colors === 'string'
+              ? [row.colors]
+              : Array.isArray(row.colours)
+              ? row.colours
+              : undefined,
+            color_options: Array.isArray(row.color_variants) ? row.color_variants : Array.isArray(row.color_options) ? row.color_options : undefined,
+            color_variants: row.color_variants || row.colorVariants,
+            colorVariants: row.color_variants || row.colorVariants,
+            selectedColor: row.selectedColor || row.selected_color,
+            description: row.description || ''
+          };
+        });
+
+        return dbProducts;
+      }
+    } catch (err) {
+      console.warn('Supabase products fetch error:', err);
+    }
+
+    return [];
+  },
+  30_000,
+  (list) => Array.isArray(list) && list.length > 0
+);
 
 /**
  * Fetches live products strictly from Supabase `products` table (Strict Database Mode)
  */
-export async function fetchProductsFromSupabase(): Promise<Product[]> {
-  try {
-    // Run migration guarantee
-    updateOrMigrateDaldaPipeInSupabase().catch(() => {});
-
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('id', { ascending: true });
-
-    if (!error && data) {
-      const dbProducts: Product[] = data.map((row): Product => {
-        const rawImageUrls: string[] = Array.isArray(row.image_urls)
-          ? row.image_urls.filter((u: any) => typeof u === 'string' && u.trim().length > 0)
-          : typeof row.image_urls === 'string' && row.image_urls.startsWith('http')
-          ? [row.image_urls]
-          : [];
-
-        if (row.image && typeof row.image === 'string' && row.image.trim() && !rawImageUrls.includes(row.image.trim())) {
-          rawImageUrls.unshift(row.image.trim());
-        }
-
-        const primaryImage =
-          rawImageUrls[0] ||
-          row.image ||
-          NEUTRAL_PRODUCT_PLACEHOLDER;
-        const finalImages = rawImageUrls.length > 0 ? rawImageUrls : [primaryImage];
-
-        return {
-          id: String(row.id),
-          name: row.name || 'Product',
-          brand: row.brand || 'Giriraj Genuine',
-          category: row.category || 'electrical',
-          subCategory: row.sub_category || row.subcategory || row.subCategory || 'General',
-          price: Number(row.price || 0),
-          originalPrice: Number(row.original_price || row.originalPrice || row.mrp || (row.price ? row.price * 1.15 : 0)),
-          discountPercentage: Number(row.discount_percentage || row.discountPercentage || 0),
-          unit: row.unit || '1 pc',
-          rating: Number(row.rating || row.rating_avg || 4.8),
-          reviewsCount: Number(row.reviews_count || row.rating_count || 50),
-          deliveryMinutes: Number(row.delivery_minutes || row.deliveryMinutes || 30),
-          image: primaryImage,
-          images: finalImages,
-          image_urls: finalImages,
-          inStock: row.in_stock ?? row.inStock ?? true,
-          stockCount: Number(row.stock_count || row.stock_quantity || 50),
-          tags: row.tags || [],
-          isEmergency: !!(row.is_emergency ?? row.isEmergency),
-          isBestSeller: !!(row.is_best_seller ?? row.isBestSeller),
-          specs: row.specs || (typeof row.specifications === 'object' ? row.specifications : {}),
-          colors: Array.isArray(row.color_variants)
-            ? row.color_variants
-            : Array.isArray(row.colors)
-            ? row.colors
-            : typeof row.colors === 'string'
-            ? [row.colors]
-            : Array.isArray(row.colours)
-            ? row.colours
-            : undefined,
-          colours: Array.isArray(row.color_variants)
-            ? row.color_variants
-            : Array.isArray(row.colors)
-            ? row.colors
-            : typeof row.colors === 'string'
-            ? [row.colors]
-            : Array.isArray(row.colours)
-            ? row.colours
-            : undefined,
-          color_options: Array.isArray(row.color_variants) ? row.color_variants : Array.isArray(row.color_options) ? row.color_options : undefined,
-          color_variants: row.color_variants || row.colorVariants,
-          colorVariants: row.color_variants || row.colorVariants,
-          selectedColor: row.selectedColor || row.selected_color,
-          description: row.description || ''
-        };
-      });
-
-      return dbProducts;
-    }
-  } catch (err) {
-    console.warn('Supabase products fetch error:', err);
-  }
-
-  return [];
+export async function fetchProductsFromSupabase(options?: { forceRefresh?: boolean }): Promise<Product[]> {
+  return productsCatalogLoader.load(options);
 }
 
