@@ -24,7 +24,7 @@ graph TD
     end
 
     subgraph App_Discovery_Tracking [Web-to-App & GA4 G-E3TVJRTKRP Attribution]
-        Client -->|Play Store CTAs: Footer/Modal/About/Sitemap| PlayStore[Google Play Listing in.smartrun.app]
+        Client -->|Play Store CTAs: Modal/About/App/Sitemap| PlayStore[Google Play Listing in.smartrun.app]
         Client -->|Share Product Link| ShareHelper[shareProduct: smartrun.in/electrical or construction/product/:id]
         Client -->|Analytics Events| GA4[Google Analytics 4: G-E3TVJRTKRP]
         PlayStore -->|HTTPS autoVerify smartrun.in| AndroidApp[Capacitor MainActivity + network_security_config.xml]
