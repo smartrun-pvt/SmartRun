@@ -8,7 +8,6 @@ import {
   Clock,
   HelpCircle,
   User,
-  ChevronLeft,
   Sparkles,
   Wifi,
   WifiOff,
@@ -25,6 +24,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, Order, SavedAddress } from '../types';
 import { API_BASE_URL } from '../lib/apiBase';
+import { ProfileSubPageNavbar } from './profile/ProfileSubPageNavbar';
 import {
   processOfflineQuery,
   SUPPORT_CONTACTS,
@@ -445,57 +445,36 @@ export const HelpCenterChat = ({
 
   return (
     <div className="h-[100dvh] max-h-[100dvh] w-full flex flex-col bg-slate-50 overflow-hidden select-text">
-      {/* 1. UNIFIED PAGE HEADER: Chat Support, FAQ button, Refresh button */}
-      <header
-        id="chat-support-header"
-        className="shrink-0 sticky top-0 z-30 bg-[#74c69d] border-b border-[#52b788] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
-        style={{
-          backgroundColor: '#74c69d',
-          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))'
-        }}
-      >
-        <div className="w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer shrink-0"
-                title="Back to Profile"
-                aria-label="Back to Profile"
-              >
-                <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
-              </button>
-            )}
-
-            <h1
-              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal truncate"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
-            >
-              Chat Support
-            </h1>
-          </div>
-
-          {/* Right Header Actions: Reset Chat Button */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={handleClearChat}
-              className="p-2 rounded-xl text-slate-800 hover:text-black hover:bg-black/10 active:bg-black/15 border border-black/15 transition-colors cursor-pointer"
-              title="Clear Chat History"
-              aria-label="Clear Chat History"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </header>
+      {/* 1. UNIFIED PAGE HEADER: Help Center & Refresh button */}
+      <ProfileSubPageNavbar
+        headerId="chat-support-header"
+        title="Help Center"
+        onBack={onBack || (() => {})}
+        backTitle="Back to Profile"
+        backAriaLabel="Back to Profile"
+        rightContent={
+          <button
+            type="button"
+            onClick={handleClearChat}
+            className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl text-slate-800 hover:text-black hover:bg-black/10 active:bg-black/15 border border-black/15 transition-colors cursor-pointer"
+            title="Clear Chat History"
+            aria-label="Clear Chat History"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        }
+      />
 
       {/* 2. CHAT MESSAGES SCROLLABLE STREAM (Fills Middle Viewport) */}
       <div
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4 bg-slate-100/60"
+        className="flex-1 min-h-0 overflow-y-auto bg-slate-100/60"
+        style={{
+          paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+          paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
+        }}
       >
+        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-4 space-y-4">
         {messages.map((msg, index) => {
           const isUser = msg.sender === 'user';
           const prevMsg = index > 0 ? messages[index - 1] : null;
@@ -621,61 +600,78 @@ export const HelpCenterChat = ({
         )}
 
         <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* 4. FREQUENTLY ASKED QUESTIONS POP-UP DRAWER (Merged directly into Chatbot) */}
       {isFaqDrawerOpen && (
-        <div className="bg-white border-t border-slate-200 px-4 py-3 shadow-lg max-h-56 overflow-y-auto shrink-0 transition-all">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5 text-xs font-black text-slate-900">
-              <HelpCircle className="w-4 h-4 text-amber-500" />
-              <span>Tap a Store FAQ to ask Mayra:</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsFaqDrawerOpen(false)}
-              className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {STORE_FAQS.map((faq) => (
+        <div
+          className="bg-white border-t border-slate-200 py-3 shadow-lg max-h-56 overflow-y-auto shrink-0 transition-all"
+          style={{
+            paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+            paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
+          }}
+        >
+          <div className="max-w-3xl mx-auto w-full px-4 sm:px-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5 text-xs font-black text-slate-900">
+                <HelpCircle className="w-4 h-4 text-amber-500" />
+                <span>Tap a Store FAQ to ask Mayra:</span>
+              </div>
               <button
-                key={faq.id}
                 type="button"
-                onClick={() => {
-                  setIsFaqDrawerOpen(false);
-                  handleSendMessage(faq.question);
-                }}
-                className="text-left p-2 rounded-xl bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 transition-colors cursor-pointer group"
+                onClick={() => setIsFaqDrawerOpen(false)}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
-                <p className="text-xs font-bold text-slate-900 group-hover:text-amber-900 leading-tight">
-                  {faq.question}
-                </p>
-                <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                  {faq.shortAnswer}
-                </p>
+                <X className="w-4 h-4" />
               </button>
-            ))}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {STORE_FAQS.map((faq) => (
+                <button
+                  key={faq.id}
+                  type="button"
+                  onClick={() => {
+                    setIsFaqDrawerOpen(false);
+                    handleSendMessage(faq.question);
+                  }}
+                  className="text-left p-2 rounded-xl bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 transition-colors cursor-pointer group"
+                >
+                  <p className="text-xs font-bold text-slate-900 group-hover:text-amber-900 leading-tight">
+                    {faq.question}
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                    {faq.shortAnswer}
+                  </p>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {/* 5. QUICK SUGGESTION CHIPS (Horizontal Scroll above Input Bar) */}
-      <div className="shrink-0 px-3 py-2 bg-slate-100/90 border-t border-slate-200/80 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-        {QUICK_SUGGESTION_CHIPS.map((chip, idx) => (
-          <button
-            key={idx}
-            type="button"
-            onClick={() => handleSendMessage(chip.query)}
-            disabled={isLoading}
-            className="text-[11px] font-bold text-slate-700 bg-white hover:bg-amber-50 hover:text-amber-950 border border-slate-200 rounded-full px-2.5 py-1 whitespace-nowrap transition-colors shrink-0 cursor-pointer disabled:opacity-50 shadow-2xs"
-          >
-            {chip.label}
-          </button>
-        ))}
+      <div
+        className="shrink-0 py-2 bg-slate-100/90 border-t border-slate-200/80"
+        style={{
+          paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+          paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
+        }}
+      >
+        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          {QUICK_SUGGESTION_CHIPS.map((chip, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleSendMessage(chip.query)}
+              disabled={isLoading}
+              className="text-[11px] font-bold text-slate-700 bg-white hover:bg-amber-50 hover:text-amber-950 border border-slate-200 rounded-full px-2.5 py-1 whitespace-nowrap transition-colors shrink-0 cursor-pointer disabled:opacity-50 shadow-2xs"
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 6. WHATSAPP-STYLE USER INPUT BAR (Fixed at the bottom of the screen) */}
@@ -684,29 +680,35 @@ export const HelpCenterChat = ({
           e.preventDefault();
           handleSendMessage();
         }}
-        className="shrink-0 bg-white border-t border-slate-200 px-3 pt-2.5 sm:pt-3 flex items-center gap-2 shadow-md z-20"
-        style={{ paddingBottom: 'max(0.75rem, var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)))' }}
+        className="shrink-0 bg-white border-t border-slate-200 pt-2.5 sm:pt-3 shadow-md z-20"
+        style={{
+          paddingBottom: 'max(0.75rem, var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)))',
+          paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+          paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
+        }}
       >
-        {/* Input Field */}
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Ask a question or message support..."
-          disabled={isLoading}
-          className="flex-1 text-xs sm:text-sm bg-slate-100/80 border border-slate-200/90 rounded-full px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white text-slate-900 placeholder:text-slate-400 transition-all"
-        />
+        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 flex items-center gap-2">
+          {/* Input Field */}
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Ask a question or message support..."
+            disabled={isLoading}
+            className="flex-1 min-w-0 text-xs sm:text-sm bg-slate-100/80 border border-slate-200/90 rounded-full px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white text-slate-900 placeholder:text-slate-400 transition-all"
+          />
 
-        {/* Send Button */}
-        <button
-          type="submit"
-          disabled={!inputValue.trim() || isLoading}
-          className="w-10 h-10 rounded-full bg-amber-400 hover:bg-amber-500 active:scale-95 text-slate-950 font-bold flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0 shadow-xs"
-          title="Send Message"
-          aria-label="Send Message"
-        >
-          <Send className="w-4 h-4" />
-        </button>
+          {/* Send Button */}
+          <button
+            type="submit"
+            disabled={!inputValue.trim() || isLoading}
+            className="w-10 h-10 rounded-full bg-amber-400 hover:bg-amber-500 active:scale-95 text-slate-950 font-bold flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0 shadow-xs"
+            title="Send Message"
+            aria-label="Send Message"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
       </form>
     </div>
   );

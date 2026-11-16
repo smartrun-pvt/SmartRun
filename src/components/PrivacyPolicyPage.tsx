@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft,
   ShieldCheck,
   Lock,
   FileText,
@@ -21,6 +20,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { SEOHead } from './SEOHead';
+import { ProfileSubPageNavbar } from './profile/ProfileSubPageNavbar';
 
 export interface PrivacyPolicyPageProps {
   onBack?: () => void;
@@ -55,45 +55,29 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({ onBack }) 
   ];
 
   return (
-    <div className="min-h-screen bg-[#F9F6F0] text-[#2C261E] pb-24 font-sans">
+    <div className="min-h-screen bg-[#F9F6F0] text-[#2C261E] pb-24 font-sans overflow-x-clip">
       <SEOHead
         title="Privacy Policy | SmartRun Kolkata"
         description="SmartRun Privacy Policy: Learn how we protect your personal data, manage orders from our Kasba warehouse, comply with DPDP Act 2023, and safeguard your rights."
         keywords="smartrun privacy policy, data protection, dpdp act 2023, account deletion, kolkata electrical app"
       />
 
-      {/* Top Sticky Header: Simple Heading 'Privacy policy' and Back Button in the same line */}
-      <div
-        className="sticky top-0 z-30 bg-[#74c69d] border-b border-[#52b788] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
-        style={{
-          backgroundColor: '#74c69d',
-          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))'
-        }}
-      >
-        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 sm:gap-3.5">
-            <button
-              id="btn-privacy-policy-back"
-              type="button"
-              onClick={handleBack}
-              className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer shrink-0"
-              title="Back"
-              aria-label="Go back"
-            >
-              <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
-            </button>
-            <h1
-              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
-            >
-              Privacy policy
-            </h1>
-          </div>
-        </div>
-      </div>
+      <ProfileSubPageNavbar
+        title="Privacy Policy"
+        onBack={handleBack}
+        backButtonId="btn-privacy-policy-back"
+        backTitle="Back"
+        backAriaLabel="Go back"
+      />
 
       {/* Main Content Area */}
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <main
+        className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 space-y-6 break-words"
+        style={{
+          paddingLeft: 'max(1rem, var(--safe-area-left, env(safe-area-inset-left, 0px)))',
+          paddingRight: 'max(1rem, var(--safe-area-right, env(safe-area-inset-right, 0px)))'
+        }}
+      >
 
         {/* Intro & Statutory Compliance Box */}
         <section className="bg-[#FFFDF9] border border-[#E6DEC8] rounded-2xl p-5 sm:p-6 shadow-[0_2px_8px_rgba(40,30,10,0.04)] space-y-3">

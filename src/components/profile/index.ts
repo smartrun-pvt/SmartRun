@@ -21,3 +21,4 @@ export { RefundPolicySubPage } from './RefundPolicySubPage';
 export { AccountDeletionSubPage } from './AccountDeletionSubPage';
 export { PersonalInfoSubPage } from './PersonalInfoSubPage';
 export { EditProfileModal } from './EditProfileModal';
+export { ProfileSubPageNavbar } from './ProfileSubPageNavbar';

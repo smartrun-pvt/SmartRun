@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  ChevronLeft,
   Search,
   X,
   ChevronDown,
@@ -14,6 +13,7 @@ import {
 import { SEOHead } from './SEOHead';
 import { Footer } from './Footer';
 import { ENRICHED_FAQ_LIST, FAQ_CATEGORIES, FAQItem } from '../data/faqData';
+import { ProfileSubPageNavbar } from './profile/ProfileSubPageNavbar';
 
 export { ENRICHED_FAQ_LIST, FAQ_CATEGORIES };
 export type { FAQItem };
@@ -83,44 +83,28 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20 font-sans antialiased">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20 font-sans antialiased overflow-x-clip">
       <SEOHead
         title="Frequently Asked Questions (FAQ) | SmartRun Express Electricals"
         description="Find answers to all questions regarding SmartRun 60-minute express delivery in Kolkata, security login alerts, genuine wire authenticity, GST invoices, and return policies."
       />
 
-      {/* Sticky Top Header with Tailless Arrow Back Button and Simple Heading on exact same line */}
-      <header
-        className="sticky top-0 z-30 bg-[#74c69d] border-b border-[#52b788] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
-        style={{
-          backgroundColor: '#74c69d',
-          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))'
-        }}
-      >
-        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 sm:gap-3.5">
-            <button
-              type="button"
-              onClick={onBack}
-              className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer shrink-0"
-              title="Back"
-              aria-label="Back"
-            >
-              <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
-            </button>
-            <h1
-              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
-            >
-              Help &amp; FAQ
-            </h1>
-          </div>
-        </div>
-      </header>
+      <ProfileSubPageNavbar
+        title="Help & FAQ"
+        onBack={onBack}
+        backTitle="Back"
+        backAriaLabel="Back"
+      />
 
       {/* Hero Search & Title Section */}
-      <section className="bg-white border-b border-slate-200/80 px-4 sm:px-6 py-5 sm:py-7">
-        <div className="max-w-3xl mx-auto text-center sm:text-left">
+      <section className="bg-white border-b border-slate-200/80 py-5 sm:py-7">
+        <div
+          className="max-w-3xl mx-auto w-full px-4 sm:px-6 text-center sm:text-left"
+          style={{
+            paddingLeft: 'max(1rem, var(--safe-area-left, env(safe-area-inset-left, 0px)))',
+            paddingRight: 'max(1rem, var(--safe-area-right, env(safe-area-inset-right, 0px)))'
+          }}
+        >
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
             How can we help you today?
           </h2>
@@ -153,10 +137,16 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onBack }) => {
       </section>
 
       {/* Main FAQ List Container */}
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-5 pb-10">
+      <main
+        className="max-w-3xl mx-auto w-full px-4 sm:px-6 pt-5 pb-10"
+        style={{
+          paddingLeft: 'max(1rem, var(--safe-area-left, env(safe-area-inset-left, 0px)))',
+          paddingRight: 'max(1rem, var(--safe-area-right, env(safe-area-inset-right, 0px)))'
+        }}
+      >
         {/* Results Counter & Toggle Options */}
-        <div className="flex items-center justify-between mb-3 text-xs text-slate-500 font-medium">
-          <span>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3 text-xs text-slate-500 font-medium">
+          <span className="min-w-0 break-words tabular-nums">
             Showing <strong className="text-slate-900">{filteredFAQs.length}</strong> questions
             {searchQuery ? ` matching "${searchQuery}"` : ''}
           </span>
@@ -222,13 +212,13 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onBack }) => {
                   aria-expanded={isExpanded}
                   className="w-full text-left px-4 sm:px-5 py-3.5 flex items-start justify-between gap-3 cursor-pointer select-none group"
                 >
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     {faq.category === 'security' && (
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200/70 px-2 py-0.5 rounded-sm uppercase tracking-wide mb-1.5">
-                        <ShieldAlert className="w-2.5 h-2.5" /> Security Alert
+                        <ShieldAlert className="w-2.5 h-2.5 shrink-0" /> Security Alert
                       </span>
                     )}
-                    <h2 className="text-sm sm:text-[15px] font-bold text-slate-900 leading-snug group-hover:text-blue-600 transition-colors">
+                    <h2 className="text-sm sm:text-[15px] font-bold text-slate-900 leading-snug group-hover:text-blue-600 transition-colors break-words">
                       {faq.question}
                     </h2>
                   </div>
@@ -245,7 +235,7 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onBack }) => {
                 {/* Answer Content Body */}
                 {isExpanded && (
                   <div className="px-4 sm:px-5 pb-4 pt-1 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-100 bg-slate-50/40">
-                    <p className="whitespace-pre-line">{faq.answer}</p>
+                    <p className="whitespace-pre-line break-words">{faq.answer}</p>
 
                     {faq.actionLink && (
                       <div className="mt-3 pt-2">

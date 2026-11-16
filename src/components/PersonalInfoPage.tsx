@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { apiUrl } from '../lib/apiBase';
 import { saveUserProfile } from '../services/supabaseService';
 import { sendWelcomeEmail } from '../services/welcomeEmailService';
 import { UserProfile } from '../types';
 import { SEOHead } from './SEOHead';
+import { ProfileSubPageNavbar } from './profile/ProfileSubPageNavbar';
 
 interface PersonalInfoPageProps {
   initialPhone?: string;
@@ -196,44 +197,30 @@ export const PersonalInfoPage = ({
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col text-slate-900">
+    <div className="min-h-screen bg-white flex flex-col text-slate-900 overflow-x-clip">
       <SEOHead
         title="Personal Info | SmartRun Express Electricals"
         description="Complete your SmartRun profile with your name, verified phone, and personal details."
         keywords="smartrun personal info, user profile, account setup"
       />
 
-      {/* Top Header: Keep "Personal Info" in top header */}
-      <div
-        className="sticky top-0 z-30 bg-[#74c69d] border-b border-[#52b788] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
-        style={{
-          backgroundColor: '#74c69d',
-          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))'
-        }}
-      >
-        <div className="max-w-md mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 sm:gap-3.5">
-            <button
-              type="button"
-              onClick={handleBackAction}
-              className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer shrink-0"
-              title="Back"
-              aria-label="Back"
-            >
-              <ArrowLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
-            </button>
-            <h1
-              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
-            >
-              Personal Info
-            </h1>
-          </div>
-        </div>
-      </div>
+      {/* Top Header: Unified ProfileSubPageNavbar */}
+      <ProfileSubPageNavbar
+        title="Personal Info"
+        onBack={handleBackAction}
+        backTitle="Back"
+        backAriaLabel="Back"
+      />
 
       {/* Main Form Body */}
-      <div className="flex-1 w-full max-w-md mx-auto px-5 py-6 sm:py-8 flex flex-col justify-start">
+      <div
+        className="flex-1 flex flex-col"
+        style={{
+          paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+          paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
+        }}
+      >
+      <div className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col justify-start">
         {error && (
           <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium">
             {error}
@@ -341,6 +328,7 @@ export const PersonalInfoPage = ({
             </button>
           </div>
         </form>
+      </div>
       </div>
     </div>
   );

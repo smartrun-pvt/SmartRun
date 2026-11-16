@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, Mail, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { saveUserProfile, sendEmailChangeOtp, verifyEmailChangeOtp } from '../../services/supabaseService';
 import { apiUrl } from '../../lib/apiBase';
 import { showToast } from '../../utils/toast';
+import { ProfileSubPageNavbar } from './ProfileSubPageNavbar';
 
 interface UpdateEmailSubPageProps {
   userProfile: UserProfile | null;
@@ -191,39 +192,23 @@ export const UpdateEmailSubPage: React.FC<UpdateEmailSubPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
-      {/* Header: Tailless arrow back button and clean title */}
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20 overflow-x-clip">
+      <ProfileSubPageNavbar
+        title="Email Update"
+        onBack={onBack}
+        backTitle="Back to Security"
+        backAriaLabel="Back to Security"
+      />
+
       <div
-        className="sticky top-0 z-30 bg-[#74c69d] border-b border-[#52b788] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
+        className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 space-y-5"
         style={{
-          backgroundColor: '#74c69d',
-          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))'
+          paddingLeft: 'max(1rem, var(--safe-area-left, env(safe-area-inset-left, 0px)))',
+          paddingRight: 'max(1rem, var(--safe-area-right, env(safe-area-inset-right, 0px)))'
         }}
       >
-        <div className="max-w-md mx-auto w-full px-4 py-2 sm:py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 sm:gap-3.5">
-            <button
-              type="button"
-              onClick={onBack}
-              className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer shrink-0"
-              title="Back to Security"
-              aria-label="Back"
-            >
-              <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
-            </button>
-            <h1
-              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
-            >
-              Email Update
-            </h1>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-md mx-auto px-4 py-6 space-y-5">
         {/* Current Email Status */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
             Current Email Address
           </p>
@@ -237,7 +222,7 @@ export const UpdateEmailSubPage: React.FC<UpdateEmailSubPageProps> = ({
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-semibold flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-            <span>{error}</span>
+            <span className="min-w-0 flex-1 break-words">{error}</span>
           </div>
         )}
 
@@ -292,9 +277,9 @@ export const UpdateEmailSubPage: React.FC<UpdateEmailSubPageProps> = ({
             {/* OTP Verification Section (after OTP is sent) */}
             {isOtpSent && (
               <div className="space-y-4 pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-slate-600 font-medium">
-                    Enter the 6-digit code sent to <strong className="text-slate-900">{cleanEmail}</strong>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-slate-600 font-medium min-w-0 flex-1 break-words">
+                    Enter the 6-digit code sent to <strong className="text-slate-900 break-all">{cleanEmail}</strong>
                   </p>
                   <button
                     type="button"
@@ -303,14 +288,14 @@ export const UpdateEmailSubPage: React.FC<UpdateEmailSubPageProps> = ({
                       setOtpDigits(['', '', '', '', '', '']);
                       setError(null);
                     }}
-                    className="text-[11px] text-slate-500 hover:text-slate-900 font-bold underline cursor-pointer"
+                    className="text-[11px] text-slate-500 hover:text-slate-900 font-bold underline cursor-pointer shrink-0"
                   >
                     Change
                   </button>
                 </div>
 
-                {/* 6 Compact OTP boxes */}
-                <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+                {/* 6 Responsive OTP boxes */}
+                <div className="grid grid-cols-6 gap-1.5 sm:gap-2.5 max-w-sm">
                   {otpDigits.map((digit, idx) => (
                     <input
                       key={idx}
@@ -321,17 +306,18 @@ export const UpdateEmailSubPage: React.FC<UpdateEmailSubPageProps> = ({
                       value={digit}
                       onChange={(e) => handleDigitChange(idx, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(idx, e)}
-                      className="w-11 h-12 text-center text-lg font-black rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white shadow-2xs"
+                      aria-label={`OTP digit ${idx + 1}`}
+                      className="w-full h-11 sm:h-12 text-center text-base sm:text-lg font-black tabular-nums rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white shadow-2xs"
                     />
                   ))}
                 </div>
 
-                <div className="flex items-center justify-between pt-1">
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                   <button
                     type="button"
                     disabled={timer > 0 || isSendingOtp}
                     onClick={handleSendOtp}
-                    className="text-xs font-bold text-slate-600 hover:text-slate-900 disabled:opacity-40 cursor-pointer"
+                    className="text-xs font-bold text-slate-600 hover:text-slate-900 disabled:opacity-40 cursor-pointer tabular-nums"
                   >
                     {timer > 0 ? `Resend OTP in ${timer}s` : 'Resend OTP'}
                   </button>
@@ -340,7 +326,7 @@ export const UpdateEmailSubPage: React.FC<UpdateEmailSubPageProps> = ({
                     type="button"
                     disabled={otpDigits.some((d) => !d) || isVerifying || isSaving}
                     onClick={() => handleVerifyOtp()}
-                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition-all shadow-xs cursor-pointer disabled:opacity-40 flex items-center gap-1.5"
+                    className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition-all shadow-xs cursor-pointer disabled:opacity-40 flex items-center gap-1.5 shrink-0"
                   >
                     {isVerifying || isSaving ? (
                       <>

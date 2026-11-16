@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, MapPin, Trash2, Pencil } from 'lucide-react';
+import { MapPin, Trash2, Pencil } from 'lucide-react';
 import { SavedAddress } from '../../types';
 import { fetchUserAddresses, getStoredAddresses, subscribeToAddresses } from '../../services/supabaseService';
+import { ProfileSubPageNavbar } from './ProfileSubPageNavbar';
 
 interface SavedAddressesSubPageProps {
   savedAddresses: SavedAddress[];
@@ -59,33 +60,21 @@ export const SavedAddressesSubPage = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20 overflow-x-clip">
+      <ProfileSubPageNavbar
+        title="Addresses"
+        onBack={onBack}
+        backTitle="Back to Profile"
+        backAriaLabel="Back to Profile"
+      />
+
       <div
-        className="sticky top-0 z-30 bg-[#74c69d] border-b border-[#52b788] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
+        className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 space-y-4"
         style={{
-          backgroundColor: '#74c69d',
-          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))'
+          paddingLeft: 'max(1rem, var(--safe-area-left, env(safe-area-inset-left, 0px)))',
+          paddingRight: 'max(1rem, var(--safe-area-right, env(safe-area-inset-right, 0px)))'
         }}
       >
-        <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center gap-2.5 sm:gap-3.5">
-          <button
-            onClick={onBack}
-            className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer shrink-0"
-            title="Back to Profile"
-            aria-label="Back"
-          >
-            <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
-          </button>
-          <h1
-            className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
-          >
-            Addresses
-          </h1>
-        </div>
-      </div>
-
-      <div className="max-w-2xl mx-auto p-4 sm:p-6 space-y-4">
         {addresses.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 text-center border border-slate-200 shadow-2xs">
             <MapPin className="w-10 h-10 text-slate-300 mx-auto mb-2" />
@@ -94,8 +83,9 @@ export const SavedAddressesSubPage = ({
               Pin your home, construction site, or office for fast 60-min delivery.
             </p>
             <button
+              type="button"
               onClick={onOpenLocationModal}
-              className="px-4 py-2 bg-amber-400 hover:bg-yellow-400 text-slate-950 font-black rounded-xl text-xs cursor-pointer"
+              className="px-4 py-2.5 bg-amber-400 hover:bg-yellow-400 text-slate-950 font-black rounded-xl text-xs cursor-pointer"
             >
               Add Address Now
             </button>
@@ -105,53 +95,58 @@ export const SavedAddressesSubPage = ({
             {addresses.map((addr) => (
               <div
                 key={addr.id}
-                className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-2xs flex items-start justify-between gap-3 hover:border-slate-300 transition-all"
+                className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-start justify-between gap-3 hover:border-slate-300 transition-all"
               >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 whitespace-nowrap shrink-0">
                       {addr.tag}
                     </span>
-                    <h3 className="text-sm font-black text-slate-900">
+                    <h3 className="text-sm font-black text-slate-900 break-words">
                       {addr.houseName || addr.houseFlat || 'Address'}
                     </h3>
                   </div>
-                  <p className="text-xs text-slate-600">
+                  <p className="text-xs text-slate-600 break-words leading-relaxed">
                     {addr.formattedExactAddress || `${addr.houseFlat}, ${addr.buildingRoad}, ${addr.area.name}`}
                   </p>
                   {addr.receiverName && (
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-slate-500 break-words">
                       Contact: {addr.receiverName}
                       {(addr.receiverPhone || displayPhone) ? ` (${addr.receiverPhone || displayPhone})` : ''}
                     </p>
                   )}
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center justify-end gap-1.5 shrink-0 pt-1 sm:pt-0">
                   {onSelectAddress && (
                     <button
+                      type="button"
                       onClick={() => {
                         onSelectAddress(addr);
                         onBack();
                       }}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition-colors cursor-pointer"
+                      className="px-3 py-2 min-h-[36px] rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap"
                     >
                       Select
                     </button>
                   )}
                   {onEditAddress && (
                     <button
+                      type="button"
                       onClick={() => onEditAddress(addr)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                      className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
                       title="Edit Address"
+                      aria-label="Edit Address"
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
                   )}
                   <button
+                    type="button"
                     onClick={() => handleDelete(addr.id)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                    className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                     title="Delete Address"
+                    aria-label="Delete Address"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

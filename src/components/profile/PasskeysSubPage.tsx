@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Fingerprint, KeyRound, Plus, Trash2, CheckCircle2, AlertCircle, Loader2, Laptop, Smartphone } from 'lucide-react';
+import { Fingerprint, KeyRound, Plus, Trash2, CheckCircle2, AlertCircle, Loader2, Laptop, Smartphone } from 'lucide-react';
 import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser';
 import { UserProfile } from '../../types';
 import { apiUrl } from '../../lib/apiBase';
 import { supabase } from '../../lib/supabaseClient';
+import { ProfileSubPageNavbar } from './ProfileSubPageNavbar';
 
 interface PasskeyItem {
   id: string;
@@ -193,37 +194,21 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-16">
-      {/* Sticky Header: only Passkey Heading and tailless arrow back button */}
+    <div className="min-h-screen bg-slate-50 pb-16 overflow-x-clip">
+      <ProfileSubPageNavbar
+        title="Passkey"
+        onBack={onBack}
+        backTitle="Back to Security"
+        backAriaLabel="Back to Security"
+      />
+
       <div
-        className="sticky top-0 z-30 bg-[#74c69d] border-b border-[#52b788] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
+        className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 space-y-4"
         style={{
-          backgroundColor: '#74c69d',
-          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))'
+          paddingLeft: 'max(1rem, var(--safe-area-left, env(safe-area-inset-left, 0px)))',
+          paddingRight: 'max(1rem, var(--safe-area-right, env(safe-area-inset-right, 0px)))'
         }}
       >
-        <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 sm:gap-3.5">
-            <button
-              type="button"
-              onClick={onBack}
-              className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer shrink-0"
-              title="Back to Security"
-              aria-label="Back"
-            >
-              <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
-            </button>
-            <h1
-              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
-            >
-              Passkey
-            </h1>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
         {/* Feedback Alert if any */}
         {message && (
           <div
@@ -238,7 +223,7 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
             ) : (
               <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
             )}
-            <span className="leading-relaxed">{message.text}</span>
+            <span className="leading-relaxed min-w-0 flex-1 break-words">{message.text}</span>
           </div>
         )}
 
@@ -252,10 +237,10 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
 
         {/* Registered passkeys section with Plus sign button (no text on button) */}
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
-              <KeyRound className="w-4 h-4 text-slate-600" />
-              <span>Registered passkeys ({passkeys.length})</span>
+          <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2 min-w-0">
+              <KeyRound className="w-4 h-4 text-slate-600 shrink-0" />
+              <span className="truncate tabular-nums">Registered passkeys ({passkeys.length})</span>
             </h2>
 
             {/* Plus sign button to add passkey (don't add text) */}
@@ -266,7 +251,7 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
               disabled={isRegistering || !isSupported}
               title="Add passkey"
               aria-label="Add passkey"
-              className="w-8 h-8 rounded-full bg-slate-900 hover:bg-black text-white flex items-center justify-center transition-all cursor-pointer active:scale-95 disabled:opacity-50 shrink-0 shadow-xs"
+              className="w-10 h-10 rounded-full bg-slate-900 hover:bg-black text-white flex items-center justify-center transition-all cursor-pointer active:scale-95 disabled:opacity-50 shrink-0 shadow-xs"
             >
               {isRegistering ? (
                 <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -291,14 +276,14 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
               {passkeys.map((pk) => {
                 const isMobile = pk.deviceName?.toLowerCase().includes('android') || pk.deviceName?.toLowerCase().includes('iphone');
                 return (
-                  <div key={pk.id} className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                    <div className="flex items-center gap-3">
+                  <div key={pk.id} className="p-3.5 sm:p-4 flex items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 shrink-0">
                         {isMobile ? <Smartphone className="w-4.5 h-4.5" /> : <Laptop className="w-4.5 h-4.5" />}
                       </div>
-                      <div>
-                        <p className="text-xs sm:text-sm font-bold text-slate-900">{pk.deviceName || 'Saved Passkey'}</p>
-                        <p className="text-[11px] text-slate-500">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">{pk.deviceName || 'Saved Passkey'}</p>
+                        <p className="text-[11px] text-slate-500 truncate tabular-nums">
                           Added: {new Date(pk.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                       </div>
@@ -307,8 +292,9 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
                     <button
                       type="button"
                       onClick={() => handleDeletePasskey(pk.id)}
-                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                      className="min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer shrink-0"
                       title="Remove passkey"
+                      aria-label="Remove passkey"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

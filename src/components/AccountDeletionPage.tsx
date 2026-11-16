@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft,
   Trash2,
   CheckCircle2,
   X,
@@ -19,6 +19,7 @@ import { showToast } from '../utils/toast';
 import { purgeAllUserCacheAndStorage, signOutUser } from '../services/supabaseService';
 import { SEOHead } from './SEOHead';
 import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack';
+import { ProfileSubPageNavbar } from './profile/ProfileSubPageNavbar';
 
 interface AccountDeletionPageProps {
   userProfile?: UserProfile | null;
@@ -64,19 +65,58 @@ export const AccountDeletionPage = ({
     }
   }, [userProfile]);
 
+  const handleBack = useCallback(() => {
+    if (onBack) {
+      onBack();
+    } else if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/profile');
+    }
+  }, [onBack, navigate]);
+
   // Swipe from left edge on touch screens to return to profile
   useEdgeSwipeBack({
-    onBack: () => {
-      if (onBack) {
-        onBack();
-      } else if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-        navigate(-1);
-      } else {
-        navigate('/profile');
-      }
-    },
+    onBack: handleBack,
     disabled: false
   });
+
+  // Android native hardware back button support & modal escape/scroll lock
+  useEffect(() => {
+    const handleHardwareBack = (e: Event) => {
+      if (showDeleteModal) {
+        e.preventDefault();
+        if (!isDeleting) {
+          setShowDeleteModal(false);
+          setDeleteConfirmText('');
+        }
+        return;
+      }
+      e.preventDefault();
+      handleBack();
+    };
+    window.addEventListener('smartrun:hardware-back', handleHardwareBack);
+    return () => {
+      window.removeEventListener('smartrun:hardware-back', handleHardwareBack);
+    };
+  }, [handleBack, showDeleteModal, isDeleting]);
+
+  useEffect(() => {
+    if (!showDeleteModal || typeof document === 'undefined') return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isDeleting) {
+        setShowDeleteModal(false);
+        setDeleteConfirmText('');
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [showDeleteModal, isDeleting]);
 
   // Handler to copy "DELETE" confirmation text like GitHub/Vercel
   const handleCopyDeleteText = async (e: React.MouseEvent) => {
@@ -193,63 +233,38 @@ export const AccountDeletionPage = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#dedcd8] text-slate-900 font-sans pb-24" id="account-deletion-page">
+    <div className="min-h-screen bg-[#dedcd8] text-slate-900 font-sans pb-24 overflow-x-clip" id="account-deletion-page">
       <SEOHead
         title="Account Deletion | SmartRun"
         description="Permanently delete your account and personal data in compliance with privacy guidelines."
         noIndex={true}
       />
 
-      {/* Top Header: Simple Heading 'Account delete' and Arrow Back Button in the same line */}
-      <div
-        className="sticky top-0 z-30 bg-[#74c69d] border-b border-[#52b788] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
-        style={{
-          backgroundColor: '#74c69d',
-          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))'
-        }}
-      >
-        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 sm:gap-3.5">
-            <button
-              id="btn-account-delete-back"
-              type="button"
-              onClick={() => {
-                if (onBack) {
-                  onBack();
-                } else if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                  navigate(-1);
-                } else {
-                  navigate('/profile');
-                }
-              }}
-              className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer flex items-center justify-center shrink-0"
-              title="Back"
-              aria-label="Go back"
-            >
-              <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
-            </button>
-            <h1
-              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal whitespace-nowrap"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
-            >
-              Account delete
-            </h1>
-          </div>
-        </div>
-      </div>
+      {/* Top Header: Unified ProfileSubPageNavbar */}
+      <ProfileSubPageNavbar
+        title="Account Delete"
+        onBack={handleBack}
+        backButtonId="btn-account-delete-back"
+        backTitle="Back"
+        backAriaLabel="Go back"
+      />
 
       {/* Main Content Body */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-10">
-
-
+      <div
+        style={{
+          paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+          paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
+        }}
+      >
+      <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 space-y-8 sm:space-y-10">
 
         {/* =========================================================================
             SECTION 1: DIRECT SELF-SERVICE DELETION (Matches Screenshot 1)
            ========================================================================= */}
         <section className="space-y-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <UserX className="w-5 h-5 text-[#d00036] stroke-[2.2] shrink-0" />
-            <h2 className="text-sm sm:text-base font-bold text-[#0f172a] tracking-wider uppercase">
+            <h2 className="text-sm sm:text-base font-bold text-[#0f172a] tracking-wider uppercase min-w-0">
               DIRECT SELF-SERVICE DELETION
             </h2>
           </div>
@@ -262,7 +277,7 @@ export const AccountDeletionPage = ({
             <p className="text-xs sm:text-sm text-slate-500 mb-0.5">
               Currently signed in as:
             </p>
-            <div className="font-bold text-[#0f172a] text-sm sm:text-base pb-2">
+            <div className="font-bold text-[#0f172a] text-sm sm:text-base pb-2 break-all">
               {userEmail}
             </div>
             <hr className="border-t border-slate-300/80 mb-5" />
@@ -297,7 +312,52 @@ export const AccountDeletionPage = ({
             </p>
           </div>
 
-          <div className="overflow-x-auto border border-slate-300/80 rounded-xl bg-white/70 shadow-2xs mt-3">
+          {/* Mobile Stacked Breakdown (<640px) */}
+          <div className="sm:hidden divide-y divide-slate-200/80 border border-slate-300/80 rounded-xl bg-white/80 shadow-2xs mt-3 overflow-hidden">
+            {[
+              {
+                category: 'Account Credentials & Profile',
+                action: 'Permanently purged',
+                timeline: 'Immediate upon confirmation',
+                immediate: true
+              },
+              {
+                category: 'Medication Records & Vault Data',
+                action: 'Irreversibly erased from server & device',
+                timeline: 'Immediate',
+                immediate: true
+              },
+              {
+                category: 'Dose History & Adherence Logs',
+                action: 'Complete database purge',
+                timeline: 'Immediate',
+                immediate: true
+              },
+              {
+                category: 'Notification Schedules & Reminders',
+                action: 'Cancelled and unlinked from messaging queue',
+                timeline: 'Immediate',
+                immediate: true
+              },
+              {
+                category: 'Statutory Tax & Transaction Receipts',
+                action: 'Anonymized archive (personal identifiers expunged)',
+                timeline: 'Mandatory audit compliance (CGST Act)',
+                immediate: false
+              }
+            ].map((row) => (
+              <div key={row.category} className="p-3.5 space-y-1">
+                <p className="text-xs font-semibold text-slate-900">{row.category}</p>
+                <p className="text-xs text-slate-600 leading-relaxed">{row.action}</p>
+                <p className={`text-[11px] font-medium ${row.immediate ? 'text-emerald-700' : 'text-slate-500'}`}>
+                  {row.timeline}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop/Tablet Table (>=640px) */}
+          <div className="hidden sm:block overflow-x-auto border border-slate-300/80 rounded-xl bg-white/70 shadow-2xs mt-3">
             <table className="w-full text-left text-xs sm:text-sm divide-y divide-slate-200">
               <thead className="bg-slate-100/80 text-slate-700 font-bold">
                 <tr>
@@ -476,13 +536,17 @@ export const AccountDeletionPage = ({
         </section>
 
       </div>
+      </div>
 
       {/* =========================================================================
-          CONFIRM IRREVERSIBLE DELETION MODAL / POP UP BOX
+          CONFIRM IRREVERSIBLE DELETION MODAL / POP UP BOX (Portaled to body)
          ========================================================================= */}
-      {showDeleteModal && (
+      {showDeleteModal && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-account-modal-title"
+          className="fixed inset-0 z-[99999] bg-black/50 backdrop-blur-xs flex min-h-[100dvh] items-center justify-center p-4 overflow-y-auto overscroll-contain animate-in fade-in duration-200"
           onClick={() => {
             if (!isDeleting) {
               setShowDeleteModal(false);
@@ -491,13 +555,13 @@ export const AccountDeletionPage = ({
           }}
         >
           <div
-            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-200 text-left animate-in zoom-in-95 duration-150"
+            className="bg-white rounded-2xl max-w-md w-full my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto p-5 sm:p-6 shadow-2xl space-y-4 border border-slate-200 text-left animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Title */}
             <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
-                <h3 className="text-lg font-bold text-slate-900">
+              <div className="space-y-1 min-w-0">
+                <h3 id="delete-account-modal-title" className="text-lg font-bold text-slate-900">
                   Confirm Irreversible Deletion
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-600 leading-relaxed flex items-center flex-wrap gap-1.5">
@@ -581,7 +645,8 @@ export const AccountDeletionPage = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>

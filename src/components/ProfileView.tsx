@@ -619,7 +619,7 @@ export const ProfileView = ({
   // -------------------------------------------------------------
   return (
     <div
-      className="min-h-screen animate-page-enter bg-slate-50 text-slate-900 pb-28 sm:pb-24"
+      className="min-h-screen animate-page-enter bg-slate-50 text-slate-900 pb-28 sm:pb-24 overflow-x-clip"
       style={{ paddingBottom: 'max(7rem, calc(5rem + var(--safe-area-bottom, env(safe-area-inset-bottom, 1rem))))' }}
     >
       <SEOHead
@@ -629,25 +629,30 @@ export const ProfileView = ({
       />
       {/* 1. TOP HEADER BANNER (Full width touching top & both sides, bottom curves only) */}
       <div
-        className="bg-gradient-to-b from-[#8B0000] via-[#A30000] to-[#B31B1B] text-white pb-4 sm:pb-5 px-4 sm:px-6 relative shadow-md rounded-b-2xl border-b border-red-950/30"
-        style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
+        className="bg-gradient-to-b from-[#8B0000] via-[#A30000] to-[#B31B1B] text-white pb-4 sm:pb-5 relative shadow-md rounded-b-2xl border-b border-red-950/30"
+        style={{
+          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))',
+          paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+          paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
+        }}
       >
+        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6">
         {/* Top Control Bar with Back Arrow & Actions */}
-        <div className="max-w-3xl mx-auto flex items-center justify-between pt-2 pb-1 mb-2">
+        <div className="flex items-center justify-between pt-2 pb-1 mb-2 gap-3">
           {/* Arrow Back Button */}
           <button
             onClick={onBack}
-            className="p-1.5 -ml-1 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-all cursor-pointer flex items-center gap-1.5"
+            className="min-w-[40px] min-h-[40px] -ml-2 px-2 py-1.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
             aria-label="Go back"
           >
             <ChevronLeft className="w-5 h-5 stroke-[2.2]" />
-            <span className="text-xs font-medium sm:inline hidden">Back</span>
+            <span className="text-xs font-medium sm:inline hidden pr-1">Back</span>
           </button>
 
-          <div className="flex items-center gap-2 relative">
+          <div className="flex items-center gap-2 relative shrink-0">
             <button
               onClick={() => setSubPage('help')}
-              className="text-[11px] font-bold uppercase tracking-wider text-white hover:text-amber-200 transition-colors cursor-pointer px-2 py-1"
+              className="min-h-[40px] text-[11px] font-bold uppercase tracking-wider text-white hover:text-amber-200 transition-colors cursor-pointer px-2.5 py-1.5 flex items-center"
             >
               HELP
             </button>
@@ -656,7 +661,7 @@ export const ProfileView = ({
             <button
               type="button"
               onClick={handleOpenEdit}
-              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-all cursor-pointer flex items-center justify-center relative active:scale-95 shadow-xs"
+              className="min-w-[40px] min-h-[40px] -mr-1 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-all cursor-pointer flex items-center justify-center relative active:scale-95 shadow-xs"
               aria-label="Edit Profile"
               title="Edit Profile"
             >
@@ -666,8 +671,8 @@ export const ProfileView = ({
         </div>
 
         {/* User Identity Details with Photo Circle (Swiggy Style) */}
-        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3.5">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3.5">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             {/* Front Circle Box: User Email Photo or Monogram */}
             <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-white/60 bg-amber-400 text-slate-950 flex items-center justify-center shrink-0 shadow-sm overflow-hidden relative">
               {userPhoto && !avatarError ? (
@@ -685,15 +690,15 @@ export const ProfileView = ({
               )}
             </div>
 
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-base sm:text-lg font-bold tracking-tight text-white capitalize">
+                <h1 className="text-base sm:text-lg font-bold tracking-tight text-white capitalize truncate max-w-full">
                   {displayName}
                 </h1>
                 {hasMissingName && (
                   <span
                     onClick={handleOpenEdit}
-                    className="inline-flex items-center gap-1 text-[10px] font-bold bg-yellow-400 hover:bg-yellow-300 text-slate-950 px-2 py-0.5 rounded-full cursor-pointer shadow-xs animate-pulse"
+                    className="inline-flex items-center gap-1 text-[10px] font-bold bg-yellow-400 hover:bg-yellow-300 text-slate-950 px-2 py-0.5 rounded-full cursor-pointer shadow-xs animate-pulse shrink-0"
                     title="Enter your full name"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-950" />
@@ -762,102 +767,109 @@ export const ProfileView = ({
             </div>
           </div>
         </div>
+        </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-3 sm:px-6 mt-4 sm:mt-5 space-y-3.5 sm:space-y-4">
+      <div
+        style={{
+          paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+          paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
+        }}
+      >
+      <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 mt-4 sm:mt-5 space-y-3.5 sm:space-y-4">
         {/* SECTION 1: FAVOURITES, ORDERS, WALLET, PAYMENT, ADDRESSES */}
         <div className="bg-white rounded-2xl border border-slate-200/80 divide-y divide-slate-100 overflow-hidden shadow-2xs">
           {/* 1. Favourites */}
           <button
             id="btn-profile-favorites"
             onClick={() => setSubPage('favorites')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-pink-100 border border-pink-200 text-pink-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <Heart className="w-5 h-5 fill-pink-500 text-pink-500" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">Favourites</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">Favourites</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {favoriteProducts.length > 0 && (
-                <span className="text-xs font-normal text-pink-800 bg-pink-100 px-2.5 py-1 rounded-full">
+                <span className="text-xs font-normal text-pink-800 bg-pink-100 px-2.5 py-1 rounded-full whitespace-nowrap tabular-nums">
                   {favoriteProducts.length} {favoriteProducts.length === 1 ? 'item' : 'items'}
                 </span>
               )}
-              <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+              <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
             </div>
           </button>
 
           {/* 2. Orders */}
           <button
             onClick={() => setSubPage('orders')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-amber-100 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <Clock className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">Orders</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">Orders</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-normal text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-normal text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full whitespace-nowrap tabular-nums">
                 {sortedOrders.length}
               </span>
-              <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+              <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
             </div>
           </button>
 
           {/* 3. Wallet */}
           <button
             onClick={() => setSubPage('wallet')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-emerald-100 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <Wallet className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">Wallet</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">Wallet</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
           </button>
 
           {/* 4. Payment */}
           <button
             onClick={() => setSubPage('payments')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
                 <CreditCard className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">Payment</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">Payment</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
           </button>
 
           {/* 5. Addresses */}
           <button
             onClick={() => setSubPage('addresses')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-rose-100 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <MapPin className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">Addresses</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">Addresses</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
           </button>
         </div>
 
@@ -867,34 +879,34 @@ export const ProfileView = ({
           <button
             id="btn-profile-help-center"
             onClick={() => setSubPage('help')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-purple-100 border border-purple-200 text-purple-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <HelpCircle className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">Help Center</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">Help Center</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
           </button>
 
           {/* FAQ */}
           <button
             id="btn-profile-faq"
             onClick={() => setSubPage('faq')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-emerald-100 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <HelpCircle className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">FAQ</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">FAQ</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
           </button>
         </div>
 
@@ -904,34 +916,34 @@ export const ProfileView = ({
           <button
             id="btn-profile-security"
             onClick={() => setSubPage('security')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-indigo-100 border border-indigo-200 text-indigo-700 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <ShieldCheck className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">Security</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">Security</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
           </button>
 
           {/* 7. Setting */}
           <button
             id="btn-profile-setting"
             onClick={() => setSubPage('notifications')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-cyan-100 border border-cyan-200 text-cyan-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <Settings className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">Setting</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">Setting</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
           </button>
         </div>
 
@@ -941,100 +953,100 @@ export const ProfileView = ({
           <button
             id="btn-profile-how-to-use"
             onClick={() => setSubPage('how-to-use')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-amber-100 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <BookOpen className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">How to Use App</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">How to Use App</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
           </button>
 
           {/* 10. Privacy Policy */}
           <button
             onClick={() => setSubPage('privacy')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-teal-100 border border-teal-200 text-teal-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <Lock className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">Privacy Policy</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">Privacy Policy</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
           </button>
 
           {/* 11. Terms of Service */}
           <button
             onClick={() => setSubPage('terms')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-indigo-100 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <FileText className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">Terms of Service</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">Terms of Service</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
           </button>
 
           {/* 12. Shipping Policy */}
           <button
             id="btn-profile-shipping-policy"
             onClick={() => navigate('/shipping')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-blue-100 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <Truck className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">Shipping Policy</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">Shipping Policy</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
           </button>
 
           {/* 13. Return Policy */}
           <button
             id="btn-profile-return-policy"
             onClick={() => navigate('/return')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-amber-100 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <RotateCcw className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">Return Policy</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">Return Policy</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
           </button>
 
           {/* 14. Refund Policy */}
           <button
             id="btn-profile-refund-policy"
             onClick={() => navigate('/refund-policy')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-emerald-100 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <ShieldCheck className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800">Refund Policy</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 truncate">Refund Policy</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
           </button>
         </div>
 
@@ -1044,17 +1056,17 @@ export const ProfileView = ({
           <button
             id="btn-profile-delete-account"
             onClick={() => navigate('/delete')}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-red-50/60 transition-colors text-left cursor-pointer group"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-red-50/60 transition-colors text-left cursor-pointer group"
           >
-            <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-red-100 border border-red-200 text-red-600 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <Trash2 className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-base sm:text-lg font-normal text-slate-800 group-hover:text-red-700 transition-colors">Account Delete</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base sm:text-lg font-normal text-slate-800 group-hover:text-red-700 transition-colors truncate">Account Delete</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-red-600 transition-colors" />
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-red-600 transition-colors shrink-0" />
           </button>
         </div>
 
@@ -1092,6 +1104,7 @@ export const ProfileView = ({
             )}
           </button>
         </div>
+      </div>
       </div>
 
       {/* EDIT PROFILE MODAL */}

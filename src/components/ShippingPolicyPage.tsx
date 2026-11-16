@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft,
   Truck,
   Clock,
   ShieldCheck,
@@ -14,11 +13,11 @@ import {
   User,
   RotateCcw,
   Home,
-  HelpCircle,
-  FileText
+  HelpCircle
 } from 'lucide-react';
 import { SEOHead } from './SEOHead';
 import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack';
+import { ProfileSubPageNavbar } from './profile/ProfileSubPageNavbar';
 
 export interface ShippingPolicyProps {
   onBack?: () => void;
@@ -82,7 +81,7 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
   return (
     <div
       id="shipping-policy-container"
-      className="min-h-screen bg-white text-slate-900 pb-20 font-sans"
+      className="min-h-screen bg-white text-slate-900 pb-20 font-sans overflow-x-clip"
     >
       <SEOHead
         title="Shipping Policy | SmartRun Kolkata"
@@ -90,41 +89,19 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
         keywords="smartrun shipping policy, express delivery kolkata, electrical supplies delivery, 60-min delivery, shipping charges"
       />
 
-      {/* Top Navbar: Heading 'Shipping Policy', Back Button & 3-Dot Mobile Menu */}
-      <header
-        className="bg-[#74c69d] border-b border-[#52b788] sticky top-0 z-30 shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
-        style={{
-          backgroundColor: '#74c69d',
-          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))'
-        }}
-      >
-        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3 relative">
-          {/* Left: Back Button & Title */}
-          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-            <button
-              id="btn-shipping-policy-back"
-              type="button"
-              onClick={handleBack}
-              className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer flex items-center justify-center shrink-0"
-              aria-label="Go back to profile"
-            >
-              <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
-            </button>
-            <h1
-              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal whitespace-nowrap truncate"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
-            >
-              Shipping Policy
-            </h1>
-          </div>
-
-          {/* Right: Mobile Navigation 3-Dot Overflow Menu */}
+      {/* Top Navbar: Unified ProfileSubPageNavbar with 3-Dot Mobile Menu */}
+      <ProfileSubPageNavbar
+        title="Shipping Policy"
+        onBack={handleBack}
+        backButtonId="btn-shipping-policy-back"
+        backAriaLabel="Go back to profile"
+        rightContent={
           <div className="relative shrink-0" ref={menuRef}>
             <button
               id="btn-shipping-policy-menu"
               type="button"
               onClick={() => setIsMenuOpen((prev) => !prev)}
-              className="p-1.5 -mr-1.5 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer flex items-center justify-center"
+              className="min-w-[40px] min-h-[40px] -mr-2 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer flex items-center justify-center"
               aria-label="Navigation menu options"
               aria-expanded={isMenuOpen}
             >
@@ -135,7 +112,7 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
             {isMenuOpen && (
               <div
                 role="menu"
-                className="absolute right-0 top-full mt-2 w-52 sm:w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-150 origin-top-right divide-y divide-slate-100"
+                className="absolute right-0 top-full mt-2 w-52 sm:w-56 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-150 origin-top-right divide-y divide-slate-100"
               >
                 <div className="py-1">
                   <button
@@ -146,7 +123,7 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
                   >
-                    <User className="w-4 h-4 text-slate-500" />
+                    <User className="w-4 h-4 text-slate-500 shrink-0" />
                     <span>Back to Profile</span>
                   </button>
 
@@ -158,7 +135,7 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
                   >
-                    <RotateCcw className="w-4 h-4 text-amber-600" />
+                    <RotateCcw className="w-4 h-4 text-amber-600 shrink-0" />
                     <span>Return Policy</span>
                   </button>
 
@@ -170,7 +147,7 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
                   >
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span>Refund Policy</span>
                   </button>
                 </div>
@@ -184,7 +161,7 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
                   >
-                    <Clock className="w-4 h-4 text-blue-500" />
+                    <Clock className="w-4 h-4 text-blue-500 shrink-0" />
                     <span>Order History</span>
                   </button>
 
@@ -200,7 +177,7 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
                   >
-                    <HelpCircle className="w-4 h-4 text-purple-500" />
+                    <HelpCircle className="w-4 h-4 text-purple-500 shrink-0" />
                     <span>Help Center</span>
                   </button>
 
@@ -212,25 +189,31 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
                   >
-                    <Home className="w-4 h-4 text-slate-500" />
+                    <Home className="w-4 h-4 text-slate-500 shrink-0" />
                     <span>Storefront</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Main Content Area */}
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
+      <div
+        style={{
+          paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+          paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
+        }}
+      >
+      <main className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 space-y-8">
 
         {/* Section 1: Overview & 60-Minute Express Delivery */}
         <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Truck className="w-5 h-5 text-emerald-600" />
-              1. Delivery Timelines &amp; Dispatch Modes
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2 min-w-0">
+              <Truck className="w-5 h-5 text-emerald-600 shrink-0" />
+              <span>1. Delivery Timelines &amp; Dispatch Modes</span>
             </h2>
             <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold whitespace-nowrap shrink-0">
               60-Min Express
@@ -272,10 +255,10 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
 
         {/* Section 2: Delivery Coverage Areas */}
         <section className="space-y-3 pt-6 border-t border-slate-100">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-emerald-600" />
-              2. Coverage &amp; Serviceable Pincodes
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2 min-w-0">
+              <MapPin className="w-5 h-5 text-emerald-600 shrink-0" />
+              <span>2. Coverage &amp; Serviceable Pincodes</span>
             </h2>
             <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold whitespace-nowrap shrink-0">
               Greater Kolkata
@@ -298,10 +281,10 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
 
         {/* Section 3: Shipping Charges & Free Delivery Threshold */}
         <section className="space-y-3 pt-6 border-t border-slate-100">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-600" />
-              3. Transparent Shipping Fees
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2 min-w-0">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+              <span>3. Transparent Shipping Fees</span>
             </h2>
             <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold whitespace-nowrap shrink-0">
               Zero Hidden Charges
@@ -330,10 +313,10 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
 
         {/* Section 4: Live Order Tracking & Dispatch Proof */}
         <section className="space-y-3 pt-6 border-t border-slate-100">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-              <PackageCheck className="w-5 h-5 text-emerald-600" />
-              4. Real-Time Order Tracking &amp; OTP Verification
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2 min-w-0">
+              <PackageCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+              <span>4. Real-Time Order Tracking &amp; OTP Verification</span>
             </h2>
           </div>
 
@@ -359,10 +342,10 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
 
         {/* Section 5: Unloading & Site Accessibility */}
         <section className="space-y-3 pt-6 border-t border-slate-100">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-amber-600" />
-              5. Site Accessibility &amp; Material Unloading
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2 min-w-0">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              <span>5. Site Accessibility &amp; Material Unloading</span>
             </h2>
           </div>
 
@@ -376,8 +359,8 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
         {/* Section 6: Official Support & Entity Information */}
         <section className="pt-6 border-t border-slate-100">
           <div className="p-4 sm:p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm sm:text-base font-bold text-slate-900">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 min-w-0">
                 Need Help with Your Delivery?
               </h3>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold whitespace-nowrap shrink-0">
@@ -423,6 +406,7 @@ export const ShippingPolicy: React.FC<ShippingPolicyProps> = ({
         </section>
 
       </main>
+      </div>
     </div>
   );
 };

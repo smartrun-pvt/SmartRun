@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  ChevronLeft,
   CheckCircle2,
   Plus,
   Loader2,
@@ -10,6 +9,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { saveUpiToFirestore, deleteUpiFromFirestore } from '../../services/supabaseService';
+import { ProfileSubPageNavbar } from './ProfileSubPageNavbar';
 
 interface SavedPaymentsSubPageProps {
   savedUpi: string[];
@@ -62,45 +62,33 @@ export const SavedPaymentsSubPage = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20 overflow-x-clip">
+      <ProfileSubPageNavbar
+        title="Payment"
+        onBack={onBack}
+        backTitle="Back to Profile"
+        backAriaLabel="Back to Profile"
+      />
+
       <div
-        className="sticky top-0 z-30 bg-[#74c69d] border-b border-[#52b788] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
+        className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 space-y-6"
         style={{
-          backgroundColor: '#74c69d',
-          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))'
+          paddingLeft: 'max(1rem, var(--safe-area-left, env(safe-area-inset-left, 0px)))',
+          paddingRight: 'max(1rem, var(--safe-area-right, env(safe-area-inset-right, 0px)))'
         }}
       >
-        <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 sm:gap-3.5">
-            <button
-              onClick={onBack}
-              className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer shrink-0"
-              title="Back to Profile"
-              aria-label="Back"
-            >
-              <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
-            </button>
-            <h1
-              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
-            >
-              Payment
-            </h1>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-2xl mx-auto p-4 sm:p-6 space-y-6">
         {/* Notification / Success / Error Toasts */}
         {upiSuccessNotice && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center justify-between shadow-2xs">
-            <div className="flex items-center gap-2">
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center justify-between gap-2 shadow-2xs">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{upiSuccessNotice}</span>
+              <span className="break-words">{upiSuccessNotice}</span>
             </div>
             <button
+              type="button"
               onClick={() => setUpiSuccessNotice(null)}
-              className="text-emerald-600 font-bold hover:text-emerald-800 cursor-pointer"
+              className="text-emerald-600 font-bold hover:text-emerald-800 cursor-pointer min-w-[32px] min-h-[32px] flex items-center justify-center shrink-0"
+              aria-label="Dismiss notification"
             >
               ✕
             </button>
@@ -109,15 +97,18 @@ export const SavedPaymentsSubPage = ({
 
         {/* Add UPI Form (Expandable) */}
         {showAddUpi && (
-          <div className="bg-white rounded-2xl p-5 border border-indigo-200 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-wider text-indigo-950">Add New UPI Handle (VPA)</h3>
+          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-indigo-200 shadow-sm space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-indigo-950 min-w-0">
+                Add New UPI Handle (VPA)
+              </h3>
               <button
+                type="button"
                 onClick={() => {
                   setShowAddUpi(false);
                   setUpiError(null);
                 }}
-                className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer shrink-0"
               >
                 Cancel
               </button>
@@ -137,10 +128,11 @@ export const SavedPaymentsSubPage = ({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSaveUpi();
                 }}
-                className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-slate-50 focus:bg-white"
+                className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-slate-50 focus:bg-white"
                 disabled={isSavingUpi}
               />
               <button
+                type="button"
                 onClick={handleSaveUpi}
                 disabled={isSavingUpi}
                 className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5 transition-colors shrink-0 shadow-xs"
@@ -161,12 +153,12 @@ export const SavedPaymentsSubPage = ({
 
         {/* SAVED UPI HANDLES SECTION */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <h2 className="text-xs font-black uppercase tracking-wider text-slate-500">
               Saved UPI Handles
             </h2>
             {savedUpi.length > 0 && (
-              <span className="text-[11px] font-bold text-slate-400">
+              <span className="text-[11px] font-bold text-slate-400 tabular-nums whitespace-nowrap shrink-0">
                 {savedUpi.length} saved
               </span>
             )}
@@ -174,7 +166,7 @@ export const SavedPaymentsSubPage = ({
 
           {savedUpi.length === 0 ? (
             /* Empty State */
-            <div className="bg-white rounded-2xl p-7 border border-slate-200 text-center shadow-2xs">
+            <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 text-center shadow-2xs">
               <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3">
                 <Smartphone className="w-6 h-6" />
               </div>
@@ -198,24 +190,26 @@ export const SavedPaymentsSubPage = ({
               {savedUpi.map((upi, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-colors"
+                  className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white flex items-center justify-center font-bold text-[11px] shadow-2xs">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white flex items-center justify-center font-bold text-[11px] shadow-2xs shrink-0">
                       UPI
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">{upi}</p>
-                      <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-                        <ShieldCheck className="w-3 h-3" />
-                        <span>Saved on Server for Express Checkout</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-slate-900 break-all">{upi}</p>
+                      <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-0.5">
+                        <ShieldCheck className="w-3 h-3 shrink-0" />
+                        <span className="truncate">Saved on Server for Express Checkout</span>
                       </p>
                     </div>
                   </div>
                   <button
+                    type="button"
                     onClick={() => handleDeleteUpi(upi)}
-                    className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                    className="text-slate-400 hover:text-red-500 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg hover:bg-red-50 transition-colors cursor-pointer shrink-0"
                     title="Remove UPI handle"
+                    aria-label={`Remove ${upi}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -225,6 +219,7 @@ export const SavedPaymentsSubPage = ({
               {!showAddUpi && (
                 <div className="pt-2 text-center">
                   <button
+                    type="button"
                     onClick={() => {
                       setShowAddUpi(true);
                       setUpiError(null);
@@ -245,68 +240,68 @@ export const SavedPaymentsSubPage = ({
           <h2 className="text-xs font-black uppercase tracking-wider text-slate-500">
             Available Checkout Options
           </h2>
-          
+
           <div className="divide-y divide-slate-200">
             {/* UPI */}
-            <div className="py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-500 via-teal-600 to-cyan-500 text-white flex items-center justify-center font-black text-xs shadow-2xs">
+            <div className="py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-500 via-teal-600 to-cyan-500 text-white flex items-center justify-center font-black text-xs shadow-2xs shrink-0">
                   UPI
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-xs font-black text-slate-900">UPI</p>
-                  <p className="text-[11px] text-slate-500">Google Pay, PhonePe, Paytm, BHIM &amp; CRED</p>
+                  <p className="text-[11px] text-slate-500 break-words">Google Pay, PhonePe, Paytm, BHIM &amp; CRED</p>
                 </div>
               </div>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
                 Available
               </span>
             </div>
 
             {/* Debit Card */}
-            <div className="py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white flex items-center justify-center shadow-2xs">
+            <div className="py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white flex items-center justify-center shadow-2xs shrink-0">
                   <CreditCard className="w-4 h-4 text-white" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-xs font-black text-slate-900">Debit Card</p>
-                  <p className="text-[11px] text-slate-500">Visa, MasterCard, RuPay &amp; Maestro</p>
+                  <p className="text-[11px] text-slate-500 break-words">Visa, MasterCard, RuPay &amp; Maestro</p>
                 </div>
               </div>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
                 Available
               </span>
             </div>
 
             {/* Credit Card */}
-            <div className="py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 via-pink-600 to-rose-500 text-white flex items-center justify-center shadow-2xs">
+            <div className="py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 via-pink-600 to-rose-500 text-white flex items-center justify-center shadow-2xs shrink-0">
                   <CreditCard className="w-4 h-4 text-white" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-xs font-black text-slate-900">Credit Card</p>
-                  <p className="text-[11px] text-slate-500">All Major Banks &amp; No-Cost EMI</p>
+                  <p className="text-[11px] text-slate-500 break-words">All Major Banks &amp; No-Cost EMI</p>
                 </div>
               </div>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
                 Available
               </span>
             </div>
 
             {/* Cash on Delivery */}
-            <div className="py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 via-yellow-500 to-amber-600 text-slate-950 flex items-center justify-center font-black text-xs shadow-2xs">
+            <div className="py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 via-yellow-500 to-amber-600 text-slate-950 flex items-center justify-center font-black text-xs shadow-2xs shrink-0">
                   ₹
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-xs font-black text-slate-900">Cash on Delivery (COD)</p>
-                  <p className="text-[11px] text-slate-500">Pay cash or scan QR upon delivery / site service</p>
+                  <p className="text-[11px] text-slate-500 break-words">Pay cash or scan QR upon delivery / site service</p>
                 </div>
               </div>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
                 Available
               </span>
             </div>

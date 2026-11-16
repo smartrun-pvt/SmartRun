@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft,
   PhoneCall,
   MoreVertical,
   User,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react';
 import { SEOHead } from './SEOHead';
 import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack';
+import { ProfileSubPageNavbar } from './profile/ProfileSubPageNavbar';
 
 export interface RefundPolicyProps {
   onBack?: () => void;
@@ -78,7 +78,7 @@ export const RefundPolicy = ({
   return (
     <div
       id="refund-policy-container"
-      className="min-h-screen bg-white text-slate-900 pb-20 font-sans"
+      className="min-h-screen bg-white text-slate-900 pb-20 font-sans overflow-x-clip"
     >
       <SEOHead
         title="Refund Policy | SmartRun Kolkata"
@@ -86,41 +86,19 @@ export const RefundPolicy = ({
         keywords="smartrun refund policy, return policy, replacement guarantee, order cancellation"
       />
 
-      {/* Top Navbar: Simple Heading 'Refund Policy', Back Button & 3-Dot Menu */}
-      <header
-        className="bg-[#74c69d] border-b border-[#52b788] sticky top-0 z-30 shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
-        style={{
-          backgroundColor: '#74c69d',
-          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))'
-        }}
-      >
-        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3 relative">
-          {/* Left: Back Button & Title */}
-          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-            <button
-              id="btn-refund-policy-back"
-              type="button"
-              onClick={handleBack}
-              className="p-1.5 -ml-1 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer flex items-center justify-center shrink-0"
-              aria-label="Go back to profile"
-            >
-              <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
-            </button>
-            <h1
-              className="text-xl sm:text-2xl text-slate-950 font-normal leading-tight font-playfair tracking-normal whitespace-nowrap truncate"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
-            >
-              Refund Policy
-            </h1>
-          </div>
-
-          {/* Right: Mobile Navigation 3-Dot Overflow Menu */}
+      {/* Top Navbar: Unified ProfileSubPageNavbar with 3-Dot Menu */}
+      <ProfileSubPageNavbar
+        title="Refund Policy"
+        onBack={handleBack}
+        backButtonId="btn-refund-policy-back"
+        backAriaLabel="Go back to profile"
+        rightContent={
           <div className="relative shrink-0" ref={menuRef}>
             <button
               id="btn-refund-policy-menu"
               type="button"
               onClick={() => setIsMenuOpen((prev) => !prev)}
-              className="p-1.5 -mr-1.5 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer flex items-center justify-center"
+              className="min-w-[40px] min-h-[40px] -mr-2 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer flex items-center justify-center"
               aria-label="Navigation menu options"
               aria-expanded={isMenuOpen}
             >
@@ -131,7 +109,7 @@ export const RefundPolicy = ({
             {isMenuOpen && (
               <div
                 role="menu"
-                className="absolute right-0 top-full mt-2 w-52 sm:w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-150 origin-top-right divide-y divide-slate-100"
+                className="absolute right-0 top-full mt-2 w-52 sm:w-56 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-150 origin-top-right divide-y divide-slate-100"
               >
                 <div className="py-1">
                   <button
@@ -142,7 +120,7 @@ export const RefundPolicy = ({
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
                   >
-                    <User className="w-4 h-4 text-slate-500" />
+                    <User className="w-4 h-4 text-slate-500 shrink-0" />
                     <span>Back to Profile</span>
                   </button>
 
@@ -154,7 +132,7 @@ export const RefundPolicy = ({
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
                   >
-                    <Truck className="w-4 h-4 text-blue-600" />
+                    <Truck className="w-4 h-4 text-blue-600 shrink-0" />
                     <span>Shipping Policy</span>
                   </button>
 
@@ -166,7 +144,7 @@ export const RefundPolicy = ({
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
                   >
-                    <RotateCcw className="w-4 h-4 text-amber-600" />
+                    <RotateCcw className="w-4 h-4 text-amber-600 shrink-0" />
                     <span>Return Policy</span>
                   </button>
                 </div>
@@ -180,7 +158,7 @@ export const RefundPolicy = ({
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
                   >
-                    <Clock className="w-4 h-4 text-blue-500" />
+                    <Clock className="w-4 h-4 text-blue-500 shrink-0" />
                     <span>Order History</span>
                   </button>
 
@@ -196,7 +174,7 @@ export const RefundPolicy = ({
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
                   >
-                    <HelpCircle className="w-4 h-4 text-purple-500" />
+                    <HelpCircle className="w-4 h-4 text-purple-500 shrink-0" />
                     <span>Help Center</span>
                   </button>
 
@@ -208,23 +186,29 @@ export const RefundPolicy = ({
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm font-medium text-slate-800 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer transition-colors"
                   >
-                    <Home className="w-4 h-4 text-slate-500" />
+                    <Home className="w-4 h-4 text-slate-500 shrink-0" />
                     <span>Storefront</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Main Content Area - Clean Article Layout without unnecessary background boxes */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
+      <div
+        style={{
+          paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+          paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
+        }}
+      >
+      <main className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 space-y-8">
         
         {/* Article 1: 100% Direct to Source Account */}
         <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 min-w-0">
               1. Direct-to-Source Refund Guarantee
             </h2>
             <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold whitespace-nowrap shrink-0">
@@ -238,7 +222,7 @@ export const RefundPolicy = ({
 
           {/* Highlight Box: Direct Refund Security */}
           <div className="p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-bold whitespace-nowrap">
                 Zero Deduction
               </span>
@@ -254,8 +238,8 @@ export const RefundPolicy = ({
 
         {/* Article 2: The 2-Minute Cancellation Window */}
         <section className="space-y-3 pt-6 border-t border-slate-100">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 min-w-0">
               2. Order Cancellation Rules
             </h2>
             <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold whitespace-nowrap shrink-0">
@@ -285,8 +269,8 @@ export const RefundPolicy = ({
 
         {/* Article 3: Clearing Timelines by Payment Method */}
         <section className="space-y-3 pt-6 border-t border-slate-100">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 min-w-0">
               3. Bank Clearing Timelines
             </h2>
             <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold whitespace-nowrap shrink-0">
@@ -299,8 +283,8 @@ export const RefundPolicy = ({
           </p>
 
           <div className="divide-y divide-slate-100 text-sm">
-            <div className="py-3 flex items-center justify-between gap-3">
-              <div>
+            <div className="py-3 flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-2.5 sm:gap-3">
+              <div className="min-w-0 flex-1">
                 <p className="font-bold text-slate-900">UPI Payments</p>
                 <p className="text-xs text-slate-500">Google Pay, PhonePe, Paytm, BHIM, CRED</p>
               </div>
@@ -309,8 +293,8 @@ export const RefundPolicy = ({
               </span>
             </div>
 
-            <div className="py-3 flex items-center justify-between gap-3">
-              <div>
+            <div className="py-3 flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-2.5 sm:gap-3">
+              <div className="min-w-0 flex-1">
                 <p className="font-bold text-slate-900">Debit &amp; Credit Cards</p>
                 <p className="text-xs text-slate-500">Visa, MasterCard, RuPay (All issuing banks)</p>
               </div>
@@ -319,8 +303,8 @@ export const RefundPolicy = ({
               </span>
             </div>
 
-            <div className="py-3 flex items-center justify-between gap-3">
-              <div>
+            <div className="py-3 flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-2.5 sm:gap-3">
+              <div className="min-w-0 flex-1">
                 <p className="font-bold text-slate-900">Net Banking</p>
                 <p className="text-xs text-slate-500">SBI, HDFC, ICICI, Axis, PNB &amp; others</p>
               </div>
@@ -329,8 +313,8 @@ export const RefundPolicy = ({
               </span>
             </div>
 
-            <div className="py-3 flex items-center justify-between gap-3">
-              <div>
+            <div className="py-3 flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-2.5 sm:gap-3">
+              <div className="min-w-0 flex-1">
                 <p className="font-bold text-slate-900">Cash on Delivery (COD)</p>
                 <p className="text-xs text-slate-500">Payment not yet made</p>
               </div>
@@ -357,8 +341,8 @@ export const RefundPolicy = ({
 
         {/* Article 5: 7-Day Return & Replacement Policy */}
         <section className="space-y-3 pt-6 border-t border-slate-100">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 min-w-0">
               5. 7-Day Return &amp; Replacement Policy
             </h2>
             <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold whitespace-nowrap shrink-0">
@@ -380,8 +364,8 @@ export const RefundPolicy = ({
         {/* Highlight Box: Need Help / Support Section */}
         <section className="pt-6 border-t border-slate-100">
           <div className="p-4 sm:p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm sm:text-base font-bold text-slate-900">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 min-w-0">
                 Have questions about a refund?
               </h3>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold whitespace-nowrap shrink-0">
@@ -416,6 +400,7 @@ export const RefundPolicy = ({
           </div>
         </section>
 
+      </main>
       </div>
     </div>
   );
