@@ -103,7 +103,7 @@ export const SitemapPage: React.FC = () => {
       {/* Sticky Header */}
       <header
         className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+        style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
       >
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">

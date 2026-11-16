@@ -4,16 +4,118 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
 
 public class MainActivity extends BridgeActivity {
+    private volatile int latestTopDp = 0;
+    private volatile int latestBottomDp = 0;
+    private volatile int latestLeftDp = 0;
+    private volatile int latestRightDp = 0;
+    private volatile boolean hasMeasuredInsets = false;
+
+    public class SmartRunInsetsBridge {
+        @JavascriptInterface
+        public int getTopDp() {
+            return latestTopDp;
+        }
+
+        @JavascriptInterface
+        public int getBottomDp() {
+            return latestBottomDp;
+        }
+
+        @JavascriptInterface
+        public int getLeftDp() {
+            return latestLeftDp;
+        }
+
+        @JavascriptInterface
+        public int getRightDp() {
+            return latestRightDp;
+        }
+
+        @JavascriptInterface
+        public boolean isReady() {
+            return hasMeasuredInsets;
+        }
+    }
+
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+    }
+
+    private void updateMeasuredInsets(WindowInsetsCompat windowInsets) {
+        if (windowInsets == null) return;
+        Insets navInsets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars());
+        Insets statusInsets = windowInsets.getInsets(
+            WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.displayCutout()
+        );
+
+        float density = getResources().getDisplayMetrics().density;
+        int topDp = density > 0 ? Math.round(statusInsets.top / density) : statusInsets.top;
+        int bottomDp = density > 0 ? Math.round(navInsets.bottom / density) : navInsets.bottom;
+        int leftDp = density > 0 ? Math.round(Math.max(statusInsets.left, navInsets.left) / density) : Math.max(statusInsets.left, navInsets.left);
+        int rightDp = density > 0 ? Math.round(Math.max(statusInsets.right, navInsets.right) / density) : Math.max(statusInsets.right, navInsets.right);
+
+        latestTopDp = Math.max(topDp, 0);
+        latestBottomDp = Math.max(bottomDp, 0);
+        latestLeftDp = Math.max(leftDp, 0);
+        latestRightDp = Math.max(rightDp, 0);
+        hasMeasuredInsets = true;
+
+        injectInsetsIntoWebView();
+    }
+
+    private void syncFromRootWindowInsets() {
+        View decorView = getWindow() != null ? getWindow().getDecorView() : null;
+        if (decorView == null) return;
+        WindowInsetsCompat rootInsets = ViewCompat.getRootWindowInsets(decorView);
+        if (rootInsets != null) {
+            updateMeasuredInsets(rootInsets);
+        } else {
+            injectInsetsIntoWebView();
+        }
+    }
+
+    private void injectInsetsIntoWebView() {
+        if (isFinishing() || isDestroyed() || getBridge() == null || getBridge().getWebView() == null) {
+            return;
+        }
+        final int topDp = latestTopDp;
+        final int bottomDp = latestBottomDp;
+        final int leftDp = latestLeftDp;
+        final int rightDp = latestRightDp;
+        final boolean ready = hasMeasuredInsets;
+
+        getBridge().getWebView().post(() -> {
+            if (isFinishing() || isDestroyed() || getBridge() == null || getBridge().getWebView() == null) {
+                return;
+            }
+            String js =
+                "(function(){" +
+                "  var r=document&&document.documentElement;" +
+                "  if(!r)return;" +
+                (ready
+                    ? "  r.style.setProperty('--safe-area-top','" + topDp + "px');" +
+                      "  r.style.setProperty('--safe-area-bottom','" + bottomDp + "px');" +
+                      "  r.style.setProperty('--safe-area-left','" + leftDp + "px');" +
+                      "  r.style.setProperty('--safe-area-right','" + rightDp + "px');" +
+                      "  r.dataset.nativeSafeArea='1';"
+                    : "") +
+                "})();";
+            getBridge().getWebView().evaluateJavascript(js, null);
+        });
     }
 
     @Override
@@ -32,48 +134,40 @@ public class MainActivity extends BridgeActivity {
         }
 
         // Configure system bars to show clear dark icons (WiFi, Network, Battery) and dark navigation buttons (Back, Home, Recents)
-        androidx.core.view.WindowInsetsControllerCompat insetsController =
-            androidx.core.view.WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        WindowInsetsControllerCompat insetsController =
+            WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         if (insetsController != null) {
             insetsController.setAppearanceLightStatusBars(true);
             insetsController.setAppearanceLightNavigationBars(true);
         }
 
-        // Measure system bars and navigation insets dynamically (status bar notch, 3-button navigation, gesture bar)
-        // and inject them as CSS variables into the WebView so Header and BottomNav adjust with zero overlap
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(getWindow().getDecorView(), (v, windowInsets) -> {
-            androidx.core.graphics.Insets navInsets = windowInsets.getInsets(
-                androidx.core.view.WindowInsetsCompat.Type.navigationBars()
-            );
-            androidx.core.graphics.Insets statusInsets = windowInsets.getInsets(
-                androidx.core.view.WindowInsetsCompat.Type.statusBars() |
-                androidx.core.view.WindowInsetsCompat.Type.displayCutout()
-            );
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().addJavascriptInterface(new SmartRunInsetsBridge(), "SmartRunInsets");
+        }
 
-            float density = getResources().getDisplayMetrics().density;
-            int topDp = density > 0 ? Math.round(statusInsets.top / density) : statusInsets.top;
-            int bottomDp = density > 0 ? Math.round(navInsets.bottom / density) : navInsets.bottom;
+        // Single authoritative insets handler: measure density-normalized DP insets for CSS variables
+        // and zero out systemBars + displayCutout insets passed to WebView (preserving IME keyboard insets)
+        // so Chromium env(safe-area-inset-*) never double-pads or leaks raw physical pixels.
+        ViewCompat.setOnApplyWindowInsetsListener(getWindow().getDecorView(), (v, windowInsets) -> {
+            v.setPadding(0, 0, 0, 0);
+            updateMeasuredInsets(windowInsets);
 
-            final int finalTopDp = Math.max(topDp, 0);
-            final int finalBottomDp = Math.max(bottomDp, 0);
-
-            if (!isFinishing() && !isDestroyed() && getBridge() != null && getBridge().getWebView() != null) {
-                getBridge().getWebView().post(() -> {
-                    if (isFinishing() || isDestroyed() || getBridge() == null || getBridge().getWebView() == null) {
-                        return;
-                    }
-                    getBridge().getWebView().evaluateJavascript(
-                        "document.documentElement.style.setProperty('--safe-area-top', '" + finalTopDp + "px');" +
-                        "document.documentElement.style.setProperty('--safe-area-bottom', '" + finalBottomDp + "px');",
-                        null
-                    );
-                });
-            }
-            return windowInsets;
+            return new WindowInsetsCompat.Builder(windowInsets)
+                .setInsets(
+                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout(),
+                    Insets.NONE
+                )
+                .build();
         });
 
         if (getBridge() != null && getBridge().getWebView() != null) {
             getBridge().getWebView().setWebViewClient(new BridgeWebViewClient(getBridge()) {
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    super.onPageFinished(view, url);
+                    syncFromRootWindowInsets();
+                }
+
                 @Override
                 public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                     if (request != null && request.getUrl() != null) {
@@ -133,6 +227,21 @@ public class MainActivity extends BridgeActivity {
                     return false;
                 }
             });
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        syncFromRootWindowInsets();
+        ViewCompat.requestApplyInsets(getWindow().getDecorView());
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            syncFromRootWindowInsets();
         }
     }
 }

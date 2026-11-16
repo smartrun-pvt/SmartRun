@@ -49,6 +49,9 @@ const config: CapacitorConfig = {
       style: 'LIGHT',
       backgroundColor: '#00000000',
     },
+    SystemBars: {
+      insetsHandling: 'disable',
+    },
   },
 };
 

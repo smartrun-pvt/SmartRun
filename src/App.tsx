@@ -90,35 +90,27 @@ import { showToast } from './utils/toast';
 import { sanitizeCustomerName } from './utils/nameHelper';
 import { isNativePhoneApp } from './utils/platformDetection';
 import { fetchServerCurrentUser, syncServerSession, serverLogout } from './services/serverAuthService';
+import { attachSafeAreaListeners, syncSafeAreaCssVariables } from './utils/safeArea';
 
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Hide native splash screen & configure clean edge-to-edge status bar on app ready
+  // Hide native splash screen, sync single-source safe-area CSS variables & configure edge-to-edge status bar
   useEffect(() => {
     const isNative = Capacitor.isNativePlatform() || isNativePhoneApp();
-    const isStandalone = typeof window !== 'undefined' && (
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true
-    );
+    syncSafeAreaCssVariables();
+    const detachSafeArea = attachSafeAreaListeners();
 
     if (isNative) {
       SplashScreen.hide().catch(() => {});
       StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
       StatusBar.setStyle({ style: Style.Light }).catch(() => {});
-
-      // Respect measured Android navigation bar insets from MainActivity.
-      // If unset, default gracefully to CSS safe-area-inset-bottom / safe-area-inset-top
-      const currentBottom = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-bottom');
-      if (!currentBottom || currentBottom.trim() === '') {
-        document.documentElement.style.setProperty('--safe-area-bottom', 'env(safe-area-inset-bottom, 0px)');
-      }
-      const currentTop = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-top');
-      if (!currentTop || currentTop.trim() === '') {
-        document.documentElement.style.setProperty('--safe-area-top', 'env(safe-area-inset-top, 0px)');
-      }
     }
+
+    return () => {
+      detachSafeArea();
+    };
   }, []);
 
   // Silent Background Version Check & Cache Invalidation (no popups, no blinking reloads)
@@ -1851,6 +1843,8 @@ export default function App() {
         !location.pathname.startsWith('/service-areas') &&
         !location.pathname.startsWith('/contact') &&
         !location.pathname.startsWith('/support') &&
+        !location.pathname.startsWith('/technicians/') &&
+        !location.pathname.startsWith('/personal-info') &&
         activeTab !== 'cart' &&
         !selectedProductQuickView && (
         <Header

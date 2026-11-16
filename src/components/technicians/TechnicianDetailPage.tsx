@@ -293,7 +293,7 @@ export const TechnicianDetailPage = ({
       {/* Top Header Navigation [Minimal & Clean] */}
       <div
         className="sticky top-0 z-30 bg-white/95 backdrop-blur-md px-4 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between border-b border-slate-100"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+        style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
       >
         <div className="flex items-center gap-3">
           <button

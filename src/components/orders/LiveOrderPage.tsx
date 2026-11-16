@@ -912,7 +912,7 @@ export const LiveOrderPage = ({
       <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900">
         <div
           className="sticky top-0 z-30 bg-white px-4 py-2.5 sm:py-3.5 flex items-center justify-between shadow-xs"
-          style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+          style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
         >
           <button
             onClick={handleBack}
@@ -963,7 +963,7 @@ export const LiveOrderPage = ({
       {/* Top Sticky Header for Order Page: Shows Current Background Process */}
       <div
         className="sticky top-0 z-30 bg-white px-4 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between shadow-xs border-b border-slate-100"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+        style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
       >
         <div className="flex items-center gap-3 min-w-0">
           <button

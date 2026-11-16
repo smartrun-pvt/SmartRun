@@ -613,7 +613,7 @@ export const HomePage = ({
       />
       <div
         className="min-h-screen bg-white text-slate-900 pb-36 sm:pb-28 font-sans"
-        style={{ paddingBottom: 'max(9rem, calc(7.5rem + env(safe-area-inset-bottom, 1rem)))' }}
+        style={{ paddingBottom: 'max(9rem, calc(7.5rem + var(--safe-area-bottom, env(safe-area-inset-bottom, 1rem))))' }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-12 sm:space-y-16 pt-3 sm:pt-4">
 

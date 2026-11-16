@@ -451,7 +451,7 @@ export const HelpCenterChat = ({
         className="shrink-0 sticky top-0 z-30 bg-[#74c69d] border-b border-[#52b788] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
         style={{
           backgroundColor: '#74c69d',
-          paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))'
+          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))'
         }}
       >
         <div className="w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">
@@ -685,7 +685,7 @@ export const HelpCenterChat = ({
           handleSendMessage();
         }}
         className="shrink-0 bg-white border-t border-slate-200 px-3 pt-2.5 sm:pt-3 flex items-center gap-2 shadow-md z-20"
-        style={{ paddingBottom: 'max(0.75rem, max(env(safe-area-inset-bottom, 0px), var(--safe-area-bottom, 0px)))' }}
+        style={{ paddingBottom: 'max(0.75rem, var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)))' }}
       >
         {/* Input Field */}
         <input

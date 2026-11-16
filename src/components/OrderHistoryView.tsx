@@ -791,8 +791,7 @@ export const OrderHistoryView = ({
 
     return (
       <div
-        className="max-w-2xl mx-auto px-4 sm:px-6 pb-28 sm:pb-24 space-y-5"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+        className="max-w-2xl mx-auto px-4 sm:px-6 pt-3 pb-28 sm:pb-24 space-y-5"
       >
         {/* Top Navigation & Action Header */}
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 pt-2 pb-3">
@@ -1308,8 +1307,7 @@ export const OrderHistoryView = ({
         noIndex={true}
       />
       <div
-        className="max-w-3xl mx-auto px-4 sm:px-6 pb-28 sm:pb-24 space-y-6"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+        className="max-w-3xl mx-auto px-4 sm:px-6 pt-3 pb-28 sm:pb-24 space-y-6"
       >
         {/* Top Header */}
       {!hideHeader && (

@@ -886,7 +886,7 @@ export const LocationModal = ({
             <div
               className="bg-white px-5 sm:px-6 pb-4 border-b border-slate-100 shrink-0 sticky top-0 z-20"
               style={{
-                paddingTop: 'calc(1.25rem + max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px)))'
+                paddingTop: 'calc(1.25rem + var(--safe-area-top, env(safe-area-inset-top, 0px)))'
               }}
             >
               <div className="flex items-center justify-between mb-3">
@@ -1202,7 +1202,7 @@ export const LocationModal = ({
             <div
               className="absolute inset-x-3.5 z-[1100] flex items-center gap-2"
               style={{
-                top: 'calc(0.875rem + max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px)))'
+                top: 'calc(0.875rem + var(--safe-area-top, env(safe-area-inset-top, 0px)))'
               }}
             >
               {/* Floating Search Input */}
@@ -1399,7 +1399,7 @@ export const LocationModal = ({
             onSubmit={handleSaveAddress}
             className="flex-1 overflow-y-auto px-5 sm:px-6 pb-5 space-y-4 no-scrollbar bg-white"
             style={{
-              paddingTop: 'calc(1.25rem + max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px)))'
+              paddingTop: 'calc(1.25rem + var(--safe-area-top, env(safe-area-inset-top, 0px)))'
             }}
           >
             {/* Top Bar with Back Button */}

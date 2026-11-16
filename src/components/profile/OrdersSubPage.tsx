@@ -23,7 +23,7 @@ export const OrdersSubPage: React.FC<OrdersSubPageProps> = ({
         className="sticky top-0 z-30 bg-[#74c69d] border-b border-[#52b788] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform min-h-[64px] sm:min-h-[68px] flex flex-col justify-center transition-all"
         style={{
           backgroundColor: '#74c69d',
-          paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))'
+          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))'
         }}
       >
         <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">

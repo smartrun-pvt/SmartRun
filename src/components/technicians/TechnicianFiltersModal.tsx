@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
 import { hapticLight, hapticSelection } from '../../utils/haptics';
@@ -154,7 +155,9 @@ export const TechnicianFiltersModal = ({
     { label: '4.9★ & Above', value: 4.9 }
   ];
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex justify-end bg-white sm:bg-black/50 sm:backdrop-blur-xs">
         {/* Backdrop for desktop click outside */}
@@ -178,27 +181,32 @@ export const TechnicianFiltersModal = ({
           className="relative w-full h-full sm:max-w-md bg-white shadow-2xl z-10 flex flex-col overflow-hidden"
         >
           {/* Sticky Header (Identical clean format to electricals) */}
-          <div className="sticky top-0 z-20 bg-white px-5 py-3.5 sm:py-4 border-b border-slate-100 flex items-center justify-between shadow-2xs">
-            <div className="flex items-center gap-2.5">
-              <h2 className="text-base sm:text-lg font-black text-slate-900">Filters</h2>
-              {hasDraftFilters && (
-                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[11px] font-black">
-                  Active
-                </span>
-              )}
+          <div
+            className="sticky top-0 z-20 bg-white border-b border-slate-100 shadow-2xs"
+            style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
+          >
+            <div className="px-5 py-3.5 sm:py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-base sm:text-lg font-black text-slate-900">Filters</h2>
+                {hasDraftFilters && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[11px] font-black">
+                    Active
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  hapticLight();
+                  onClose();
+                }}
+                className="p-2 text-slate-500 hover:text-slate-900 rounded-full hover:bg-slate-100 transition-colors cursor-pointer border-0 bg-transparent"
+                title="Close Filters"
+                aria-label="Close Filters"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                hapticLight();
-                onClose();
-              }}
-              className="p-2 text-slate-500 hover:text-slate-900 rounded-full hover:bg-slate-100 transition-colors cursor-pointer border-0 bg-transparent"
-              title="Close Filters"
-              aria-label="Close Filters"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
 
           {/* Filter Body: Single independent smooth scroll */}
@@ -418,7 +426,10 @@ export const TechnicianFiltersModal = ({
           </div>
 
           {/* Sticky Bottom Actions (Identical to electricals page) */}
-          <div className="sticky bottom-0 z-20 bg-white px-5 py-3 sm:py-3.5 border-t border-slate-100 flex items-center justify-between gap-3 shadow-lg">
+          <div
+            className="sticky bottom-0 z-20 bg-white px-5 pt-3 sm:pt-3.5 border-t border-slate-100 flex items-center justify-between gap-3 shadow-lg"
+            style={{ paddingBottom: 'calc(0.75rem + var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)))' }}
+          >
             <button
               type="button"
               onClick={handleReset}
@@ -436,6 +447,7 @@ export const TechnicianFiltersModal = ({
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };

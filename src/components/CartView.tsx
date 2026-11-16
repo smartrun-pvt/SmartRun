@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Zap,
@@ -869,7 +870,7 @@ export const CartView = ({
         />
         <div
           className="max-w-2xl mx-auto px-3 sm:px-4 pb-4 sm:pb-6"
-          style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+          style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
         >
           {/* Header */}
           <div className="flex items-center gap-2.5 pt-2 sm:pt-4 mb-6">
@@ -976,7 +977,7 @@ export const CartView = ({
       />
       <div
         className="max-w-2xl mx-auto px-3 sm:px-4 pb-4 sm:pb-6"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+        style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
       >
         
         {/* 1. HEADER */}
@@ -1731,12 +1732,15 @@ export const CartView = ({
       {/* ========================================================================== */}
       {/* ORDER PAYMENT CHECKOUT PAGE */}
       {/* ========================================================================== */}
-      {isCheckoutOpen && (
+      {isCheckoutOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-50 bg-[#f4f5f8] overflow-y-auto flex flex-col animate-in fade-in duration-150">
           
           {/* Top Sticky Header: Back Button + Pay + Price */}
-          <div className="sticky top-0 z-20 bg-white border-b border-slate-200/90 px-4 py-3 shadow-2xs">
-            <div className="max-w-md mx-auto flex items-center justify-between gap-3">
+          <div
+            className="sticky top-0 z-20 bg-white border-b border-slate-200/90 shadow-2xs"
+            style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
+          >
+            <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 min-w-0">
                 <button
                   type="button"
@@ -1953,7 +1957,8 @@ export const CartView = ({
             </div>
           </div>
 
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ========================================================================== */}

@@ -314,7 +314,7 @@ export const Header = ({
   return (
     <header
       className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform"
-      style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+      style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
     >
       {/* Main Brand & Action Bar (collapses smoothly on product detail page scroll) */}
       <div

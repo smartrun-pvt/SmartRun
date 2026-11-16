@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import {
   SlidersHorizontal,
@@ -995,7 +996,7 @@ export const ConstructionPage = ({
       </div>
 
       {/* 3. SIDE-TAB / FULL-PAGE FILTER (Full page on mobile, right drawer on desktop, independent scroll, stack-wise buttons) */}
-      {isSideFilterOpen && (
+      {isSideFilterOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-50 flex justify-end bg-white sm:bg-black/50 sm:backdrop-blur-xs animate-in fade-in duration-200">
           {/* Backdrop for desktop click outside */}
           <div
@@ -1006,23 +1007,28 @@ export const ConstructionPage = ({
           {/* Drawer Panel: 100% full screen on phone, max-w-md on desktop */}
           <div className="relative w-full h-full sm:max-w-md bg-white shadow-2xl z-10 flex flex-col overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-right duration-200">
             {/* Sticky Header */}
-            <div className="sticky top-0 z-20 bg-white px-5 py-3.5 sm:py-4 border-b border-slate-100 flex items-center justify-between shadow-2xs">
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-base sm:text-lg font-black text-slate-900">Filters</h2>
-                {(filters.subcategories.length > 0 || filters.brands.length > 0 || filters.minDiscount || filters.inStockOnly || filters.minRating || filters.minPrice || filters.maxPrice) && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[11px] font-black">
-                    Active
-                  </span>
-                )}
+            <div
+              className="sticky top-0 z-20 bg-white border-b border-slate-100 shadow-2xs"
+              style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
+            >
+              <div className="px-5 py-3.5 sm:py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-base sm:text-lg font-black text-slate-900">Filters</h2>
+                  {(filters.subcategories.length > 0 || filters.brands.length > 0 || filters.minDiscount || filters.inStockOnly || filters.minRating || filters.minPrice || filters.maxPrice) && (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[11px] font-black">
+                      Active
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSideFilterOpen(false)}
+                  className="p-2 text-slate-500 hover:text-slate-900 rounded-full hover:bg-slate-100 transition-colors cursor-pointer border-0 bg-transparent"
+                  title="Close Filters"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsSideFilterOpen(false)}
-                className="p-2 text-slate-500 hover:text-slate-900 rounded-full hover:bg-slate-100 transition-colors cursor-pointer border-0 bg-transparent"
-                title="Close Filters"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
             {/* Filter Content: Single independent smooth scroll */}
@@ -1228,7 +1234,10 @@ export const ConstructionPage = ({
             </div>
 
             {/* Sticky Bottom Actions */}
-            <div className="sticky bottom-0 z-20 bg-white px-5 py-3 sm:py-3.5 border-t border-slate-100 flex items-center justify-between gap-3 shadow-lg">
+            <div
+              className="sticky bottom-0 z-20 bg-white px-5 pt-3 sm:pt-3.5 border-t border-slate-100 flex items-center justify-between gap-3 shadow-lg"
+              style={{ paddingBottom: 'calc(0.75rem + var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)))' }}
+            >
               <button
                 type="button"
                 onClick={handleClearAllFilters}
@@ -1245,7 +1254,8 @@ export const ConstructionPage = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* DEDICATED PRICE / SORT DROPDOWN (Small Box in Right Side of Screen on Phone & Big Screen, Borderless Text Buttons Only) */}

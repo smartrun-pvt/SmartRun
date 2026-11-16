@@ -136,7 +136,7 @@ export const LegalView = ({ onBack, type }: LegalViewProps) => {
       {/* Top Header */}
       <div
         className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-2xs"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), var(--safe-area-top, 0px))' }}
+        style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
       >
         <div className="max-w-3xl mx-auto px-4 py-2.5 sm:py-3.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">

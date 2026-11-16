@@ -5,7 +5,11 @@ import App from './App.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { registerServiceWorker } from './utils/serviceWorkerRegistration';
 import { registerSmartRunWebMcpTools } from './utils/webMcp';
+import { syncSafeAreaCssVariables } from './utils/safeArea';
 import './index.css';
+
+// Resolve native/web safe-area CSS variables synchronously before first paint
+syncSafeAreaCssVariables();
 
 // Register read-only WebMCP tools for AI browser agents (Chrome/Lighthouse Agentic Browsing)
 registerSmartRunWebMcpTools();
