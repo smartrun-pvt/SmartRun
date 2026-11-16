@@ -8,7 +8,7 @@
 
 ## Directory Tree Overview
 - `/src`: App entry (`App.tsx`), UI components (`/components`), services (`/services`), utils (`/utils`), types (`types.ts`)
-- `/android`: Capacitor Android native project (`/android/app/build.gradle`, `/android/app/proguard-rules.pro`, `/android/app/missing_rules.txt`, `/android/app/src/main/assets/public`)
+- `/android`: Capacitor Android native project (`/android/app/google-services.json`, `/android/app/build.gradle`, `/android/app/proguard-rules.pro`, `/android/app/missing_rules.txt`, `/android/app/src/main/assets/public`)
 - `server.ts`: Cloud Run backend API, Resend email dispatcher, Razorpay payments, SMS OTP, delivery & order tracking
 - `Dockerfile`: Multi-stage Cloud Run production container build
 
@@ -31,8 +31,8 @@
   - **Best Practices & Clean Network**: Removed startup/per-fetch anonymous `updateOrMigrateDaldaPipeInSupabase` (eliminating 5x Supabase `400` errors), deduplicated catalog requests via `productFetchCache.ts` (`30s` TTL + in-flight coalescence), guarded web launch geolocation on `permissions.query({ state: 'granted' })`, and fixed Imgur `403`s + infinite fallback loops with `referrerPolicy="no-referrer"` + one-shot guard.
   - **Accessibility (100/100 Target)**: Added `aria-hidden` + `tabIndex={-1}` on inactive `HERO_POSTERS` slides/links, `alt=""` on decorative hero paintings, `aria-label` on `#universal-search-input` and `DeviceLocationPromptModal` close button, and WCAG AA `text-amber-700`/`text-slate-600` contrast on steps `01–04` and `bg-slate-900/85` on image badges.
   - **Agentic Browsing (`4/4` ARD + WebMCP + Markdown)**: Added `GET /.well-known/ard.json`, `<link rel="ard">` & `Link:` discovery headers, `robots.txt` `Agentmap:` pointer, `Accept: text/markdown` SSR negotiation (`renderMarkdownRepresentation`), 4 read-only imperative WebMCP tools (`src/utils/webMcp.ts`) on `navigator.modelContext`, and declarative WebMCP form attributes in `Header.tsx`.
-- **Phase 8 Capacitor 8 Android Edge-to-Edge & Minimalist Footer Cleanup**:
-  - Disabled Capacitor 8 `SystemBars` auto-padding (`insetsHandling: 'disable'`), set `shortEdges` cutout mode in `styles.xml`, added synchronous `SmartRunInsets` `@JavascriptInterface` in `MainActivity.java` consuming `systemBars | displayCutout` (preserving `ime()`), wired `src/utils/safeArea.ts` synchronously in `src/main.tsx` + lifecycle listeners in `src/App.tsx`, eliminated `max(env(safe-area-inset-*), ...)` across all 35 components, removed `#smartrun-brand-authority` and the 3 link/Play-Store `div` boxes from `Footer.tsx` (`BUG-UI-013`), and synced `dist` + `capacitor.config.json` into `android/app/src/main/assets`.
+- **Phase 8 Capacitor 8 Android Edge-to-Edge, Google Services & Minimalist Footer Cleanup**:
+  - Disabled Capacitor 8 `SystemBars` auto-padding (`insetsHandling: 'disable'`), set `shortEdges` cutout mode in `styles.xml`, added synchronous `SmartRunInsets` `@JavascriptInterface` in `MainActivity.java` consuming `systemBars | displayCutout` (preserving `ime()`), wired `src/utils/safeArea.ts` synchronously in `src/main.tsx` + lifecycle listeners in `src/App.tsx`, eliminated `max(env(safe-area-inset-*), ...)` across all 35 components, removed `#smartrun-brand-authority` and the 3 link/Play-Store `div` boxes from `Footer.tsx` (`BUG-UI-013`), synced `dist` + `capacitor.config.json` into `android/app/src/main/assets`, placed valid `google-services.json` (`in.smartrun.app` only) inside `android/app/google-services.json` (`BUG-APK-007`), and purged the legacy `com.girirajpower.buildnow` client block.
 
 ## Immediate Next Build Step
-- Rebuild signed Android APK/AAB in Android Studio (or Gradle `assembleRelease`) using the freshly synced `android/app/src/main/assets` bundle and verify visual edge-to-edge top alignment on device; deploy updated Cloud Run bundle for web/PWA.
+- Run `./gradlew assembleRelease` (or `bundleRelease`) in `android/` to confirm `:app:processReleaseGoogleServices` and R8/ProGuard packaging succeed cleanly, verify visual edge-to-edge top alignment on device, and deploy updated Cloud Run bundle for web/PWA.
