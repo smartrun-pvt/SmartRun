@@ -578,6 +578,22 @@ export const ConstructionPage = ({
         title={searchQuery ? `"${searchQuery}" - Building Materials & Cement Kolkata | SmartRun` : 'Building Materials, UltraTech Cement & Tata TMT Steel Kolkata | SmartRun'}
         description="Procure construction supplies online: UltraTech & ACC cement, Tata Tiscon TMT rebars, waterproofing chemicals, and plumbing pipes with direct site delivery across Kolkata."
         keywords="construction materials kolkata, ultratech cement kolkata, tata tiscon tmt rebars, building materials procurement, dr fixit waterproofing"
+        structuredData={
+          filteredAndSortedProducts.length > 0
+            ? {
+                '@type': 'ItemList',
+                '@id': 'https://www.smartrun.in/construction#itemlist',
+                name: 'Construction & Building Materials Catalog Kolkata',
+                numberOfItems: Math.min(filteredAndSortedProducts.length, 20),
+                itemListElement: filteredAndSortedProducts.slice(0, 20).map((item, idx) => ({
+                  '@type': 'ListItem',
+                  position: idx + 1,
+                  name: item.name,
+                  url: `https://www.smartrun.in/construction/product/${item.id}`
+                }))
+              }
+            : undefined
+        }
       />
       {/* ACTIVE FILTER TAGS & RESET ROW (Top navbar houses All Filters & Sort) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-2 pb-2 mb-2 flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">

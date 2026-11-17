@@ -2,7 +2,12 @@ import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ENRICHED_FAQ_LIST } from '../data/faqData';
 import { KOLKATA_AREAS } from '../data/kolkataAreas';
-import { normalizeCanonicalPath } from '../utils/seoHelper';
+import {
+  normalizeCanonicalPath,
+  normalizeAbsoluteHttpsUrl,
+  resolveGoogleProductCategory,
+  stripHtmlAndControlChars
+} from '../utils/seoHelper';
 
 export interface SEOHeadProps {
   title?: string;
@@ -16,6 +21,7 @@ export interface SEOHeadProps {
     id?: string;
     sku?: string;
     mpn?: string;
+    gtin?: string;
     name: string;
     description?: string;
     price: number;
@@ -27,6 +33,9 @@ export interface SEOHeadProps {
     rating?: number;
     reviewsCount?: number;
     category?: string;
+    subCategory?: string;
+    selectedColor?: string;
+    shippingRate?: number;
     reviews?: Array<{
       id?: string;
       customerName?: string;
@@ -229,8 +238,17 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     const computedTitle = title || defaultTitle;
     const computedDesc = description || defaultDesc;
     const computedKeywords = keywords || defaultKeywords;
-    const computedImage = image || (productData?.image) || (technicianData?.photo) || 'https://www.smartrun.in/SmartRun.png';
-    const canonicalUrl = `https://www.smartrun.in${path === '/' ? '/' : path}`;
+    const computedImage =
+      normalizeAbsoluteHttpsUrl(image) ||
+      normalizeAbsoluteHttpsUrl(productData?.image) ||
+      normalizeAbsoluteHttpsUrl(productData?.images?.[0]) ||
+      normalizeAbsoluteHttpsUrl(technicianData?.photo) ||
+      'https://www.smartrun.in/SmartRun.png';
+    const baseCanonicalUrl = `https://www.smartrun.in${path === '/' ? '/' : path}`;
+    const canonicalUrl =
+      productData?.selectedColor
+        ? `${baseCanonicalUrl}?color=${encodeURIComponent(productData.selectedColor)}`
+        : baseCanonicalUrl;
 
     // 2. Set Document Title
     document.title = computedTitle;
@@ -251,7 +269,7 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     setOrUpdateCanonical(canonicalUrl);
 
     // 5. Set OpenGraph Meta Tags (Multi-Aspect Ratio for Google Discover, Search & Social)
-    setOrUpdateMeta('property', 'og:type', defaultType);
+    setOrUpdateMeta('property', 'og:type', productData ? 'product' : defaultType);
     setOrUpdateMeta('property', 'og:site_name', 'SmartRun');
     setOrUpdateMeta('property', 'og:url', canonicalUrl);
     setOrUpdateMeta('property', 'og:title', computedTitle);
@@ -260,9 +278,33 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     setOrUpdateMeta('property', 'og:image:secure_url', computedImage);
     setOrUpdateMeta('property', 'og:image:width', '1200');
     setOrUpdateMeta('property', 'og:image:height', '630');
-    setOrUpdateMeta('property', 'og:image:type', computedImage.endsWith('.png') ? 'image/png' : 'image/jpeg');
+    setOrUpdateMeta('property', 'og:image:type', computedImage.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg');
     setOrUpdateMeta('property', 'og:image:alt', computedTitle);
     setOrUpdateMeta('property', 'og:locale', 'en_IN');
+
+    // 5b. OpenGraph Commerce Meta Tags for Google Merchant Center Automatic Item Updates
+    const commerceProps = [
+      'product:price:amount',
+      'product:price:currency',
+      'product:availability',
+      'product:condition',
+      'product:brand',
+      'product:retailer_item_id'
+    ];
+    if (productData) {
+      const prodIdForOg = productData.id || productData.sku || 'PRD';
+      const skuForOg = productData.sku || `SMARTRUN-${String(prodIdForOg).slice(0, 8).toUpperCase()}`;
+      setOrUpdateMeta('property', 'product:price:amount', Number(productData.price || 0).toFixed(2));
+      setOrUpdateMeta('property', 'product:price:currency', 'INR');
+      setOrUpdateMeta('property', 'product:availability', productData.inStock !== false ? 'in stock' : 'out of stock');
+      setOrUpdateMeta('property', 'product:condition', 'new');
+      setOrUpdateMeta('property', 'product:brand', productData.brand || 'SmartRun');
+      setOrUpdateMeta('property', 'product:retailer_item_id', skuForOg);
+    } else {
+      commerceProps.forEach((prop) => {
+        document.querySelector(`meta[property="${prop}"]`)?.remove();
+      });
+    }
 
     // Geographic Meta Tags & Dublin Core for Local Kolkata Ranking
     setOrUpdateMeta('name', 'geo.region', 'IN-WB');
@@ -597,36 +639,30 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
 
       const prodImages = Array.from(
         new Set([
-          computedImage,
-          ...(Array.isArray(productData.images) ? productData.images : []),
-          'https://www.smartrun.in/SmartRun.png',
-          'https://www.smartrun.in/icons/icon-512.png'
+          normalizeAbsoluteHttpsUrl(productData.image),
+          ...(Array.isArray(productData.images) ? productData.images.map(normalizeAbsoluteHttpsUrl) : []),
+          computedImage
         ])
       ).filter(Boolean);
 
-      const prodSchema: Record<string, unknown> = {
-        '@context': 'https://schema.org/',
-        '@type': 'Product',
-        productID: prodId,
+      if (prodImages.length === 0) {
+        prodImages.push('https://www.smartrun.in/SmartRun.png');
+      }
+
+      const sellingPrice = Number(productData.price || 0);
+      const shippingRateVal = typeof productData.shippingRate === 'number' ? productData.shippingRate : 0;
+
+      const prodOffers: Record<string, unknown> = {
+        '@type': 'Offer',
+        url: canonicalUrl,
         sku: prodSku,
-        mpn: prodMpn,
-        name: productData.name,
-        image: prodImages,
-        description: productData.description || `${productData.name} available at SmartRun Kolkata with 60-min express delivery across West Bengal. 100% genuine guaranteed with instant manufacturer warranty.`,
-        category: productData.category || 'Electrical & Construction Supplies',
-        brand: {
-          '@type': 'Brand',
-          name: productData.brand || 'SmartRun'
-        },
-        offers: {
-          '@type': 'Offer',
-          url: canonicalUrl,
-          priceCurrency: 'INR',
-          price: productData.price,
-          priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          availability: productData.inStock !== false ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-          itemCondition: 'https://schema.org/NewCondition',
-          areaServed: {
+        priceCurrency: 'INR',
+        price: sellingPrice,
+        priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        availability: productData.inStock !== false ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+        itemCondition: 'https://schema.org/NewCondition',
+        areaServed: [
+          {
             '@type': 'City',
             name: 'Kolkata',
             containedInPlace: {
@@ -634,71 +670,121 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
               name: 'West Bengal'
             }
           },
-          availableAtOrFrom: {
-            '@type': ['Place', 'HardwareStore'],
-            '@id': 'https://www.smartrun.in/#depot-kasba',
-            name: 'SmartRun Kasba Central Depot',
-            address: {
-              '@type': 'PostalAddress',
-              streetAddress: 'Kasba Industrial Estate Phase 1',
-              addressLocality: 'Kolkata',
-              addressRegion: 'West Bengal',
-              postalCode: '700107',
-              addressCountry: 'IN'
-            },
-            geo: {
-              '@type': 'GeoCoordinates',
-              latitude: 22.5145,
-              longitude: 88.3934
+          {
+            '@type': 'City',
+            name: 'Howrah',
+            containedInPlace: {
+              '@type': 'State',
+              name: 'West Bengal'
             }
+          }
+        ],
+        availableAtOrFrom: {
+          '@type': ['Place', 'HardwareStore'],
+          '@id': 'https://www.smartrun.in/#depot-kasba',
+          name: 'SmartRun Kasba Central Depot',
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: 'Kasba Industrial Estate Phase 1',
+            addressLocality: 'Kolkata',
+            addressRegion: 'West Bengal',
+            postalCode: '700107',
+            addressCountry: 'IN'
           },
-          seller: {
-            '@type': 'Organization',
-            '@id': 'https://www.smartrun.in/#store',
-            name: 'SmartRUN',
-            legalName: 'SmartRun Materials Pvt. Ltd.',
-            url: 'https://www.smartrun.in/'
+          geo: {
+            '@type': 'GeoCoordinates',
+            latitude: 22.5145,
+            longitude: 88.3934
+          }
+        },
+        seller: {
+          '@type': 'Organization',
+          '@id': 'https://www.smartrun.in/#store',
+          name: 'SmartRUN',
+          legalName: 'SmartRun Materials Pvt. Ltd.',
+          url: 'https://www.smartrun.in/'
+        },
+        hasMerchantReturnPolicy: {
+          '@type': 'MerchantReturnPolicy',
+          applicableCountry: 'IN',
+          returnPolicyCountry: 'IN',
+          returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+          merchantReturnDays: 7,
+          returnMethod: 'https://schema.org/ReturnByMail',
+          returnFees: 'https://schema.org/FreeReturn',
+          refundType: 'https://schema.org/FullRefund'
+        },
+        shippingDetails: {
+          '@type': 'OfferShippingDetails',
+          shippingRate: {
+            '@type': 'MonetaryAmount',
+            value: String(shippingRateVal),
+            currency: 'INR'
           },
-          hasMerchantReturnPolicy: {
-            '@type': 'MerchantReturnPolicy',
-            applicableCountry: 'IN',
-            returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
-            merchantReturnDays: 7,
-            returnMethod: 'https://schema.org/ReturnAtKiosk',
-            returnFees: 'https://schema.org/FreeReturn',
-            refundType: 'https://schema.org/FullRefund'
-          },
-          shippingDetails: {
-            '@type': 'OfferShippingDetails',
-            shippingRate: {
-              '@type': 'MonetaryAmount',
-              value: '49',
-              currency: 'INR'
-            },
-            shippingDestination: {
+          shippingDestination: [
+            {
               '@type': 'DefinedRegion',
               addressCountry: 'IN',
               postalCodeRange: {
-                postalCode: '700001-700160'
+                postalCodeBegin: '700001',
+                postalCodeEnd: '700160'
               }
             },
-            deliveryTime: {
-              '@type': 'ShippingDeliveryTime',
-              handlingTime: {
-                '@type': 'QuantitativeValue',
-                minValue: 0,
-                maxValue: 1,
-                unitCode: 'DAY'
-              },
-              transitTime: {
-                '@type': 'QuantitativeValue',
-                minValue: 0,
-                maxValue: 1,
-                unitCode: 'DAY'
+            {
+              '@type': 'DefinedRegion',
+              addressCountry: 'IN',
+              postalCodeRange: {
+                postalCodeBegin: '711101',
+                postalCodeEnd: '711106'
               }
+            }
+          ],
+          deliveryTime: {
+            '@type': 'ShippingDeliveryTime',
+            handlingTime: {
+              '@type': 'QuantitativeValue',
+              minValue: 0,
+              maxValue: 1,
+              unitCode: 'DAY'
+            },
+            transitTime: {
+              '@type': 'QuantitativeValue',
+              minValue: 0,
+              maxValue: 1,
+              unitCode: 'DAY'
             }
           }
         }
+      };
+
+      if (typeof productData.originalPrice === 'number' && productData.originalPrice > sellingPrice && sellingPrice > 0) {
+        prodOffers.priceSpecification = {
+          '@type': 'UnitPriceSpecification',
+          price: productData.originalPrice,
+          priceCurrency: 'INR',
+          priceType: 'https://schema.org/ListPrice'
+        };
+      }
+
+      const prodSchema: Record<string, unknown> = {
+        '@context': 'https://schema.org/',
+        '@type': 'Product',
+        '@id': `${canonicalUrl}#product`,
+        productID: prodId,
+        sku: prodSku,
+        mpn: prodMpn,
+        ...(productData.gtin ? { gtin: productData.gtin } : {}),
+        ...(productData.selectedColor ? { color: productData.selectedColor } : {}),
+        name: productData.selectedColor ? `${productData.name} - ${productData.selectedColor}` : productData.name,
+        url: canonicalUrl,
+        image: prodImages,
+        description: stripHtmlAndControlChars(productData.description) || `${productData.name} available at SmartRun Kolkata with 60-min express delivery across West Bengal. 100% genuine guaranteed with instant manufacturer warranty.`,
+        category: resolveGoogleProductCategory(productData.category, productData.subCategory, productData.name),
+        brand: {
+          '@type': 'Brand',
+          name: productData.brand || 'SmartRun'
+        },
+        offers: prodOffers
       };
 
       // Only add aggregateRating when genuine reviews exist

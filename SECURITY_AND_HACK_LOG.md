@@ -108,3 +108,11 @@
   1. Both dev and prod SSR handlers in `server.ts` emit `Vary: Accept` alongside `Link:` discovery headers before returning `text/markdown` or `text/html`.
   2. Removed anonymous client-side `updateOrMigrateDaldaPipeInSupabase` startup/fetch calls from `supabaseService.ts`.
   3. `createInFlightCachedLoader` only caches results passing `isValidResult` (non-empty arrays) and clears in-flight promises cleanly in `finally` on rejection.
+
+## Threat 17: Google Merchant Center Feed XML Injection, `data:` Image URI Policy Disapproval & Price/Variant Mismatch
+- **Attack Vector**: 1) Malicious HTML/control characters (`\x00-\x1F`, `<script>`, `]]>`, `&`) inside Supabase product titles, specs, or descriptions corrupt XML structure or cause GMC feed parse rejections; 2) Base64 `data:image/...` or `javascript:` URLs in product `image_urls` trigger immediate Google Merchant policy suspension; 3) Stale hardcoded `49.00 INR` shipping or mismatched base/variant price between GMC `<g:link>?color=...` and rendered `<title>`/JSON-LD/`product:price:amount` causes Google Automatic Item Updates disapproval.
+- **Defense**:
+  1. `normalizeAbsoluteHttpsUrl` strips `data:`, `blob:`, and `javascript:` URIs, resolves relative paths to `https://www.smartrun.in/...`, and rejects malformed URLs; `stripHtmlAndControlChars` + `escapeXml` sanitize all titles, specs, and descriptions.
+  2. Products missing valid IDs or having `price <= 0` are dropped cleanly; item IDs are deduplicated (`seenItemIds`).
+  3. `server.ts` passes `?color=` and live `getServerFeePolicy()` rates into SSR `normalizeProductForSeo` and `generateGoogleMerchantFeed`, while `ProductDetailPage.tsx` reads `useSearchParams().get('color')` on mount so CSR JSON-LD, OpenGraph `product:*` tags, and visual UI match the Merchant feed 1:1.
+

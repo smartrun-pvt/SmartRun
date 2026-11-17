@@ -45,6 +45,8 @@ Allow: /api/products
 Allow: /api/products/*
 Allow: /api/ai/openapi.json
 Allow: /api/feeds/google-merchant.xml
+Allow: /feeds/google-merchant.xml
+Allow: /google-merchant.xml
 Disallow: /login
 Disallow: /cart
 Disallow: /profile
@@ -84,6 +86,9 @@ Allow: /terms
 Allow: /sitemap
 Allow: /llms.txt
 Allow: /.well-known/ard.json
+Allow: /api/feeds/google-merchant.xml
+Allow: /feeds/google-merchant.xml
+Allow: /google-merchant.xml
 Disallow: /login
 Disallow: /cart
 Disallow: /profile

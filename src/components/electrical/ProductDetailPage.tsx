@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   Star,
   Zap,
@@ -76,6 +76,8 @@ export const ProductDetailPage = ({
 }: ProductDetailPageProps) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlColorParam = searchParams.get('color');
 
   const [product, setProduct] = useState<ElectricalProduct | null>(null);
   const [similarProducts, setSimilarProducts] = useState<ElectricalProduct[]>([]);
@@ -423,16 +425,24 @@ export const ProductDetailPage = ({
     return urlIdx >= 0 ? urlIdx : 0;
   }, [galleryThumbnails, activeThumbnailId, hoveredImage, effectiveImageUrls, selectedImageIndex]);
 
-  // Set default color when product changes
+  // Set default or URL-requested color when product changes
   useEffect(() => {
     if (product) {
-      const def = getDefaultProductColor(product);
-      if (def) setSelectedWireColor(def);
+      const opts = getProductColorOptions(product);
+      const matchedFromUrl = urlColorParam
+        ? opts.find((c) => c.name.toLowerCase() === urlColorParam.trim().toLowerCase())
+        : undefined;
+      if (matchedFromUrl) {
+        setSelectedWireColor(matchedFromUrl.name);
+      } else {
+        const def = getDefaultProductColor(product);
+        if (def) setSelectedWireColor(def);
+      }
       setSelectedImageIndex(0);
       setHoveredImage(null);
       setHoveredColor(null);
     }
-  }, [product]);
+  }, [product, urlColorParam]);
 
   // User selects a colour variant: updates color, resets image index, clears temporary hover
   const handleSelectColor = (colorName: string) => {
@@ -663,40 +673,57 @@ export const ProductDetailPage = ({
 
   return (
     <div className="min-h-screen bg-white text-slate-900 pb-32 sm:pb-36 font-sans relative">
-      <SEOHead
-        title={`${product.name} - Buy Online at Best Price in Kolkata | SmartRun (Smart Run)`}
-        description={`Buy genuine ${product.brand || 'SmartRun'} ${product.name} (₹${effectivePrice}) online in Kolkata on SmartRun (Smart Run). 60-minute express delivery across Kolkata & West Bengal, 100% manufacturer warranty.`}
-        keywords={`${product.name}, buy ${product.name} online, ${product.brand || ''} ${product.subcategory || ''}, ${product.name} Kolkata price, kolkata online delivery app for electrical products, smart run, SmartRun, wholesale electrical shop Kolkata`}
-        image={currentImage}
-        productData={{
-          id: product.id,
-          sku: `SMARTRUN-${String(product.id).slice(0, 8).toUpperCase()}`,
-          mpn: `SR-${product.brand ? product.brand.replace(/\s+/g, '').toUpperCase() : 'GEN'}-${String(product.id).slice(0, 8).toUpperCase()}`,
-          name: product.name,
-          description: product.description,
-          price: effectivePrice,
-          originalPrice: effectiveMrp,
-          brand: product.brand,
-          image: currentImage,
-          images: effectiveImageUrls,
-          inStock: product.stock_quantity > 0,
-          rating: reviews.length > 0
-            ? Number((reviews.reduce((acc, r) => acc + (r.rating || 5), 0) / reviews.length).toFixed(1))
-            : (typeof (product as any).rating === 'number' && (product as any).rating > 0 ? (product as any).rating : undefined),
-          reviewsCount: reviews.length > 0
-            ? reviews.length
-            : (typeof (product as any).reviewsCount === 'number' && (product as any).reviewsCount > 0 ? (product as any).reviewsCount : undefined),
-          category: product.category || 'Electrical Supplies',
-          reviews: reviews.length > 0
-            ? reviews.map((r: any) => ({
-                id: r.id,
-                customerName: r.customer_name || r.name || 'Verified Buyer',
-                rating: r.rating || 5,
-                comment: r.comment || r.review,
-                date: r.created_at
-              }))
-            : undefined
-        }}
+      {(() => {
+        const hasExplicitColorVariants =
+          Array.isArray((product as any).color_variants) && (product as any).color_variants.length > 0;
+        const activeVariantName =
+          hasExplicitColorVariants && activeColorOption ? activeColorOption.name : undefined;
+        const shortId = String(product.id).slice(0, 8).toUpperCase();
+        const variantToken = activeVariantName
+          ? activeVariantName.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 12)
+          : '';
+        const computedSku = variantToken ? `SMARTRUN-${shortId}-${variantToken}` : `SMARTRUN-${shortId}`;
+        const computedMpn = `SR-${product.brand ? product.brand.replace(/\s+/g, '').toUpperCase() : 'GEN'}-${shortId}`;
+        const fallbackRating = Number(product.rating_avg || (product as any).rating || 0);
+        const fallbackReviewsCount = Number(product.rating_count || (product as any).reviewsCount || 0);
+
+        return (
+          <SEOHead
+            title={`${activeVariantName ? `${product.name} - ${activeVariantName}` : product.name} - Buy Online at Best Price in Kolkata | SmartRun (Smart Run)`}
+            description={`Buy genuine ${product.brand || 'SmartRun'} ${activeVariantName ? `${product.name} (${activeVariantName})` : product.name} (₹${effectivePrice}) online in Kolkata on SmartRun (Smart Run). 60-minute express delivery across Kolkata & West Bengal, 100% manufacturer warranty.`}
+            keywords={`${product.name}, buy ${product.name} online, ${product.brand || ''} ${product.subcategory || ''}, ${product.name} Kolkata price, kolkata online delivery app for electrical products, smart run, SmartRun, wholesale electrical shop Kolkata`}
+            image={currentImage}
+            productData={{
+              id: product.id,
+              sku: computedSku,
+              mpn: computedMpn,
+              name: product.name,
+              description: product.description,
+              price: effectivePrice,
+              originalPrice: effectiveMrp,
+              brand: product.brand,
+              image: currentImage,
+              images: effectiveImageUrls,
+              inStock: product.stock_quantity > 0 && (product as any).in_stock !== false,
+              selectedColor: activeVariantName,
+              subCategory: product.subcategory,
+              rating: reviews.length > 0
+                ? Number((reviews.reduce((acc, r) => acc + (r.rating || 5), 0) / reviews.length).toFixed(1))
+                : (fallbackRating > 0 && fallbackReviewsCount > 0 ? fallbackRating : undefined),
+              reviewsCount: reviews.length > 0
+                ? reviews.length
+                : (fallbackRating > 0 && fallbackReviewsCount > 0 ? fallbackReviewsCount : undefined),
+              category: product.category || 'Electrical Supplies',
+              reviews: reviews.length > 0
+                ? reviews.map((r: any) => ({
+                    id: r.id,
+                    customerName: r.customer_name || r.name || 'Verified Buyer',
+                    rating: r.rating || 5,
+                    comment: r.comment || r.review,
+                    date: r.created_at
+                  }))
+                : undefined
+            }}
         breadcrumbs={[
           {
             name: isConstructionCategory ? 'Construction Materials' : 'Electrical Goods',
@@ -705,7 +732,9 @@ export const ProductDetailPage = ({
           ...(product.subcategory ? [{ name: product.subcategory, path: `${catalogBackRoute}?cat=${encodeURIComponent(product.subcategory)}` }] : []),
           { name: product.name, path: `${catalogBackRoute}/product/${product.id}` }
         ]}
-      />
+          />
+        );
+      })()}
       
       {/* Main Two-Column Layout */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6">

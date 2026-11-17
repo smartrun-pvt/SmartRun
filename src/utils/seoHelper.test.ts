@@ -3,10 +3,12 @@ import {
   escapeHtml,
   escapeXml,
   normalizeCanonicalPath,
+  normalizeProductForSeo,
   getRouteSeoConfig,
   injectSeoMetadata,
   generateDynamicSitemap,
   generateRssFeed,
+  generateGoogleMerchantFeed,
   renderMarkdownRepresentation,
   ProductMetaSource
 } from './seoHelper.js';
@@ -411,6 +413,155 @@ describe('SmartRun SEO & Geo Optimization Engine', () => {
     expect(areasMd).toContain('## Active Delivery Zones');
     expect(areasMd).toContain('700107');
   });
+
+  test('normalizeProductForSeo maps Supabase snake_case fields, strips data URLs, and resolves color_variants', () => {
+    const rawSupabaseRow = {
+      id: 'ab12cd34-5678-90ef-1122-334455667788',
+      name: '<b>Polycab</b> Optima+ 2.5 Sqmm Wire',
+      brand: 'Polycab',
+      category: 'electrical',
+      sub_category: 'Wiring',
+      price: 2150,
+      mrp: 2800,
+      image_urls: [
+        'data:image/png;base64,iVBORw0KGgo=',
+        'https://cdn.example.com/wire-base.jpg',
+        '/icons/extra.png'
+      ],
+      stock_quantity: 12,
+      in_stock: true,
+      rating_avg: 4.8,
+      rating_count: 19,
+      specifications: { Gauge: '2.5 Sqmm', Length: '90m Coil' },
+      color_variants: [
+        {
+          color: 'Black',
+          price: 2190,
+          mrp: 2850,
+          image_urls: ['https://cdn.example.com/wire-black.jpg']
+        },
+        {
+          color: 'Red',
+          price: 2150,
+          mrp: 2800,
+          image_urls: ['https://cdn.example.com/wire-red.jpg']
+        }
+      ]
+    };
+
+    const base = normalizeProductForSeo(rawSupabaseRow);
+    expect(base).not.toBeNull();
+    expect(base!.name).toBe('Polycab Optima+ 2.5 Sqmm Wire');
+    expect(base!.originalPrice).toBe(2800);
+    expect(base!.images).toEqual([
+      'https://cdn.example.com/wire-base.jpg',
+      'https://www.smartrun.in/icons/extra.png'
+    ]);
+    expect(base!.images!.some((u) => u.startsWith('data:'))).toBe(false);
+    expect(base!.rating).toBe(4.8);
+    expect(base!.reviewsCount).toBe(19);
+
+    const blackVariant = normalizeProductForSeo(rawSupabaseRow, { selectedColor: 'black' });
+    expect(blackVariant).not.toBeNull();
+    expect(blackVariant!.selectedColor).toBe('Black');
+    expect(blackVariant!.price).toBe(2190);
+    expect(blackVariant!.originalPrice).toBe(2850);
+    expect(blackVariant!.sku).toBe('SMARTRUN-AB12CD34-BLACK');
+    expect(blackVariant!.image).toBe('https://cdn.example.com/wire-black.jpg');
+  });
+
+  test('generateGoogleMerchantFeed emits compliant GMC items with variants, sale_price, tax/shipping parity, and XML safety', () => {
+    const gmcFeed = generateGoogleMerchantFeed(
+      [
+        {
+          id: 'ab12cd34-1111',
+          name: 'RR Kabel Wire & FlameGuard <script>',
+          brand: 'RR Kabel',
+          category: 'electrical',
+          sub_category: 'Wiring',
+          price: 1650,
+          mrp: 2100,
+          image_urls: [
+            'data:image/png;base64,BAD',
+            'https://cdn.example.com/base.jpg',
+            'https://cdn.example.com/extra.jpg'
+          ],
+          stock_quantity: 5,
+          in_stock: true,
+          specifications: { Gauge: '1.5 Sqmm', Weight: '1.8 kg' },
+          color_variants: [
+            { color: 'Red', price: 1650, mrp: 2100, image_urls: ['https://cdn.example.com/red.jpg', 'https://cdn.example.com/red-2.jpg'] },
+            { color: 'Black', price: 1600, mrp: 2050, image_urls: ['https://cdn.example.com/black.jpg'] }
+          ]
+        },
+        {
+          id: 'cem-50',
+          name: 'UltraTech Super Cement 50kg Bag',
+          brand: 'UltraTech',
+          category: 'construction',
+          sub_category: 'Cement',
+          price: 410,
+          mrp: 410,
+          image_urls: ['/cement.png'],
+          stock_quantity: 0,
+          in_stock: false
+        },
+        {
+          id: 'invalid-zero',
+          name: 'Broken Zero Price Item',
+          price: 0
+        }
+      ],
+      { shippingRate: 0, freeDeliveryThreshold: 0 }
+    );
+
+    expect(gmcFeed.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
+    expect(gmcFeed).toContain('<g:id>SMARTRUN-AB12CD34-RED</g:id>');
+    expect(gmcFeed).toContain('<g:id>SMARTRUN-AB12CD34-BLACK</g:id>');
+    expect(gmcFeed).toContain('<g:item_group_id>SMARTRUN-AB12CD34</g:item_group_id>');
+    expect(gmcFeed).toContain('<g:link>https://www.smartrun.in/electrical/product/ab12cd34-1111?color=Red</g:link>');
+    expect(gmcFeed).toContain('<g:canonical_link>https://www.smartrun.in/electrical/product/ab12cd34-1111</g:canonical_link>');
+    expect(gmcFeed).toContain('<g:image_link>https://cdn.example.com/red.jpg</g:image_link>');
+    expect(gmcFeed).toContain('<g:additional_image_link>https://cdn.example.com/red-2.jpg</g:additional_image_link>');
+    expect(gmcFeed).toContain('<g:price>2100.00 INR</g:price>');
+    expect(gmcFeed).toContain('<g:sale_price>1650.00 INR</g:sale_price>');
+    expect(gmcFeed).toContain('<g:shipping_weight>1.8 kg</g:shipping_weight>');
+    expect(gmcFeed).toContain('<g:google_product_category>Hardware &gt; Building Materials &gt; Electrical Hardware &gt; Electrical Wires &amp; Cable</g:google_product_category>');
+    expect(gmcFeed).toContain('<g:google_product_category>Hardware &gt; Building Materials</g:google_product_category>');
+    expect(gmcFeed).toContain('<g:price>0.00 INR</g:price>');
+    expect(gmcFeed).toContain('<g:availability>out_of_stock</g:availability>');
+    expect(gmcFeed).toContain('<g:image_link>https://www.smartrun.in/cement.png</g:image_link>');
+    expect(gmcFeed).not.toContain('data:image/png;base64');
+    expect(gmcFeed).not.toContain('<script>');
+    expect(gmcFeed).not.toContain('invalid-zero');
+  });
+
+  test('injectSeoMetadata emits OpenGraph product commerce tags and ItemList on catalog routes', () => {
+    const html = `<!DOCTYPE html><html><head><title>x</title><meta property="og:type" content="website" /><meta property="og:title" content="x" /><meta property="og:description" content="x" /><meta property="og:url" content="https://www.smartrun.in/" /><meta property="og:image" content="https://www.smartrun.in/SmartRun.png" /><meta property="og:image:secure_url" content="https://www.smartrun.in/SmartRun.png" /></head><body><div id="root"><!-- SSR_SEO_SHELL_SLOT --></div></body></html>`;
+
+    const prod = normalizeProductForSeo({
+      id: 'p-og-1',
+      name: 'Havells MCB 16A',
+      brand: 'Havells',
+      category: 'electrical',
+      price: 399,
+      mrp: 499,
+      image_urls: ['https://cdn.example.com/mcb.jpg'],
+      stock_quantity: 8
+    });
+
+    const prodHtml = injectSeoMetadata(html, '/electrical/product/p-og-1', prod);
+    expect(prodHtml).toContain('<meta property="og:type" content="product" />');
+    expect(prodHtml).toContain('<meta property="product:price:amount" content="399.00" />');
+    expect(prodHtml).toContain('<meta property="product:price:currency" content="INR" />');
+    expect(prodHtml).toContain('<meta property="product:availability" content="in stock" />');
+    expect(prodHtml).toContain('<meta property="product:retailer_item_id" content="SMARTRUN-P-OG-1" />');
+
+    const listHtml = injectSeoMetadata(html, '/electrical', null, null, [prod!]);
+    expect(listHtml).toContain('"@type":"ItemList"');
+    expect(listHtml).toContain('/electrical/product/p-og-1');
+  });
 });
+
 
 

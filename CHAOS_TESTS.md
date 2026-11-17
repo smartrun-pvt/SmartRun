@@ -161,3 +161,18 @@ curl -s -D - -H "Accept: text/html" http://localhost:3000/ | grep -iE "^(link|va
 # Run headless browser on http://localhost:3000/ without granted geolocation:
 # Expectation: #device-location-prompt-sheet is NOT rendered on initial load, 0 console errors, 0 HTTP 400/403 errors
 ```
+
+## 24. Test Google Merchant Center XML Feed Schema, Shipping Parity & Variants
+```bash
+curl -s http://localhost:3000/api/feeds/google-merchant.xml | head -n 60
+curl -s http://localhost:3000/api/feeds/google-merchant.xml | grep -E "g:google_product_category|g:item_group_id|g:sale_price|data:image"
+# Expectation: 200 application/xml, valid <g:google_product_category>, 0.00 INR shipping synced to checkout, zero data:image URIs
+```
+
+## 25. Test Product `?color=` Variant SSR & OpenGraph Commerce Meta Parity
+```bash
+curl -s "http://localhost:3000/electrical/product/p1?color=Red" | grep -E "product:price:amount|product:retailer_item_id|og:type"
+curl -s http://localhost:3000/electrical | grep -o '"@type":"ItemList"'
+# Expectation: og:type="product", product:price:amount & product:retailer_item_id present; /electrical emits ItemList schema
+```
+

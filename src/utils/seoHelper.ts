@@ -6,6 +6,8 @@
 
 import { ENRICHED_FAQ_LIST } from '../data/faqData';
 import { KOLKATA_AREAS } from '../data/kolkataAreas';
+import { getProductCategory } from './categoryHelper';
+import { getProductColorOptions } from '../data/wireColors';
 
 export const CANONICAL_ALIAS_MAP: Record<string, string> = {
   '/about-us': '/about',
@@ -54,6 +56,9 @@ const KASBA_DEPOT_NODE = {
 export interface ProductMetaSource {
   id: string;
   name: string;
+  sku?: string;
+  mpn?: string;
+  gtin?: string;
   brand?: string;
   category?: string;
   subCategory?: string;
@@ -63,8 +68,25 @@ export interface ProductMetaSource {
   image?: string;
   images?: string[];
   inStock?: boolean;
+  stockQuantity?: number;
   rating?: number;
   reviewsCount?: number;
+  deliveryCharge?: number;
+  selectedColor?: string;
+  colorVariants?: Array<{
+    name?: string;
+    color?: string;
+    colour?: string;
+    label?: string;
+    price?: number;
+    mrp?: number;
+    discount_percent?: number;
+    image_url?: string;
+    imageUrl?: string;
+    image?: string;
+    image_urls?: string[];
+    images?: string[];
+  }>;
   specs?: Record<string, string>;
   reviews?: Array<{
     id?: string;
@@ -73,6 +95,238 @@ export interface ProductMetaSource {
     comment?: string;
     date?: string;
   }>;
+}
+
+export interface MerchantFeedOptions {
+  shippingRate?: number;
+  freeDeliveryThreshold?: number;
+  productCharges?: Record<string, number>;
+}
+
+export interface SeoConfigOptions {
+  shippingRate?: number;
+  freeDeliveryThreshold?: number;
+}
+
+export function normalizeAbsoluteHttpsUrl(url: unknown): string {
+  if (typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith('data:') || lower.startsWith('blob:') || lower.startsWith('javascript:')) {
+    return '';
+  }
+  if (trimmed.startsWith('/')) {
+    return `https://www.smartrun.in${trimmed}`;
+  }
+  if (lower.startsWith('http://www.smartrun.in') || lower.startsWith('http://smartrun.in')) {
+    return trimmed.replace(/^http:\/\//i, 'https://');
+  }
+  if (lower.startsWith('https://') || lower.startsWith('http://')) {
+    return trimmed;
+  }
+  return '';
+}
+
+export function stripHtmlAndControlChars(input: unknown): string {
+  if (input === null || input === undefined) return '';
+  return String(input)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function slugifyVariantToken(val: unknown): string {
+  return String(val || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '')
+    .slice(0, 12);
+}
+
+/**
+ * Normalizes either a Supabase snake_case product record or camelCase catalog item
+ * into a clean ProductMetaSource with verified URLs, pricing, stock, and color variant resolution.
+ */
+export function normalizeProductForSeo(
+  raw: any,
+  options?: { selectedColor?: string }
+): ProductMetaSource | null {
+  if (!raw || typeof raw !== 'object' || !raw.id) return null;
+
+  const id = String(raw.id).trim();
+  const baseName = stripHtmlAndControlChars(raw.name || 'SmartRun Product') || 'SmartRun Product';
+  const brand = stripHtmlAndControlChars(raw.brand || 'SmartRun') || 'SmartRun';
+  const category = getProductCategory(raw);
+  const subCategory = stripHtmlAndControlChars(raw.subCategory || raw.subcategory || raw.sub_category || '');
+
+  const rawImages: unknown[] = [];
+  if (typeof raw.image === 'string') rawImages.push(raw.image);
+  if (Array.isArray(raw.image_urls)) rawImages.push(...raw.image_urls);
+  if (Array.isArray(raw.images)) rawImages.push(...raw.images);
+
+  let images = Array.from(
+    new Set(rawImages.map(normalizeAbsoluteHttpsUrl).filter(Boolean))
+  );
+
+  let price = Number(raw.price ?? 0);
+  if (!Number.isFinite(price) || price < 0) price = 0;
+
+  let originalPrice = Number(raw.originalPrice ?? raw.mrp ?? raw.original_price ?? 0);
+  if (!Number.isFinite(originalPrice) || originalPrice < price) {
+    originalPrice = price > 0 ? price : 0;
+  }
+
+  const stockQuantity = Number(raw.stock_quantity ?? raw.stockCount ?? raw.stock_count ?? 1);
+  const inStock =
+    raw.in_stock !== false &&
+    raw.inStock !== false &&
+    (Number.isFinite(stockQuantity) ? stockQuantity > 0 : true);
+
+  const ratingRaw = Number(raw.rating ?? raw.rating_avg ?? 0);
+  const reviewsCountRaw = Number(raw.reviewsCount ?? raw.reviews_count ?? raw.rating_count ?? 0);
+  const rating = Number.isFinite(ratingRaw) && ratingRaw > 0 ? Number(ratingRaw.toFixed(2)) : undefined;
+  const reviewsCount = Number.isFinite(reviewsCountRaw) && reviewsCountRaw > 0 ? Math.round(reviewsCountRaw) : undefined;
+
+  const rawSpecs = raw.specs || raw.specifications;
+  const specs: Record<string, string> | undefined =
+    rawSpecs && typeof rawSpecs === 'object' && !Array.isArray(rawSpecs)
+      ? Object.fromEntries(
+          Object.entries(rawSpecs)
+            .filter(([k, v]) => k && v !== null && v !== undefined && typeof v !== 'object')
+            .map(([k, v]) => [stripHtmlAndControlChars(k), stripHtmlAndControlChars(v)])
+        )
+      : undefined;
+
+  let parsedVariants: any[] = [];
+  const rawVariantField = raw.color_variants ?? raw.colorVariants;
+  if (Array.isArray(rawVariantField)) {
+    parsedVariants = rawVariantField;
+  } else if (typeof rawVariantField === 'string' && rawVariantField.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(rawVariantField);
+      if (Array.isArray(parsed)) parsedVariants = parsed;
+    } catch {
+      parsedVariants = [];
+    }
+  }
+
+  const shortId = id.slice(0, 8).toUpperCase();
+  let sku = typeof raw.sku === 'string' && raw.sku.trim() ? raw.sku.trim() : `SMARTRUN-${shortId}`;
+  let selectedColor: string | undefined;
+
+  if (options?.selectedColor && options.selectedColor.trim()) {
+    const requested = options.selectedColor.trim().toLowerCase();
+    const resolvedOpts = parsedVariants.length > 0 ? parsedVariants : getProductColorOptions(raw);
+    const matchedOpt = resolvedOpts.find((v: any) => {
+      const cName = String(v?.name || v?.color || v?.colour || v?.label || '').trim().toLowerCase();
+      return cName === requested;
+    });
+
+    if (matchedOpt) {
+      const colorName = stripHtmlAndControlChars(matchedOpt.name || matchedOpt.color || matchedOpt.colour || matchedOpt.label || options.selectedColor);
+      selectedColor = colorName;
+
+      const vPrice = Number(matchedOpt.price ?? 0);
+      if (Number.isFinite(vPrice) && vPrice > 0) price = vPrice;
+      const vMrp = Number(matchedOpt.mrp ?? 0);
+      if (Number.isFinite(vMrp) && vMrp > price) originalPrice = vMrp;
+
+      const vImgsRaw: unknown[] = [];
+      if (Array.isArray(matchedOpt.image_urls)) vImgsRaw.push(...matchedOpt.image_urls);
+      if (Array.isArray(matchedOpt.images)) vImgsRaw.push(...matchedOpt.images);
+      if (matchedOpt.image_url) vImgsRaw.push(matchedOpt.image_url);
+      if (matchedOpt.imageUrl) vImgsRaw.push(matchedOpt.imageUrl);
+      if (matchedOpt.image) vImgsRaw.push(matchedOpt.image);
+      const vImgs = Array.from(new Set(vImgsRaw.map(normalizeAbsoluteHttpsUrl).filter(Boolean)));
+      if (vImgs.length > 0) {
+        images = vImgs;
+      }
+
+      const colorToken = slugifyVariantToken(colorName);
+      if (colorToken) {
+        sku = `SMARTRUN-${shortId}-${colorToken}`;
+      }
+    }
+  }
+
+  const brandToken = slugifyVariantToken(brand) || 'GEN';
+  const mpn = typeof raw.mpn === 'string' && raw.mpn.trim() ? raw.mpn.trim() : `SR-${brandToken}-${shortId}`;
+  const rawGtin = String(raw.gtin || raw.ean || raw.upc || specs?.GTIN || specs?.EAN || '').replace(/\D/g, '');
+  const gtin = /^[0-9]{8}$|^[0-9]{12,14}$/.test(rawGtin) ? rawGtin : undefined;
+
+  const deliveryChargeVal = Number(raw.deliveryCharge ?? raw.delivery_charge ?? 0);
+
+  return {
+    id,
+    name: baseName,
+    sku,
+    mpn,
+    gtin,
+    brand,
+    category,
+    subCategory: subCategory || undefined,
+    price,
+    originalPrice: originalPrice > 0 ? originalPrice : undefined,
+    description: stripHtmlAndControlChars(raw.description || ''),
+    image: images[0],
+    images,
+    inStock,
+    stockQuantity: Number.isFinite(stockQuantity) ? stockQuantity : 1,
+    rating,
+    reviewsCount,
+    deliveryCharge: Number.isFinite(deliveryChargeVal) && deliveryChargeVal > 0 ? deliveryChargeVal : undefined,
+    selectedColor,
+    colorVariants: parsedVariants.length > 0 ? parsedVariants : undefined,
+    specs,
+    reviews: Array.isArray(raw.reviews) ? raw.reviews : undefined
+  };
+}
+
+export function resolveGoogleProductCategory(
+  category?: string,
+  subCategory?: string,
+  name?: string
+): string {
+  const combined = `${category || ''} ${subCategory || ''} ${name || ''}`.toLowerCase();
+  if (combined.includes('wire') || combined.includes('cable') || combined.includes('frls') || combined.includes('sqmm')) {
+    return 'Hardware > Building Materials > Electrical Hardware > Electrical Wires & Cable';
+  }
+  if (combined.includes('mcb') || combined.includes('rccb') || combined.includes('isolator') || combined.includes('distribution board')) {
+    return 'Hardware > Building Materials > Electrical Hardware > Circuit Breakers & Panels';
+  }
+  if (combined.includes('switch') || combined.includes('socket') || combined.includes('regulator') || combined.includes('gi box')) {
+    return 'Hardware > Building Materials > Electrical Hardware > Electrical Switches';
+  }
+  if (combined.includes('fan')) {
+    return 'Home & Garden > Household Appliances > Climate Control Appliances > Fans';
+  }
+  if (combined.includes('led') || combined.includes('bulb') || combined.includes('light') || combined.includes('floodlight')) {
+    return 'Home & Garden > Lighting';
+  }
+  if (combined.includes('cctv') || combined.includes('camera') || combined.includes('dvr') || combined.includes('nvr')) {
+    return 'Electronics > Video > Video Surveillance';
+  }
+  if (combined.includes('geyser') || combined.includes('water heater')) {
+    return 'Home & Garden > Household Appliances > Water Heaters';
+  }
+  if (combined.includes('inverter') || combined.includes('ups')) {
+    return 'Electronics > Electronics Accessories > Power > Power Inverters';
+  }
+  if (combined.includes('paint') || combined.includes('putty') || combined.includes('primer') || combined.includes('emulsion')) {
+    return 'Hardware > Building Consumables > Painting Consumables > Paint';
+  }
+  if (combined.includes('pipe') || combined.includes('conduit') || combined.includes('cpvc') || combined.includes('upvc') || combined.includes('plumbing') || combined.includes('sink') || combined.includes('sanitary') || combined.includes('faucet') || combined.includes('cistern')) {
+    return 'Hardware > Plumbing';
+  }
+  if (combined.includes('drill') || combined.includes('grinder') || combined.includes('tool') || combined.includes('ladder')) {
+    return 'Hardware > Tools';
+  }
+  if (category === 'construction' || combined.includes('cement') || combined.includes('tmt') || combined.includes('plywood') || combined.includes('waterproof') || combined.includes('adhesive') || combined.includes('tile')) {
+    return 'Hardware > Building Materials';
+  }
+  return 'Hardware > Building Materials > Electrical Hardware';
 }
 
 export interface TechnicianMetaSource {
@@ -113,6 +367,7 @@ export function escapeHtml(str: unknown): string {
 export function escapeXml(str: unknown): string {
   if (str === null || str === undefined) return '';
   return String(str)
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -133,34 +388,53 @@ export interface RouteSeoConfig {
 export function getRouteSeoConfig(
   reqPath: string,
   product?: ProductMetaSource | null,
-  technician?: TechnicianMetaSource | null
+  technician?: TechnicianMetaSource | null,
+  catalogProducts?: ProductMetaSource[],
+  options?: SeoConfigOptions
 ): RouteSeoConfig {
   const rawPath = reqPath.split('?')[0].split('#')[0].replace(/\/+$/, '') || '/';
-  const cleanPath = normalizeCanonicalPath(rawPath);
-  const canonical = `https://www.smartrun.in${cleanPath === '/' ? '/' : cleanPath}`;
+  let cleanPath = normalizeCanonicalPath(rawPath);
+  if (product && (cleanPath.startsWith('/product/') || /^\/(electrical|construction)\/product\//.test(cleanPath))) {
+    const resolvedCategory = getProductCategory(product);
+    cleanPath = `/${resolvedCategory}/product/${product.id}`;
+  }
+  const colorQuerySuffix =
+    product?.selectedColor ? `?color=${encodeURIComponent(product.selectedColor)}` : '';
+  const canonical = `https://www.smartrun.in${cleanPath === '/' ? '/' : cleanPath}${colorQuerySuffix}`;
 
   // 1. Dynamic Product Page SEO
   if (product) {
     const brand = product.brand || 'SmartRun';
     const price = product.price ? `₹${product.price}` : 'Wholesale Price';
     const subcat = product.subCategory ? ` (${product.subCategory})` : '';
-    const title = `${product.name} - Buy Online in Kolkata | SmartRun (Smart Run)`;
-    const description = `Buy genuine ${brand} ${product.name}${subcat} at ${price} online in Kolkata on SmartRun (Smart Run). 60-min express delivery across Kolkata & West Bengal, 100% manufacturer warranty.`;
+    const displayName = product.selectedColor
+      ? `${product.name} - ${product.selectedColor}`
+      : product.name;
+    const title = `${displayName} - Buy Online in Kolkata | SmartRun (Smart Run)`;
+    const description = `Buy genuine ${brand} ${displayName}${subcat} at ${price} online in Kolkata on SmartRun (Smart Run). 60-min express delivery across Kolkata & West Bengal, 100% manufacturer warranty.`;
     const keywords = `${product.name}, buy ${product.name} online, ${brand}, ${product.name} Kolkata price, ${product.subCategory || ''}, kolkata online delivery app for electrical products, kolkata online delivery app for construction products, smart run, SmartRun, wholesale electrical shop Kolkata, Kasba depot`;
-    const image = product.image || 'https://www.smartrun.in/SmartRun.png';
+    const primaryImage = normalizeAbsoluteHttpsUrl(product.image) || normalizeAbsoluteHttpsUrl(product.images?.[0]) || 'https://www.smartrun.in/SmartRun.png';
+    const image = primaryImage;
 
-    const imagesArray = Array.from(
+    const validProductImages = Array.from(
       new Set([
-        image,
-        ...(Array.isArray(product.images) ? product.images : []),
-        'https://www.smartrun.in/SmartRun.png',
-        'https://www.smartrun.in/icons/icon-512.png'
+        primaryImage,
+        ...(Array.isArray(product.images) ? product.images.map(normalizeAbsoluteHttpsUrl) : [])
       ])
     ).filter(Boolean);
 
+    const imagesArray = [...validProductImages];
+    if (imagesArray.length < 3) {
+      for (const fallbackLogo of ['https://www.smartrun.in/SmartRun.png', 'https://www.smartrun.in/icons/icon-512.png']) {
+        if (!imagesArray.includes(fallbackLogo)) {
+          imagesArray.push(fallbackLogo);
+        }
+      }
+    }
+
     const prodId = String(product.id || 'PRD');
-    const sku = `SMARTRUN-${prodId.slice(0, 8).toUpperCase()}`;
-    const mpn = `SR-${brand.replace(/\s+/g, '').toUpperCase()}-${prodId.slice(0, 8).toUpperCase()}`;
+    const sku = product.sku || `SMARTRUN-${prodId.slice(0, 8).toUpperCase()}`;
+    const mpn = product.mpn || `SR-${brand.replace(/\s+/g, '').toUpperCase()}-${prodId.slice(0, 8).toUpperCase()}`;
 
     const productBreadcrumbs = {
       '@type': 'BreadcrumbList',
@@ -188,7 +462,7 @@ export function getRouteSeoConfig(
               {
                 '@type': 'ListItem',
                 position: 4,
-                name: product.name,
+                name: displayName,
                 item: canonical
               }
             ]
@@ -196,93 +470,130 @@ export function getRouteSeoConfig(
               {
                 '@type': 'ListItem',
                 position: 3,
-                name: product.name,
+                name: displayName,
                 item: canonical
               }
             ])
       ]
     };
 
-    const productSchema: Record<string, unknown> = {
-      '@type': 'Product',
-      productID: prodId,
+    const sellingPrice = typeof product.price === 'number' && product.price > 0 ? product.price : 0;
+    const baseShippingFee = Number(options?.shippingRate ?? 0);
+    const freeThreshold = Number(options?.freeDeliveryThreshold ?? 0);
+    const computedShipping =
+      Number(product.deliveryCharge || 0) > 0
+        ? Number(product.deliveryCharge)
+        : baseShippingFee === 0 || (freeThreshold > 0 && sellingPrice >= freeThreshold)
+        ? 0
+        : baseShippingFee;
+
+    const offerNode: Record<string, unknown> = {
+      '@type': 'Offer',
+      url: canonical,
       sku,
-      mpn,
-      name: product.name,
-      image: imagesArray,
-      description,
-      category: product.category === 'construction' ? 'Construction & Building Materials' : 'Electrical Supplies',
-      brand: {
-        '@type': 'Brand',
-        name: brand
+      priceCurrency: 'INR',
+      price: sellingPrice,
+      priceValidUntil: '2027-12-31',
+      availability: product.inStock !== false ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      itemCondition: 'https://schema.org/NewCondition',
+      areaServed: {
+        '@type': 'City',
+        name: 'Kolkata',
+        containedInPlace: {
+          '@type': 'State',
+          name: 'West Bengal'
+        }
       },
-      offers: {
-        '@type': 'Offer',
-        url: canonical,
-        priceCurrency: 'INR',
-        price: product.price || 0,
-        priceValidUntil: '2027-12-31',
-        availability: product.inStock !== false ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-        itemCondition: 'https://schema.org/NewCondition',
-        areaServed: {
-          '@type': 'City',
-          name: 'Kolkata',
-          containedInPlace: {
-            '@type': 'State',
-            name: 'West Bengal'
-          }
+      availableAtOrFrom: KASBA_DEPOT_NODE,
+      seller: {
+        '@type': 'Organization',
+        '@id': 'https://www.smartrun.in/#store',
+        name: 'SmartRUN',
+        legalName: 'SmartRun Materials Pvt. Ltd.',
+        url: 'https://www.smartrun.in/'
+      },
+      hasMerchantReturnPolicy: {
+        '@type': 'MerchantReturnPolicy',
+        applicableCountry: 'IN',
+        returnPolicyCountry: 'IN',
+        returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+        merchantReturnDays: 7,
+        returnMethod: 'https://schema.org/ReturnByMail',
+        returnFees: 'https://schema.org/FreeReturn',
+        refundType: 'https://schema.org/FullRefund'
+      },
+      shippingDetails: {
+        '@type': 'OfferShippingDetails',
+        shippingRate: {
+          '@type': 'MonetaryAmount',
+          value: String(computedShipping),
+          currency: 'INR'
         },
-          availableAtOrFrom: KASBA_DEPOT_NODE,
-          seller: {
-            '@type': 'Organization',
-            '@id': 'https://www.smartrun.in/#store',
-            name: 'SmartRUN',
-            legalName: 'SmartRun Materials Pvt. Ltd.',
-            url: 'https://www.smartrun.in/'
-          },
-        hasMerchantReturnPolicy: {
-          '@type': 'MerchantReturnPolicy',
-          applicableCountry: 'IN',
-          returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
-          merchantReturnDays: 7,
-          returnMethod: 'https://schema.org/ReturnAtKiosk',
-          returnFees: 'https://schema.org/FreeReturn',
-          refundType: 'https://schema.org/FullRefund'
-        },
-        shippingDetails: {
-          '@type': 'OfferShippingDetails',
-          shippingRate: {
-            '@type': 'MonetaryAmount',
-            value: '49',
-            currency: 'INR'
-          },
-          shippingDestination: {
+        shippingDestination: [
+          {
             '@type': 'DefinedRegion',
             addressCountry: 'IN',
             postalCodeRange: {
-              postalCode: '700001-700160'
+              postalCodeBegin: '700001',
+              postalCodeEnd: '700160'
             }
           },
-          deliveryTime: {
-            '@type': 'ShippingDeliveryTime',
-            handlingTime: {
-              '@type': 'QuantitativeValue',
-              minValue: 0,
-              maxValue: 1,
-              unitCode: 'DAY'
-            },
-            transitTime: {
-              '@type': 'QuantitativeValue',
-              minValue: 0,
-              maxValue: 1,
-              unitCode: 'DAY'
+          {
+            '@type': 'DefinedRegion',
+            addressCountry: 'IN',
+            postalCodeRange: {
+              postalCodeBegin: '711101',
+              postalCodeEnd: '711106'
             }
+          }
+        ],
+        deliveryTime: {
+          '@type': 'ShippingDeliveryTime',
+          handlingTime: {
+            '@type': 'QuantitativeValue',
+            minValue: 0,
+            maxValue: 1,
+            unitCode: 'DAY'
+          },
+          transitTime: {
+            '@type': 'QuantitativeValue',
+            minValue: 0,
+            maxValue: 1,
+            unitCode: 'DAY'
           }
         }
       }
     };
 
-    // Include aggregateRating ONLY when verified ratings exist (never fabricate fake ratings)
+    if (typeof product.originalPrice === 'number' && product.originalPrice > sellingPrice && sellingPrice > 0) {
+      offerNode.priceSpecification = {
+        '@type': 'UnitPriceSpecification',
+        price: product.originalPrice,
+        priceCurrency: 'INR',
+        priceType: 'https://schema.org/ListPrice'
+      };
+    }
+
+    const productSchema: Record<string, unknown> = {
+      '@type': 'Product',
+      '@id': `${canonical}#product`,
+      productID: prodId,
+      sku,
+      mpn,
+      ...(product.gtin ? { gtin: product.gtin } : {}),
+      ...(product.selectedColor ? { color: product.selectedColor } : {}),
+      name: displayName,
+      url: canonical,
+      image: imagesArray,
+      description: stripHtmlAndControlChars(product.description) || description,
+      category: resolveGoogleProductCategory(product.category, product.subCategory, product.name),
+      brand: {
+        '@type': 'Brand',
+        name: brand
+      },
+      offers: offerNode
+    };
+
     if (typeof product.rating === 'number' && product.rating > 0 && typeof product.reviewsCount === 'number' && product.reviewsCount > 0) {
       productSchema.aggregateRating = {
         '@type': 'AggregateRating',
@@ -586,6 +897,28 @@ export function getRouteSeoConfig(
       ]
     };
 
+    const homeCatalogItems = Array.isArray(catalogProducts) && catalogProducts.length > 0
+      ? catalogProducts
+          .map((p) => normalizeProductForSeo(p))
+          .filter((p): p is ProductMetaSource => Boolean(p && p.inStock !== false && (p.price || 0) > 0))
+          .slice(0, 16)
+      : [];
+
+    if (homeCatalogItems.length > 0) {
+      (homeStructuredData['@graph'] as unknown[]).push({
+        '@type': 'ItemList',
+        '@id': 'https://www.smartrun.in/#featured-catalog',
+        name: 'Top Electrical & Construction Supplies in Kolkata — SmartRun',
+        numberOfItems: homeCatalogItems.length,
+        itemListElement: homeCatalogItems.map((item, idx) => ({
+          '@type': 'ListItem',
+          position: idx + 1,
+          name: item.name,
+          url: `https://www.smartrun.in/${item.category === 'construction' ? 'construction' : 'electrical'}/product/${item.id}`
+        }))
+      });
+    }
+
     return {
       title: 'SmartRun (Smart Run): Electrical & Construction App Kolkata',
       description: 'Order Polycab wires, Schneider MCBs, UltraTech cement & licensed electricians in Kolkata on SmartRun (Smart Run) with 60-min express delivery.',
@@ -598,6 +931,46 @@ export function getRouteSeoConfig(
   }
 
   if (cleanPath === '/electrical') {
+    const elecCatalogItems = Array.isArray(catalogProducts) && catalogProducts.length > 0
+      ? catalogProducts
+          .map((p) => normalizeProductForSeo(p))
+          .filter((p): p is ProductMetaSource => Boolean(p && p.category !== 'construction' && (p.price || 0) > 0))
+          .slice(0, 24)
+      : [];
+
+    const elecGraph: unknown[] = [
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.smartrun.in/' },
+          { '@type': 'ListItem', position: 2, name: 'Electrical Goods', item: canonical }
+        ]
+      },
+      {
+        '@type': 'CollectionPage',
+        '@id': 'https://www.smartrun.in/electrical#webpage',
+        name: 'Electrical Goods & House Wiring Cables Kolkata',
+        description: 'Genuine branded electrical supplies with 60-minute express delivery across Kolkata and Howrah.',
+        url: canonical,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' }
+      }
+    ];
+
+    if (elecCatalogItems.length > 0) {
+      elecGraph.push({
+        '@type': 'ItemList',
+        '@id': 'https://www.smartrun.in/electrical#itemlist',
+        name: 'Electrical Supplies Catalog Kolkata',
+        numberOfItems: elecCatalogItems.length,
+        itemListElement: elecCatalogItems.map((item, idx) => ({
+          '@type': 'ListItem',
+          position: idx + 1,
+          name: item.name,
+          url: `https://www.smartrun.in/electrical/product/${item.id}`
+        }))
+      });
+    }
+
     return {
       title: 'Electrical Products Online Delivery Kolkata | SmartRun (Smart Run) - 60 Min Express',
       description: 'Order electrical products online in Kolkata from SmartRun (Smart Run): Polycab wires, Schneider MCBs, Havells cables, and Anchor Roma modular switches delivered to your doorstep or site in 60 minutes.',
@@ -607,28 +980,52 @@ export function getRouteSeoConfig(
       image: 'https://www.smartrun.in/SmartRun.png',
       structuredData: {
         '@context': 'https://schema.org',
-        '@graph': [
-          {
-            '@type': 'BreadcrumbList',
-            itemListElement: [
-              { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.smartrun.in/' },
-              { '@type': 'ListItem', position: 2, name: 'Electrical Goods', item: canonical }
-            ]
-          },
-          {
-            '@type': 'CollectionPage',
-            '@id': 'https://www.smartrun.in/electrical#webpage',
-            name: 'Electrical Goods & House Wiring Cables Kolkata',
-            description: 'Genuine branded electrical supplies with 60-minute express delivery across Kolkata and Howrah.',
-            url: canonical,
-            isPartOf: { '@id': 'https://www.smartrun.in/#website' }
-          }
-        ]
+        '@graph': elecGraph
       }
     };
   }
 
   if (cleanPath === '/construction') {
+    const constCatalogItems = Array.isArray(catalogProducts) && catalogProducts.length > 0
+      ? catalogProducts
+          .map((p) => normalizeProductForSeo(p))
+          .filter((p): p is ProductMetaSource => Boolean(p && p.category === 'construction' && (p.price || 0) > 0))
+          .slice(0, 24)
+      : [];
+
+    const constGraph: unknown[] = [
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.smartrun.in/' },
+          { '@type': 'ListItem', position: 2, name: 'Construction Materials', item: canonical }
+        ]
+      },
+      {
+        '@type': 'CollectionPage',
+        '@id': 'https://www.smartrun.in/construction#webpage',
+        name: 'Construction & Building Materials Kolkata',
+        description: 'Direct site delivery of UltraTech cement, ACC cement, Tata Tiscon TMT rebars, and building hardware in Kolkata.',
+        url: canonical,
+        isPartOf: { '@id': 'https://www.smartrun.in/#website' }
+      }
+    ];
+
+    if (constCatalogItems.length > 0) {
+      constGraph.push({
+        '@type': 'ItemList',
+        '@id': 'https://www.smartrun.in/construction#itemlist',
+        name: 'Construction & Building Materials Catalog Kolkata',
+        numberOfItems: constCatalogItems.length,
+        itemListElement: constCatalogItems.map((item, idx) => ({
+          '@type': 'ListItem',
+          position: idx + 1,
+          name: item.name,
+          url: `https://www.smartrun.in/construction/product/${item.id}`
+        }))
+      });
+    }
+
     return {
       title: 'Construction Products & Building Materials Delivery Kolkata | SmartRun (Smart Run)',
       description: 'Order construction products and building supplies online in Kolkata from SmartRun (Smart Run): UltraTech cement, ACC cement, Tata Tiscon TMT rebars, and waterproofing chemicals delivered directly to your site.',
@@ -638,23 +1035,7 @@ export function getRouteSeoConfig(
       image: 'https://www.smartrun.in/SmartRun.png',
       structuredData: {
         '@context': 'https://schema.org',
-        '@graph': [
-          {
-            '@type': 'BreadcrumbList',
-            itemListElement: [
-              { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.smartrun.in/' },
-              { '@type': 'ListItem', position: 2, name: 'Construction Materials', item: canonical }
-            ]
-          },
-          {
-            '@type': 'CollectionPage',
-            '@id': 'https://www.smartrun.in/construction#webpage',
-            name: 'Construction & Building Materials Kolkata',
-            description: 'Direct site delivery of UltraTech cement, ACC cement, Tata Tiscon TMT rebars, and building hardware in Kolkata.',
-            url: canonical,
-            isPartOf: { '@id': 'https://www.smartrun.in/#website' }
-          }
-        ]
+        '@graph': constGraph
       }
     };
   }
@@ -1181,10 +1562,11 @@ export function getRouteSeoConfig(
 export function renderSsrBodyShell(
   reqPath: string,
   product?: ProductMetaSource | null,
-  technician?: TechnicianMetaSource | null
+  technician?: TechnicianMetaSource | null,
+  catalogProducts?: ProductMetaSource[]
 ): string {
   const cleanPath = normalizeCanonicalPath(reqPath);
-  const seo = getRouteSeoConfig(cleanPath, product, technician);
+  const seo = getRouteSeoConfig(cleanPath, product, technician, catalogProducts);
 
   const navLinks = `<nav aria-label="SmartRun Primary Navigation">
       <a href="/">Home</a> |
@@ -1203,16 +1585,23 @@ export function renderSsrBodyShell(
 
   if (product) {
     const brand = escapeHtml(product.brand || 'SmartRun');
-    const name = escapeHtml(product.name);
+    const name = escapeHtml(product.selectedColor ? `${product.name} (${product.selectedColor})` : product.name);
     const subcat = escapeHtml(product.subCategory || (product.category === 'construction' ? 'Construction Materials' : 'Electrical Supplies'));
     const price = typeof product.price === 'number' && product.price > 0 ? `₹${product.price.toLocaleString('en-IN')}` : 'See listing';
-    const stock = product.inStock !== false ? 'In Stock at Kasba Central Depot, Kolkata' : 'Check Availability';
+    const mrpNote = typeof product.originalPrice === 'number' && product.originalPrice > (product.price || 0)
+      ? ` (MRP ₹${product.originalPrice.toLocaleString('en-IN')})`
+      : '';
+    const stock = product.inStock !== false ? 'In Stock at Kasba Central Depot, Kolkata' : 'Currently Out of Stock';
     const desc = escapeHtml(product.description || `${product.name} delivered across Kolkata and Howrah by SmartRun Materials Pvt. Ltd.`);
+    const specsItems = product.specs
+      ? Object.entries(product.specs).slice(0, 8).map(([k, v]) => `<li><strong>${escapeHtml(k)}:</strong> ${escapeHtml(v)}</li>`).join('')
+      : '';
 
     sectionHtml = `
       <h1>${name}</h1>
-      <p><strong>Brand:</strong> ${brand} | <strong>Category:</strong> ${subcat} | <strong>Price:</strong> ${price} | <strong>Availability:</strong> ${stock}</p>
+      <p><strong>Brand:</strong> ${brand} | <strong>Category:</strong> ${subcat} | <strong>Price:</strong> ${price}${mrpNote} | <strong>Availability:</strong> ${stock}</p>
       <p>${desc}</p>
+      ${specsItems ? `<h2>Technical Specifications</h2><ul>${specsItems}</ul>` : ''}
       <h2>Express Delivery &amp; Warranty in Kolkata</h2>
       <p>Dispatched from SmartRun Kasba Central Depot (Kolkata 700107) across serviceable Kolkata (700001–700160) and Howrah (711101–711106) PIN codes with 60-minute express dispatch for eligible electrical items, itemized GST tax invoices, and 7-day replacement support.</p>`;
   } else if (technician) {
@@ -1275,10 +1664,32 @@ export function renderSsrBodyShell(
       <p>Legal Entity: SmartRun Materials Pvt. Ltd. | Registered Office: Kheyadah Village, Bhagabanpur, Kolkata 700150 | Fulfillment &amp; Dispatch Depot: SmartRun Kasba Central Depot, Kasba Industrial Estate Phase 1, Kolkata 700107.</p>
       <p>Categories: Polycab, Havells, RR Kabel, Finolex wires, Schneider Electric and Legrand switchgear, Anchor modular switches, UltraTech and ACC cement, Tata Tiscon TMT rebars, Dr. Fixit waterproofing, and WBELB-verified electricians.</p>`;
   } else {
+    const normalizedListing = Array.isArray(catalogProducts) && catalogProducts.length > 0
+      ? catalogProducts
+          .map((p) => normalizeProductForSeo(p))
+          .filter((p): p is ProductMetaSource => {
+            if (!p || (p.price || 0) <= 0) return false;
+            if (cleanPath === '/electrical') return p.category !== 'construction';
+            if (cleanPath === '/construction') return p.category === 'construction';
+            return true;
+          })
+          .slice(0, 24)
+      : [];
+
+    const catalogLinksHtml = normalizedListing.length > 0
+      ? `<section><h2>Featured Catalog</h2><ul>${normalizedListing
+          .map((item) => {
+            const href = `/${item.category === 'construction' ? 'construction' : 'electrical'}/product/${encodeURIComponent(item.id)}`;
+            return `<li><a href="${href}">${escapeHtml(item.name)}</a> — ₹${(item.price || 0).toLocaleString('en-IN')} (${escapeHtml(item.brand || 'SmartRun')})</li>`;
+          })
+          .join('')}</ul></section>`
+      : '';
+
     sectionHtml = `
       <h1>${escapeHtml(seo.title)}</h1>
       <p>${escapeHtml(seo.description)}</p>
-      <p>SmartRun (operated by SmartRun Materials Pvt. Ltd., <a href="https://www.smartrun.in/">www.smartrun.in</a> and Android app <a href="https://play.google.com/store/apps/details?id=in.smartrun.app">in.smartrun.app</a>) supplies genuine electrical materials, construction supplies, and licensed electricians across Kolkata (700001–700160) and Howrah (711101–711106) with Kasba Central Depot express dispatch, live GPS tracking, and GST tax invoices.</p>`;
+      <p>SmartRun (operated by SmartRun Materials Pvt. Ltd., <a href="https://www.smartrun.in/">www.smartrun.in</a> and Android app <a href="https://play.google.com/store/apps/details?id=in.smartrun.app">in.smartrun.app</a>) supplies genuine electrical materials, construction supplies, and licensed electricians across Kolkata (700001–700160) and Howrah (711101–711106) with Kasba Central Depot express dispatch, live GPS tracking, and GST tax invoices.</p>
+      ${catalogLinksHtml}`;
   }
 
   return `\n    <main id="ssr-seo-shell" data-ssr-geo="true" style="max-width:960px;margin:0 auto;padding:24px;font-family:system-ui,-apple-system,sans-serif;color:#0f172a;background:#ffffff;line-height:1.6;">\n      ${navLinks}\n      ${sectionHtml}\n      <footer style="margin-top:24px;font-size:12px;color:#475569;">SmartRun Materials Pvt. Ltd. • Kheyadah Village, Bhagabanpur, Kolkata 700150 • Dispatch: Kasba Industrial Estate Phase 1, Kolkata 700107 • +91 87774 00280 • team@smartrun.in</footer>\n    </main>`;
@@ -1367,14 +1778,15 @@ export function injectSeoMetadata(
   html: string,
   reqPath: string,
   product?: ProductMetaSource | null,
-  technician?: TechnicianMetaSource | null
+  technician?: TechnicianMetaSource | null,
+  catalogProducts?: ProductMetaSource[],
+  options?: SeoConfigOptions
 ): string {
   if (!html || typeof html !== 'string') return html;
 
   const cleanNormalizedPath = normalizeCanonicalPath(reqPath);
-  const seo = getRouteSeoConfig(cleanNormalizedPath, product, technician);
+  const seo = getRouteSeoConfig(cleanNormalizedPath, product, technician, catalogProducts, options);
   let result = html;
-
 
   // 1. Replace <title>
   if (result.includes('<title>')) {
@@ -1400,27 +1812,51 @@ export function injectSeoMetadata(
 
   // 5. Replace canonical
   if (result.includes('rel="canonical"')) {
-    result = result.replace(/<link\s+rel="canonical"\s+href=".*?"\s*\/?>/i, `<link rel="canonical" href="${seo.canonical}" />`);
+    result = result.replace(/<link\s+rel="canonical"\s+href=".*?"\s*\/?>/i, `<link rel="canonical" href="${escapeHtml(seo.canonical)}" />`);
   }
 
   // 5b. Sync international & regional hreflang alternates
-  result = result.replace(/<link\s+rel="alternate"\s+hreflang="en-IN"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="en-IN" href="${seo.canonical}" />`);
-  result = result.replace(/<link\s+rel="alternate"\s+hreflang="bn-IN"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="bn-IN" href="${seo.canonical}" />`);
-  result = result.replace(/<link\s+rel="alternate"\s+hreflang="hi-IN"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="hi-IN" href="${seo.canonical}" />`);
-  result = result.replace(/<link\s+rel="alternate"\s+hreflang="x-default"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="x-default" href="${seo.canonical}" />`);
+  result = result.replace(/<link\s+rel="alternate"\s+hreflang="en-IN"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="en-IN" href="${escapeHtml(seo.canonical)}" />`);
+  result = result.replace(/<link\s+rel="alternate"\s+hreflang="bn-IN"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="bn-IN" href="${escapeHtml(seo.canonical)}" />`);
+  result = result.replace(/<link\s+rel="alternate"\s+hreflang="hi-IN"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="hi-IN" href="${escapeHtml(seo.canonical)}" />`);
+  result = result.replace(/<link\s+rel="alternate"\s+hreflang="x-default"\s+href=".*?"\s*\/?>/i, `<link rel="alternate" hreflang="x-default" href="${escapeHtml(seo.canonical)}" />`);
 
   // 5c. Sync Google App Indexing deep link backlink
-  const cleanSubPath = cleanNormalizedPath.replace(/^\//, '');
+  const effectivePathForApp = product
+    ? `/${product.category === 'construction' ? 'construction' : 'electrical'}/product/${product.id}`
+    : cleanNormalizedPath;
+  const cleanSubPath = effectivePathForApp.replace(/^\//, '');
   result = result.replace(/<link\s+rel="alternate"\s+href="android-app:\/\/.*?"\s*\/?>/i, `<link rel="alternate" href="android-app://in.smartrun.app/smartrun/${cleanSubPath}" />`);
   result = result.replace(/<meta\s+property="al:android:url"\s+content=".*?"\s*\/?>/i, `<meta property="al:android:url" content="smartrun://${cleanSubPath || 'home'}" />`);
 
-
   // 6. Replace OpenGraph properties
+  if (seo.ogType) {
+    result = result.replace(/<meta\s+property="og:type"\s+content=".*?"\s*\/?>/i, `<meta property="og:type" content="${escapeHtml(seo.ogType)}" />`);
+  }
   result = result.replace(/<meta\s+property="og:title"\s+content=".*?"\s*\/?>/i, `<meta property="og:title" content="${escapeHtml(seo.title)}" />`);
   result = result.replace(/<meta\s+property="og:description"\s+content=".*?"\s*\/?>/i, `<meta property="og:description" content="${escapeHtml(seo.description)}" />`);
-  result = result.replace(/<meta\s+property="og:url"\s+content=".*?"\s*\/?>/i, `<meta property="og:url" content="${seo.canonical}" />`);
+  result = result.replace(/<meta\s+property="og:url"\s+content=".*?"\s*\/?>/i, `<meta property="og:url" content="${escapeHtml(seo.canonical)}" />`);
   if (seo.image) {
     result = result.replace(/<meta\s+property="og:image"\s+content=".*?"\s*\/?>/i, `<meta property="og:image" content="${escapeHtml(seo.image)}" />`);
+    result = result.replace(/<meta\s+property="og:image:secure_url"\s+content=".*?"\s*\/?>/i, `<meta property="og:image:secure_url" content="${escapeHtml(seo.image)}" />`);
+  }
+
+  // 6b. OpenGraph Commerce / Google Merchant Center Automatic Item Updates Meta Tags
+  result = result.replace(/<meta\s+property="product:(?:price:amount|price:currency|availability|condition|brand|retailer_item_id)"[^>]*\/?>\s*/gi, '');
+  if (product) {
+    const prodIdStr = String(product.id || '');
+    const prodSku = product.sku || `SMARTRUN-${prodIdStr.slice(0, 8).toUpperCase()}`;
+    const prodPrice = typeof product.price === 'number' && product.price > 0 ? product.price.toFixed(2) : '0.00';
+    const prodAvail = product.inStock !== false ? 'in stock' : 'out of stock';
+    const productMetaTags = [
+      `<meta property="product:price:amount" content="${escapeHtml(prodPrice)}" />`,
+      `<meta property="product:price:currency" content="INR" />`,
+      `<meta property="product:availability" content="${prodAvail}" />`,
+      `<meta property="product:condition" content="new" />`,
+      `<meta property="product:brand" content="${escapeHtml(product.brand || 'SmartRun')}" />`,
+      `<meta property="product:retailer_item_id" content="${escapeHtml(prodSku)}" />`
+    ].join('\n    ');
+    result = result.replace('</head>', `    ${productMetaTags}\n  </head>`);
   }
 
   // 7. Replace Twitter Card properties
@@ -1443,7 +1879,7 @@ export function injectSeoMetadata(
 
   // 9. Inject semantic SSR HTML fallback inside #root for non-JS AI/search crawlers (deduplicating any pre-existing shell)
   result = result.replace(/<main\s+id="ssr-seo-shell"[\s\S]*?<\/main>/gi, '');
-  const ssrShell = renderSsrBodyShell(cleanNormalizedPath, product, technician);
+  const ssrShell = renderSsrBodyShell(cleanNormalizedPath, product, technician, catalogProducts);
   if (result.includes('<!-- SSR_SEO_SHELL_SLOT -->')) {
     result = result.replace('<!-- SSR_SEO_SHELL_SLOT -->', ssrShell);
   } else if (/<div\s+id=["']root["']\s*>\s*<\/div>/i.test(result)) {
@@ -1457,10 +1893,10 @@ export function injectSeoMetadata(
 
 /**
  * Dynamically builds a full XML sitemap containing all canonical core routes
- * and all catalog products with image markup.
+ * and all catalog products with verified image markup.
  */
 export function generateDynamicSitemap(
-  products: ProductMetaSource[],
+  products: any[],
   technicians?: TechnicianMetaSource[]
 ): string {
   const today = new Date().toISOString().split('T')[0];
@@ -1489,7 +1925,6 @@ export function generateDynamicSitemap(
   xml += `        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"\n`;
   xml += `        xmlns:xhtml="http://www.w3.org/1999/xhtml">\n`;
 
-  // Static routes
   for (const route of staticRoutes) {
     xml += `  <url>\n`;
     xml += `    <loc>https://www.smartrun.in${route.path}</loc>\n`;
@@ -1499,12 +1934,11 @@ export function generateDynamicSitemap(
     xml += `  </url>\n`;
   }
 
-  // Technician profile routes
   if (Array.isArray(technicians)) {
     for (const tech of technicians) {
       if (!tech || !tech.id) continue;
       const techPath = `/technicians/${tech.id}`;
-      const techPhoto = tech.photo || 'https://www.smartrun.in/SmartRun.png';
+      const techPhoto = normalizeAbsoluteHttpsUrl(tech.photo) || 'https://www.smartrun.in/SmartRun.png';
       const techName = escapeXml(tech.name);
       const techDesc = escapeXml(
         tech.about || `${tech.name} - Certified electrical specialist in Kolkata with 60-minute emergency visit.`
@@ -1526,13 +1960,24 @@ export function generateDynamicSitemap(
     }
   }
 
-  // Product routes
   if (Array.isArray(products)) {
-    for (const prod of products) {
+    const seenProductUrls = new Set<string>();
+    for (const rawProd of products) {
+      const prod = normalizeProductForSeo(rawProd);
       if (!prod || !prod.id) continue;
       const isConst = prod.category === 'construction';
       const prodPath = isConst ? `/construction/product/${prod.id}` : `/electrical/product/${prod.id}`;
-      const imgUrl = prod.image || 'https://www.smartrun.in/SmartRun.png';
+      if (seenProductUrls.has(prodPath)) continue;
+      seenProductUrls.add(prodPath);
+
+      const prodImages = (prod.images && prod.images.length > 0 ? prod.images : [prod.image])
+        .map(normalizeAbsoluteHttpsUrl)
+        .filter(Boolean)
+        .slice(0, 5);
+      if (prodImages.length === 0) {
+        prodImages.push('https://www.smartrun.in/SmartRun.png');
+      }
+
       const prodName = escapeXml(prod.name);
       const prodDesc = escapeXml(prod.description || `${prod.name} available at SmartRun Kolkata with 60-min express delivery.`);
 
@@ -1541,7 +1986,7 @@ export function generateDynamicSitemap(
       xml += `    <lastmod>${today}</lastmod>\n`;
       xml += `    <changefreq>daily</changefreq>\n`;
       xml += `    <priority>0.9</priority>\n`;
-      if (imgUrl) {
+      for (const imgUrl of prodImages) {
         xml += `    <image:image>\n`;
         xml += `      <image:loc>${escapeXml(imgUrl)}</image:loc>\n`;
         xml += `      <image:title>${prodName}</image:title>\n`;
@@ -1560,7 +2005,7 @@ export function generateDynamicSitemap(
  * Dynamically generates a valid RSS 2.0 XML syndication feed
  * containing channel metadata and product entries with followed permalinks.
  */
-export function generateRssFeed(products: ProductMetaSource[]): string {
+export function generateRssFeed(products: any[]): string {
   const now = new Date().toUTCString();
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
@@ -1574,7 +2019,8 @@ export function generateRssFeed(products: ProductMetaSource[]): string {
   xml += `    <atom:link href="https://www.smartrun.in/rss.xml" rel="self" type="application/rss+xml" />\n`;
 
   if (Array.isArray(products)) {
-    for (const prod of products) {
+    for (const rawProd of products) {
+      const prod = normalizeProductForSeo(rawProd);
       if (!prod || !prod.id) continue;
       const isConst = prod.category === 'construction';
       const prodPath = isConst ? `/construction/product/${prod.id}` : `/electrical/product/${prod.id}`;
@@ -1597,6 +2043,187 @@ export function generateRssFeed(products: ProductMetaSource[]): string {
 
   xml += `  </channel>\n`;
   xml += `</rss>`;
+  return xml;
+}
+
+/**
+ * Generates a policy-compliant Google Merchant Center (GMC) RSS 2.0 XML product feed.
+ * Supports full product normalization, color_variants grouping via <g:item_group_id>,
+ * strict HTTPS image sanitization, MRP vs sale_price pricing, accurate stock sync,
+ * Google Product Taxonomy mapping, shipping policy sync, and rich product highlights.
+ */
+export function generateGoogleMerchantFeed(
+  rawProducts: any[],
+  options: MerchantFeedOptions = {}
+): string {
+  const nowRfc822 = new Date().toUTCString();
+  const baseDeliveryFee = Math.max(0, Number(options.shippingRate ?? 0));
+  const freeThreshold = Math.max(0, Number(options.freeDeliveryThreshold ?? 0));
+  const productChargesMap = options.productCharges || {};
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+  <channel>
+    <title>SmartRun Kolkata - Genuine Electrical &amp; Construction Supplies</title>
+    <link>https://www.smartrun.in</link>
+    <description>Official Google Merchant Center catalog feed for SmartRun Materials Pvt. Ltd. (www.smartrun.in) delivering genuine electricals, wires, switchgear, and construction supplies across Kolkata &amp; Howrah.</description>
+    <lastBuildDate>${nowRfc822}</lastBuildDate>
+`;
+
+  if (!Array.isArray(rawProducts)) {
+    xml += `  </channel>\n</rss>`;
+    return xml;
+  }
+
+  const seenItemIds = new Set<string>();
+
+  for (const rawProd of rawProducts) {
+    const prod = normalizeProductForSeo(rawProd);
+    if (!prod || !prod.id || !prod.name || !prod.price || prod.price <= 0) {
+      continue;
+    }
+
+    const idStr = prod.id;
+    const shortId = idStr.slice(0, 8).toUpperCase();
+    const baseSku = `SMARTRUN-${shortId}`;
+    const canonicalPath = `https://www.smartrun.in/${prod.category === 'construction' ? 'construction' : 'electrical'}/product/${encodeURIComponent(idStr)}`;
+    const googleCategory = escapeXml(resolveGoogleProductCategory(prod.category, prod.subCategory, prod.name));
+    const productType = escapeXml(`${prod.category === 'construction' ? 'Construction Materials' : 'Electrical Supplies'} > ${prod.subCategory || 'General'}`);
+    const availability = prod.inStock !== false ? 'in_stock' : 'out_of_stock';
+    const rawBrand = stripHtmlAndControlChars(prod.brand || '');
+    const brand = rawBrand || 'SmartRun';
+    const isGenericBrand = brand.toLowerCase() === 'generic' || brand.toLowerCase() === 'unbranded';
+    const brandToken = slugifyVariantToken(brand) || 'GEN';
+    const baseMpn = prod.mpn || `SR-${brandToken}-${shortId}`;
+
+    // Parse weight from specs or product name when specified (e.g. 50 kg cement, 25 kg)
+    const weightSource = `${prod.specs?.Weight || ''} ${prod.name}`;
+    const weightMatch = weightSource.match(/\b(\d+(?:\.\d+)?)\s*(kg|kgs|g|gm|grams?)\b/i);
+    const shippingWeight = weightMatch
+      ? `${weightMatch[1]} ${weightMatch[2].toLowerCase().startsWith('k') ? 'kg' : 'g'}`
+      : '';
+
+    // Extract clean specification highlights & product_detail tags
+    const specEntries = prod.specs ? Object.entries(prod.specs).filter(([k, v]) => k && v).slice(0, 6) : [];
+
+    // Determine whether this item has explicit color_variants to expand under item_group_id
+    const explicitVariants = Array.isArray(prod.colorVariants) && prod.colorVariants.length > 0
+      ? prod.colorVariants
+          .map((v: any) => {
+            const cName = stripHtmlAndControlChars(v?.name || v?.color || v?.colour || v?.label || '');
+            if (!cName) return null;
+            const vImgsRaw: unknown[] = [];
+            if (Array.isArray(v?.image_urls)) vImgsRaw.push(...v.image_urls);
+            if (Array.isArray(v?.images)) vImgsRaw.push(...v.images);
+            if (v?.image_url) vImgsRaw.push(v.image_url);
+            if (v?.imageUrl) vImgsRaw.push(v.imageUrl);
+            if (v?.image) vImgsRaw.push(v.image);
+            const vImgs = Array.from(new Set(vImgsRaw.map(normalizeAbsoluteHttpsUrl).filter(Boolean)));
+            const vPrice = Number(v?.price ?? 0);
+            const vMrp = Number(v?.mrp ?? 0);
+            return {
+              colorName: cName,
+              price: Number.isFinite(vPrice) && vPrice > 0 ? vPrice : prod.price!,
+              mrp: Number.isFinite(vMrp) && vMrp > 0 ? vMrp : (prod.originalPrice || 0),
+              images: vImgs.length > 0 ? vImgs : (prod.images || [])
+            };
+          })
+          .filter((v): v is { colorName: string; price: number; mrp: number; images: string[] } => Boolean(v))
+      : [];
+
+    const variantEntries =
+      explicitVariants.length > 0
+        ? explicitVariants.map((v) => {
+            const token = slugifyVariantToken(v.colorName) || 'VAR';
+            return {
+              itemId: `${baseSku}-${token}`,
+              itemGroupId: baseSku,
+              colorName: v.colorName,
+              title: `${prod.name} - ${v.colorName}`.slice(0, 150),
+              link: `${canonicalPath}?color=${encodeURIComponent(v.colorName)}`,
+              canonicalLink: canonicalPath,
+              price: v.price,
+              mrp: v.mrp,
+              images: v.images.length > 0 ? v.images : ['https://www.smartrun.in/SmartRun.png']
+            };
+          })
+        : [
+            {
+              itemId: baseSku,
+              itemGroupId: '',
+              colorName: '',
+              title: prod.name.slice(0, 150),
+              link: canonicalPath,
+              canonicalLink: canonicalPath,
+              price: prod.price!,
+              mrp: prod.originalPrice || 0,
+              images: prod.images && prod.images.length > 0 ? prod.images : ['https://www.smartrun.in/SmartRun.png']
+            }
+          ];
+
+    for (const entry of variantEntries) {
+      if (seenItemIds.has(entry.itemId)) continue;
+      seenItemIds.add(entry.itemId);
+
+      const safeTitle = escapeXml(entry.title);
+      const rawDesc =
+        prod.description ||
+        `${entry.title} by ${brand}. Genuine product with manufacturer warranty and 60-minute express delivery in Kolkata on SmartRun.`;
+      const safeDesc = escapeXml(stripHtmlAndControlChars(rawDesc).slice(0, 5000));
+      const primaryImage = entry.images[0];
+      const additionalImages = entry.images.slice(1, 11);
+
+      const sellingPrice = entry.price;
+      const listMrp = entry.mrp > sellingPrice ? entry.mrp : sellingPrice;
+      const hasSale = listMrp > sellingPrice;
+
+      const prodSpecificCharge = Number(productChargesMap[idStr] ?? prod.deliveryCharge ?? 0);
+      const deliveryAmount =
+        prodSpecificCharge > 0
+          ? prodSpecificCharge
+          : baseDeliveryFee === 0 || (freeThreshold > 0 && sellingPrice >= freeThreshold)
+          ? 0
+          : baseDeliveryFee;
+
+      const deliveryServiceName = prod.category === 'construction'
+        ? 'Same-Day Kolkata Site Freight'
+        : '60-Minute Express Delivery Kolkata';
+
+      const identifierExists = Boolean(prod.gtin || (!isGenericBrand && baseMpn));
+
+      xml += `    <item>
+      <g:id>${escapeXml(entry.itemId)}</g:id>
+${entry.itemGroupId ? `      <g:item_group_id>${escapeXml(entry.itemGroupId)}</g:item_group_id>\n` : ''}      <g:title>${safeTitle}</g:title>
+      <g:description>${safeDesc}</g:description>
+      <g:link>${escapeXml(entry.link)}</g:link>
+      <g:mobile_link>${escapeXml(entry.link)}</g:mobile_link>
+      <g:canonical_link>${escapeXml(entry.canonicalLink)}</g:canonical_link>
+      <g:image_link>${escapeXml(primaryImage)}</g:image_link>
+${additionalImages.map((img) => `      <g:additional_image_link>${escapeXml(img)}</g:additional_image_link>\n`).join('')}      <g:condition>new</g:condition>
+      <g:availability>${availability}</g:availability>
+      <g:price>${listMrp.toFixed(2)} INR</g:price>
+${hasSale ? `      <g:sale_price>${sellingPrice.toFixed(2)} INR</g:sale_price>\n` : ''}${entry.colorName ? `      <g:color>${escapeXml(entry.colorName)}</g:color>\n` : ''}      <g:brand>${escapeXml(brand)}</g:brand>
+      <g:mpn>${escapeXml(baseMpn)}</g:mpn>
+${prod.gtin ? `      <g:gtin>${escapeXml(prod.gtin)}</g:gtin>\n` : ''}      <g:identifier_exists>${identifierExists ? 'yes' : 'no'}</g:identifier_exists>
+      <g:google_product_category>${googleCategory}</g:google_product_category>
+      <g:product_type>${productType}</g:product_type>
+${shippingWeight ? `      <g:shipping_weight>${escapeXml(shippingWeight)}</g:shipping_weight>\n` : ''}${specEntries.slice(0, 4).map(([k, v]) => `      <g:product_highlight>${escapeXml(`${k}: ${v}`.slice(0, 150))}</g:product_highlight>\n`).join('')}${specEntries.map(([k, v]) => `      <g:product_detail>\n        <g:section_name>Specifications</g:section_name>\n        <g:attribute_name>${escapeXml(k.slice(0, 140))}</g:attribute_name>\n        <g:attribute_value>${escapeXml(v.slice(0, 1000))}</g:attribute_value>\n      </g:product_detail>\n`).join('')}      <g:shipping>
+        <g:country>IN</g:country>
+        <g:service>${escapeXml(deliveryServiceName)}</g:service>
+        <g:price>${deliveryAmount.toFixed(2)} INR</g:price>
+      </g:shipping>
+      <g:return_policy_label>7-day-free-return</g:return_policy_label>
+      <g:custom_label_0>${prod.category === 'construction' ? 'Construction' : 'Electrical'}</g:custom_label_0>
+      <g:custom_label_1>${escapeXml(brand)}</g:custom_label_1>
+      <g:custom_label_2>${hasSale ? 'Discounted' : 'Standard'}</g:custom_label_2>
+      <g:custom_label_3>${prod.category === 'construction' ? 'Site Delivery' : '60-Min Express'}</g:custom_label_3>
+    </item>
+`;
+    }
+  }
+
+  xml += `  </channel>
+</rss>`;
   return xml;
 }
 

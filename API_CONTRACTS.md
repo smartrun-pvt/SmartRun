@@ -128,3 +128,10 @@
 - **Content-Type**: `application/json; charset=utf-8`
 - **Headers**: `Access-Control-Allow-Origin: *`, `Cache-Control: public, max-age=3600`
 - **Payload**: Structured ARD discovery index pointing agents to `llms.txt`, `/api/products`, `/api/ai/openapi.json`, `/.well-known/ai-agent-manifest.json`, `/sitemap.xml`, `/rss.xml`, `/api/feeds/google-merchant.xml`, Markdown content-negotiation routes, and WebMCP read-only tool capabilities (`search_smartrun_products`, `get_smartrun_product_details`, `check_kolkata_pincode_delivery`, `list_kolkata_electricians`).
+
+## 13. GET `/api/feeds/google-merchant.xml` (also `/feeds/google-merchant.xml`, `/google-merchant.xml`)
+- **Response**: `200 OK`
+- **Content-Type**: `application/xml; charset=utf-8`
+- **Headers**: `Cache-Control: public, max-age=1800, s-maxage=3600`
+- **Payload**: Google Merchant Center RSS 2.0 XML (`xmlns:g="http://base.google.com/ns/1.0"`) generated via `generateGoogleMerchantFeed()` synced with `getServerFeePolicy()`. Emits `<g:id>` (`SMARTRUN-<SHORTID>[-<COLORTOKEN>]`), `<g:item_group_id>`, `<g:link>` (with `?color=` for explicit `color_variants`), `<g:mobile_link>`, `<g:canonical_link>`, HTTPS-verified `<g:image_link>` + up to 10 `<g:additional_image_link>` tags, `<g:price>` (list MRP), conditional `<g:sale_price>`, `<g:availability>` (`in_stock` / `out_of_stock`), `<g:brand>`, `<g:mpn>`, `<g:gtin>`, `<g:identifier_exists>`, `<g:google_product_category>`, `<g:shipping_weight>`, `<g:product_highlight>`, `<g:product_detail>`, `<g:shipping>` synced to live checkout rate (`0.00 INR` free delivery default), `<g:return_policy_label>`, and `<g:custom_label_0..3>`.
+

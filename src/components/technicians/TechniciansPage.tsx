@@ -399,6 +399,22 @@ export const TechniciansPage = ({
         title={activeQuery ? `"${activeQuery}" - Certified Electricians & Wiring Contractors Kolkata | SmartRun` : 'Certified Electricians & House Wiring Contractors Kolkata | SmartRun'}
         description="Book verified, licensed electrical contractors, home wiring technicians, switchboard repair, and industrial electrification specialists in Kolkata with instant booking."
         keywords="electrician kolkata, licensed electrical contractor, home wiring specialist, switchboard repair kolkata, real estate electrification"
+        structuredData={
+          sortedTechnicians.length > 0
+            ? {
+                '@type': 'ItemList',
+                '@id': 'https://www.smartrun.in/technicians#itemlist',
+                name: 'Licensed Electricians & Wiring Contractors Directory Kolkata',
+                numberOfItems: Math.min(sortedTechnicians.length, 20),
+                itemListElement: sortedTechnicians.slice(0, 20).map((tech, idx) => ({
+                  '@type': 'ListItem',
+                  position: idx + 1,
+                  name: tech.name,
+                  url: `https://www.smartrun.in/technicians/${encodeURIComponent(tech.id)}`
+                }))
+              }
+            : undefined
+        }
       />
       {/* Active Filter Badges */}
       {hasActiveFilters && (
