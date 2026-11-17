@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { RefreshCw, AlertTriangle, Home } from 'lucide-react';
+import { isDynamicImportError } from '../utils/lazyWithRetry';
 
 interface Props {
   children: ReactNode;
@@ -25,10 +26,14 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReload = () => {
-    // Clear error boundary state
+    const failedModuleLoad = isDynamicImportError(this.state.error);
     this.setState({ hasError: false, error: null });
-    // If in browser, navigate home cleanly
+
     if (typeof window !== 'undefined') {
+      if (failedModuleLoad || window.location.pathname === '/') {
+        window.location.reload();
+        return;
+      }
       window.history.pushState({}, '', '/');
       window.dispatchEvent(new PopStateEvent('popstate'));
     }

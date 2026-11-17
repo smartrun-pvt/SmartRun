@@ -9889,29 +9889,6 @@ Knowledge Base & Service Details:
     app.use(express.static(publicPath));
   }
 
-  // Intercept nested asset paths (e.g., /electrical/assets/... or /orders/assets/...)
-  app.use((req, res, next) => {
-    const assetIdx = req.path.indexOf("/assets/");
-    if (assetIdx !== -1) {
-      const rewritten = req.path.substring(assetIdx);
-      const resolvedFile = path.join(distPath, rewritten);
-      if (fs.existsSync(resolvedFile)) {
-        return res.sendFile(resolvedFile);
-      }
-    }
-    next();
-  });
-
-  if (fs.existsSync(path.join(distPath, "assets"))) {
-    app.use(
-      "/assets",
-      express.static(path.join(distPath, "assets"), {
-        maxAge: "365d",
-        immutable: true
-      })
-    );
-  }
-
   if (!isProduction) {
     console.log("Starting Vite development middleware...");
     const vite = await createViteServer({

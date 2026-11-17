@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { flushSync } from 'react-dom';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Product, CartItem, KolkataArea, SavedAddress, Order, WiringServiceBooking, UserProfile } from './types';
@@ -9,33 +9,34 @@ import { HomePage } from './components/HomePage';
 import { FloatingBottomNav } from './components/FloatingBottomNav';
 import { FloatingLiveOrderButton, isProfileOrSubpage } from './components/orders/FloatingLiveOrderButton';
 import { SEOHead } from './components/SEOHead';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
-const LocationModal = lazy(() => import('./components/LocationModal').then((m) => ({ default: m.LocationModal })));
-const LoginPage = lazy(() => import('./components/LoginPage').then((m) => ({ default: m.LoginPage })));
-const PersonalInfoPage = lazy(() => import('./components/PersonalInfoPage').then((m) => ({ default: m.PersonalInfoPage })));
-const ProfileView = lazy(() => import('./components/ProfileView').then((m) => ({ default: m.ProfileView })));
-const ProductDetailModal = lazy(() => import('./components/ProductDetailModal').then((m) => ({ default: m.ProductDetailModal })));
-const CartView = lazy(() => import('./components/CartView').then((m) => ({ default: m.CartView })));
-const MapsGroundingAssistant = lazy(() => import('./components/MapsGroundingAssistant').then((m) => ({ default: m.MapsGroundingAssistant })));
-const OrderHistoryView = lazy(() => import('./components/OrderHistoryView').then((m) => ({ default: m.OrderHistoryView })));
-const LegalView = lazy(() => import('./components/LegalViews').then((m) => ({ default: m.LegalView })));
-const ResetPassword = lazy(() => import('./components/ResetPassword').then((m) => ({ default: m.ResetPassword })));
-const ElectricalListingPage = lazy(() => import('./components/electrical/ElectricalListingPage').then((m) => ({ default: m.ElectricalListingPage })));
-const ProductDetailPage = lazy(() => import('./components/electrical/ProductDetailPage').then((m) => ({ default: m.ProductDetailPage })));
-const ConstructionPage = lazy(() => import('./components/ConstructionPage').then((m) => ({ default: m.ConstructionPage })));
-const TechniciansPage = lazy(() => import('./components/technicians/TechniciansPage').then((m) => ({ default: m.TechniciansPage })));
-const TechnicianDetailPage = lazy(() => import('./components/technicians/TechnicianDetailPage').then((m) => ({ default: m.TechnicianDetailPage })));
-const InstallAppModal = lazy(() => import('./components/InstallAppModal').then((m) => ({ default: m.InstallAppModal })));
-const DeviceLocationPromptModal = lazy(() => import('./components/DeviceLocationPromptModal').then((m) => ({ default: m.DeviceLocationPromptModal })));
-const AddProductModal = lazy(() => import('./components/AddProductModal').then((m) => ({ default: m.AddProductModal })));
-const LiveOrderDetailsModal = lazy(() => import('./components/orders/LiveOrderDetailsModal').then((m) => ({ default: m.LiveOrderDetailsModal })));
-const LiveOrderPage = lazy(() => import('./components/orders/LiveOrderPage').then((m) => ({ default: m.LiveOrderPage })));
-const AccountDeletionPage = lazy(() => import('./components/AccountDeletionPage').then((m) => ({ default: m.AccountDeletionPage })));
-const HowToUseAppPage = lazy(() => import('./components/HowToUseAppPage').then((m) => ({ default: m.HowToUseAppPage })));
-const SitemapPage = lazy(() => import('./components/SitemapPage').then((m) => ({ default: m.SitemapPage })));
-const SmartRunAppPage = lazy(() => import('./components/SmartRunAppPage').then((m) => ({ default: m.SmartRunAppPage })));
-const DeliveryAreasPage = lazy(() => import('./components/DeliveryAreasPage').then((m) => ({ default: m.DeliveryAreasPage })));
-const ContactSupportPage = lazy(() => import('./components/ContactSupportPage').then((m) => ({ default: m.ContactSupportPage })));
+const LocationModal = lazyWithRetry(() => import('./components/LocationModal').then((m) => ({ default: m.LocationModal })));
+const LoginPage = lazyWithRetry(() => import('./components/LoginPage').then((m) => ({ default: m.LoginPage })));
+const PersonalInfoPage = lazyWithRetry(() => import('./components/PersonalInfoPage').then((m) => ({ default: m.PersonalInfoPage })));
+const ProfileView = lazyWithRetry(() => import('./components/ProfileView').then((m) => ({ default: m.ProfileView })));
+const ProductDetailModal = lazyWithRetry(() => import('./components/ProductDetailModal').then((m) => ({ default: m.ProductDetailModal })));
+const CartView = lazyWithRetry(() => import('./components/CartView').then((m) => ({ default: m.CartView })));
+const MapsGroundingAssistant = lazyWithRetry(() => import('./components/MapsGroundingAssistant').then((m) => ({ default: m.MapsGroundingAssistant })));
+const OrderHistoryView = lazyWithRetry(() => import('./components/OrderHistoryView').then((m) => ({ default: m.OrderHistoryView })));
+const LegalView = lazyWithRetry(() => import('./components/LegalViews').then((m) => ({ default: m.LegalView })));
+const ResetPassword = lazyWithRetry(() => import('./components/ResetPassword').then((m) => ({ default: m.ResetPassword })));
+const ElectricalListingPage = lazyWithRetry(() => import('./components/electrical/ElectricalListingPage').then((m) => ({ default: m.ElectricalListingPage })));
+const ProductDetailPage = lazyWithRetry(() => import('./components/electrical/ProductDetailPage').then((m) => ({ default: m.ProductDetailPage })));
+const ConstructionPage = lazyWithRetry(() => import('./components/ConstructionPage').then((m) => ({ default: m.ConstructionPage })));
+const TechniciansPage = lazyWithRetry(() => import('./components/technicians/TechniciansPage').then((m) => ({ default: m.TechniciansPage })));
+const TechnicianDetailPage = lazyWithRetry(() => import('./components/technicians/TechnicianDetailPage').then((m) => ({ default: m.TechnicianDetailPage })));
+const InstallAppModal = lazyWithRetry(() => import('./components/InstallAppModal').then((m) => ({ default: m.InstallAppModal })));
+const DeviceLocationPromptModal = lazyWithRetry(() => import('./components/DeviceLocationPromptModal').then((m) => ({ default: m.DeviceLocationPromptModal })));
+const AddProductModal = lazyWithRetry(() => import('./components/AddProductModal').then((m) => ({ default: m.AddProductModal })));
+const LiveOrderDetailsModal = lazyWithRetry(() => import('./components/orders/LiveOrderDetailsModal').then((m) => ({ default: m.LiveOrderDetailsModal })));
+const LiveOrderPage = lazyWithRetry(() => import('./components/orders/LiveOrderPage').then((m) => ({ default: m.LiveOrderPage })));
+const AccountDeletionPage = lazyWithRetry(() => import('./components/AccountDeletionPage').then((m) => ({ default: m.AccountDeletionPage })));
+const HowToUseAppPage = lazyWithRetry(() => import('./components/HowToUseAppPage').then((m) => ({ default: m.HowToUseAppPage })));
+const SitemapPage = lazyWithRetry(() => import('./components/SitemapPage').then((m) => ({ default: m.SitemapPage })));
+const SmartRunAppPage = lazyWithRetry(() => import('./components/SmartRunAppPage').then((m) => ({ default: m.SmartRunAppPage })));
+const DeliveryAreasPage = lazyWithRetry(() => import('./components/DeliveryAreasPage').then((m) => ({ default: m.DeliveryAreasPage })));
+const ContactSupportPage = lazyWithRetry(() => import('./components/ContactSupportPage').then((m) => ({ default: m.ContactSupportPage })));
 
 import { supabase } from './lib/supabaseClient';
 import {
@@ -1882,8 +1883,8 @@ export default function App() {
         />
       )}
 
-      {/* Main App Content View with Routes (Smooth GPU-accelerated page transitions) */}
-      <main key={location.pathname} className="flex-1 animate-page-enter gpu-layer">
+      {/* Main App Content View with Routes */}
+      <main key={location.pathname} className="flex-1 animate-page-enter">
         <Suspense fallback={<div className="min-h-screen bg-white" aria-busy="true" />}>
           <Routes>
           {/* FLIPKART-STYLE ELECTRICAL LISTING PAGE */}

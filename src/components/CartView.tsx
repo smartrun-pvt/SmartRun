@@ -969,7 +969,7 @@ export const CartView = ({
   // FULL CART VIEW LAYOUT
   // ==========================================================================
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 pb-36 font-sans">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 pb-[calc(var(--safe-area-bottom,env(safe-area-inset-bottom,0px))+7.5rem)] sm:pb-36 font-sans">
       <SEOHead
         title={`Shopping Cart (${items.length} ${items.length === 1 ? 'item' : 'items'}) | SmartRun Kolkata`}
         description="Review your electrical supplies and building materials cart with instant express delivery to your doorstep in Kolkata."
@@ -1689,22 +1689,25 @@ export const CartView = ({
 
       </div>
 
-      {/* 9. STICKY BOTTOM BAR (Clean single Place Order button with Total Price) */}
+      {/* 9. STICKY BOTTOM BAR (Fixed like bottom navbar, elevated above Android phone navigation buttons & tablet-optimized) */}
       <div
-        style={{ paddingBottom: 'calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 0.75rem)' }}
-        className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200/90 px-4 py-3 shadow-[0_-4px_25px_rgba(0,0,0,0.08)]"
+        id="cart-sticky-checkout-bar"
+        style={{
+          bottom: 'calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 0.6rem)'
+        }}
+        className="fixed left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] sm:w-[calc(100%-2rem)] max-w-[min(42rem,calc(100vw-var(--safe-area-left,0px)-var(--safe-area-right,0px)-1.5rem))] rounded-2xl sm:rounded-[1.25rem] bg-white/95 backdrop-blur-xl border border-slate-200/90 px-3.5 py-2.5 sm:px-5 sm:py-3.5 md:px-6 md:py-3.5 shadow-[0_12px_36px_rgba(15,23,42,0.12),0_3px_10px_rgba(0,0,0,0.04)]"
       >
-        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+        <div className="w-full flex items-center justify-between gap-2.5 sm:gap-4">
           
-          <div className="min-w-0">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block leading-tight">
+          <div className="min-w-0 flex-1">
+            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400 block leading-tight">
               Total Payable
             </span>
-            <div className="text-lg sm:text-xl font-black text-slate-950 leading-tight">
+            <div className="text-lg sm:text-xl md:text-2xl font-black text-slate-950 leading-tight tabular-nums">
               ₹{finalTotalAmount.toLocaleString('en-IN')}
             </div>
             {!isDeliveryServiceable && (
-              <span className="text-[11px] font-bold text-rose-600 block leading-tight mt-0.5">
+              <span className="text-[10.5px] sm:text-[11px] font-bold text-rose-600 block leading-tight mt-0.5 truncate">
                 Delivery not available here
               </span>
             )}
@@ -1718,12 +1721,12 @@ export const CartView = ({
             aria-disabled={!isDeliveryServiceable}
             className={
               !isDeliveryServiceable
-                ? "bg-slate-200 text-slate-400 font-bold py-3 px-5 sm:px-7 rounded-xl text-xs sm:text-sm shrink-0 flex items-center gap-1.5 cursor-not-allowed border border-slate-300/80 shadow-none select-none transition-none"
-                : "bg-[#ff3252] hover:bg-[#e6203f] active:scale-[0.98] transition-all text-white font-black py-3 px-6 sm:px-9 rounded-xl shadow-md cursor-pointer text-sm sm:text-base shrink-0 flex items-center gap-1.5"
+                ? "bg-slate-200 text-slate-400 font-bold py-2.5 px-4 sm:py-3 sm:px-7 rounded-xl text-xs sm:text-sm shrink-0 whitespace-nowrap flex items-center gap-1.5 cursor-not-allowed border border-slate-300/80 shadow-none select-none transition-none"
+                : "bg-[#ff3252] hover:bg-[#e6203f] active:scale-[0.98] transition-all text-white font-black py-2.5 px-5 sm:py-3 sm:px-7 md:px-9 rounded-xl shadow-md cursor-pointer text-xs sm:text-sm md:text-base shrink-0 whitespace-nowrap flex items-center gap-1.5"
             }
           >
             <span>{!isDeliveryServiceable ? 'Delivery Not Available' : 'Proceed to Pay'}</span>
-            {isDeliveryServiceable && <ChevronRight className="w-4 h-4" />}
+            {isDeliveryServiceable && <ChevronRight className="w-4 h-4 shrink-0" />}
           </button>
 
         </div>
