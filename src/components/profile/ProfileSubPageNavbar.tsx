@@ -10,6 +10,9 @@ export interface ProfileSubPageNavbarProps {
   headerId?: string;
   rightContent?: React.ReactNode;
   containerMaxWidthClass?: string;
+  containerPaddingClass?: string;
+  headerBackgroundColor?: string;
+  headerBorderColor?: string;
 }
 
 export const ProfileSubPageNavbar: React.FC<ProfileSubPageNavbarProps> = ({
@@ -20,28 +23,32 @@ export const ProfileSubPageNavbar: React.FC<ProfileSubPageNavbarProps> = ({
   backButtonId,
   headerId,
   rightContent,
-  containerMaxWidthClass = 'max-w-3xl'
+  containerMaxWidthClass = 'max-w-3xl',
+  containerPaddingClass = 'px-4 sm:px-6',
+  headerBackgroundColor = '#74c69d',
+  headerBorderColor = '#52b788'
 }) => {
   return (
     <header
       id={headerId}
-      className="sticky top-0 z-30 shrink-0 bg-[#74c69d] border-b border-[#52b788] shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform transition-all"
+      className="sticky top-0 z-30 shrink-0 border-b shadow-xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform transition-all"
       style={{
-        backgroundColor: '#74c69d',
+        backgroundColor: headerBackgroundColor,
+        borderColor: headerBorderColor,
         paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))',
         paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
         paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
       }}
     >
       <div
-        className={`${containerMaxWidthClass} mx-auto w-full px-4 sm:px-6 min-h-[64px] sm:min-h-[68px] py-2 flex items-center justify-between gap-3 relative`}
+        className={`${containerMaxWidthClass} mx-auto w-full ${containerPaddingClass} min-h-[64px] sm:min-h-[68px] py-2 flex items-center justify-between gap-3 relative`}
       >
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <button
             id={backButtonId}
             type="button"
             onClick={onBack}
-            className="min-w-[40px] min-h-[40px] -ml-2 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer flex items-center justify-center shrink-0"
+            className="relative z-20 pointer-events-auto touch-manipulation min-w-[40px] min-h-[40px] -ml-2 rounded-full hover:bg-black/10 active:bg-black/15 text-slate-900 transition-colors cursor-pointer flex items-center justify-center shrink-0"
             title={backTitle}
             aria-label={backAriaLabel}
           >

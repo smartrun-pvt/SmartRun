@@ -3,23 +3,23 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Trash2,
-  CheckCircle2,
   X,
   UserX,
-  Mail,
-  ChevronDown,
-  Send,
   Loader2,
   Copy,
-  Check
+  Check,
+  LogIn
 } from 'lucide-react';
 import { UserProfile, Order } from '../types';
 import { API_BASE_URL } from '../lib/apiBase';
 import { showToast } from '../utils/toast';
+import { supabase } from '../lib/supabaseClient';
 import { purgeAllUserCacheAndStorage, signOutUser } from '../services/supabaseService';
+import { clearServerAuthToken, getServerAuthToken } from '../services/serverAuthService';
 import { SEOHead } from './SEOHead';
 import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack';
 import { ProfileSubPageNavbar } from './profile/ProfileSubPageNavbar';
+import { navigateBackSafely } from '../utils/navigationHistory';
 
 interface AccountDeletionPageProps {
   userProfile?: UserProfile | null;
@@ -36,44 +36,29 @@ export const AccountDeletionPage = ({
 }: AccountDeletionPageProps) => {
   const navigate = useNavigate();
 
+  const isSignedIn = Boolean(userProfile && (userProfile.id || userProfile.email || userProfile.phone));
+
   // Signed in email / identifier
-  const userEmail =
+  const userIdentifier =
     userProfile?.email ||
     (userProfile?.phone ? `${userProfile.phone}` : '') ||
-    'yourname@gmail.com';
+    userProfile?.name ||
+    userProfile?.id ||
+    '';
 
   // Section 1: Direct Self-Service Deletion State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Section 3: Web Deletion Request State
-  const [webEmail, setWebEmail] = useState(userProfile?.email || '');
-  const [webReason, setWebReason] = useState('No longer using the application');
-  const [webConfirmed, setWebConfirmed] = useState(false);
-  const [isSubmittingWeb, setIsSubmittingWeb] = useState(false);
-  const [webSubmittedData, setWebSubmittedData] = useState<{
-    requestId: string;
-    submittedAt: string;
-  } | null>(null);
-
   const [copiedDelete, setCopiedDelete] = useState(false);
-
-  useEffect(() => {
-    if (userProfile?.email) {
-      setWebEmail(userProfile.email);
-    }
-  }, [userProfile]);
 
   const handleBack = useCallback(() => {
     if (onBack) {
       onBack();
-    } else if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-      navigate(-1);
     } else {
-      navigate('/profile');
+      navigateBackSafely(navigate, isSignedIn ? '/profile' : '/');
     }
-  }, [onBack, navigate]);
+  }, [onBack, navigate, isSignedIn]);
 
   // Swipe from left edge on touch screens to return to profile
   useEdgeSwipeBack({
@@ -145,15 +130,52 @@ export const AccountDeletionPage = ({
     }
   };
 
+  // Handler to navigate signed-out user to login and return to /delete
+  const handleLoginToDelete = useCallback(() => {
+    try {
+      sessionStorage.setItem('auth_redirect_target', '/delete');
+    } catch {
+      // ignore storage availability errors
+    }
+    if (onOpenAuth) {
+      onOpenAuth();
+    } else {
+      navigate('/login?redirect=/delete');
+    }
+  }, [onOpenAuth, navigate]);
+
   // Handler for direct self-service delete
   const handleDirectSelfServiceDelete = async () => {
-    if (deleteConfirmText.trim() !== 'DELETE') return;
+    if (!isSignedIn || deleteConfirmText.trim() !== 'DELETE' || isDeleting) return;
 
     setIsDeleting(true);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+
     try {
-      await fetch(`${API_BASE_URL}/api/account/delete-account`, {
+      let accessToken: string | null = null;
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        accessToken = sessionData?.session?.access_token || null;
+      } catch {
+        accessToken = null;
+      }
+      if (!accessToken) {
+        accessToken = getServerAuthToken();
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/account/delete-account`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers,
+        signal: controller.signal,
         body: JSON.stringify({
           userId: userProfile?.id,
           phone: userProfile?.phone,
@@ -161,74 +183,39 @@ export const AccountDeletionPage = ({
           name: userProfile?.name,
           reason: 'Direct Self-Service Deletion via Deletion Portal'
         })
-      }).catch(() => {});
-
-      // Complete purge and sign-out on client
-      purgeAllUserCacheAndStorage();
-      await signOutUser().catch(() => {});
-
-      setShowDeleteModal(false);
-      showToast('Your account and personal data have been permanently deleted.', 'success');
-      // Redirect immediately to home page instead of showing a button
-      navigate('/', { replace: true });
-    } catch (err: any) {
-      purgeAllUserCacheAndStorage();
-      await signOutUser().catch(() => {});
-      setShowDeleteModal(false);
-      showToast('Account permanently deleted.', 'success');
-      navigate('/', { replace: true });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  // Handler for web deletion request
-  const handleSubmitWebRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!webEmail.trim() || !webConfirmed) return;
-
-    setIsSubmittingWeb(true);
-    try {
-      const reqId = `REQ-${Date.now().toString(36).toUpperCase().slice(-6)}`;
-      const res = await fetch(`${API_BASE_URL}/api/account/deletion-request`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: userProfile?.id,
-          phone: userProfile?.phone,
-          email: webEmail.trim(),
-          name: userProfile?.name || 'Customer',
-          reason: webReason.trim() || 'No longer using the application',
-          confirmationText: 'DELETE MY ACCOUNT'
-        })
       });
 
       const data = await res.json().catch(() => ({}));
-      const generatedId = data?.requestId || reqId;
+      if (!res.ok || data?.success === false) {
+        if (res.status === 401) {
+          setShowDeleteModal(false);
+          setDeleteConfirmText('');
+          showToast(data?.message || 'Session expired. Please sign in again to delete your account.', 'error');
+          handleLoginToDelete();
+          return;
+        }
+        showToast(data?.message || 'Unable to delete account right now. Please try again.', 'error');
+        return;
+      }
 
-      setWebSubmittedData({
-        requestId: generatedId,
-        submittedAt: new Date().toLocaleDateString('en-IN', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        })
-      });
+      // Complete purge and sign-out on client
+      clearServerAuthToken();
+      await signOutUser().catch(() => {});
+      await purgeAllUserCacheAndStorage().catch(() => {});
 
-      showToast('Web deletion request submitted successfully.', 'success');
+      setShowDeleteModal(false);
+      setDeleteConfirmText('');
+      showToast('Your account and personal data have been permanently deleted.', 'success');
+      navigate('/', { replace: true });
     } catch (err: any) {
-      const reqId = `REQ-${Date.now().toString(36).toUpperCase().slice(-6)}`;
-      setWebSubmittedData({
-        requestId: reqId,
-        submittedAt: new Date().toLocaleDateString('en-IN', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        })
-      });
-      showToast('Web deletion request submitted successfully.', 'success');
+      if (err?.name === 'AbortError') {
+        showToast('Request timed out. Please check your connection and try again.', 'error');
+      } else {
+        showToast(err?.message || 'Failed to delete account. Please try again.', 'error');
+      }
     } finally {
-      setIsSubmittingWeb(false);
+      window.clearTimeout(timeoutId);
+      setIsDeleting(false);
     }
   };
 
@@ -273,28 +260,50 @@ export const AccountDeletionPage = ({
             Immediately and permanently delete your account, saved medications, dose history, and notification schedules.
           </p>
 
-          <div className="pt-2">
-            <p className="text-xs sm:text-sm text-slate-500 mb-0.5">
-              Currently signed in as:
-            </p>
-            <div className="font-bold text-[#0f172a] text-sm sm:text-base pb-2 break-all">
-              {userEmail}
-            </div>
-            <hr className="border-t border-slate-300/80 mb-5" />
+          {isSignedIn ? (
+            <div className="pt-2">
+              <p className="text-xs sm:text-sm text-slate-500 mb-0.5">
+                Currently signed in as:
+              </p>
+              <div className="font-bold text-[#0f172a] text-sm sm:text-base pb-2 break-all">
+                {userIdentifier}
+              </div>
+              <hr className="border-t border-slate-300/80 mb-5" />
 
-            <button
-              type="button"
-              id="btn-delete-my-account"
-              onClick={() => {
-                setDeleteConfirmText('');
-                setShowDeleteModal(true);
-              }}
-              className="w-full py-3.5 px-6 rounded-xl bg-[#d00036] hover:bg-[#b5002f] active:bg-[#990027] text-white font-bold text-sm sm:text-base shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.99]"
-            >
-              <Trash2 className="w-4 h-4 stroke-[2.2]" />
-              <span>Delete My Account Now</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                id="btn-delete-my-account"
+                onClick={() => {
+                  setDeleteConfirmText('');
+                  setShowDeleteModal(true);
+                }}
+                className="w-full py-3.5 px-6 rounded-xl bg-[#d00036] hover:bg-[#b5002f] active:bg-[#990027] text-white font-bold text-sm sm:text-base shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.99]"
+              >
+                <Trash2 className="w-4 h-4 stroke-[2.2]" />
+                <span>Delete My Account Now</span>
+              </button>
+            </div>
+          ) : (
+            <div className="pt-2">
+              <p className="text-xs sm:text-sm text-slate-500 mb-0.5">
+                Account Status:
+              </p>
+              <div className="font-bold text-[#0f172a] text-sm sm:text-base pb-2">
+                Not signed in — please sign in to verify and delete your account
+              </div>
+              <hr className="border-t border-slate-300/80 mb-5" />
+
+              <button
+                type="button"
+                id="btn-login-to-delete-account"
+                onClick={handleLoginToDelete}
+                className="w-full py-3.5 px-6 rounded-xl bg-[#0f172a] hover:bg-slate-800 active:bg-slate-900 text-white font-bold text-sm sm:text-base shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.99]"
+              >
+                <LogIn className="w-4 h-4 stroke-[2.2]" />
+                <span>Sign In to Delete Account</span>
+              </button>
+            </div>
+          )}
         </section>
 
         <hr className="border-t border-slate-300/70" />
@@ -425,114 +434,6 @@ export const AccountDeletionPage = ({
               </tbody>
             </table>
           </div>
-        </section>
-
-        <hr className="border-t border-slate-300/70" />
-
-        {/* =========================================================================
-            SECTION 3: WEB DELETION REQUEST (Matches Screenshot 2)
-           ========================================================================= */}
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Mail className="w-5 h-5 text-[#0f172a] stroke-[2] shrink-0" />
-            <h3 className="text-sm sm:text-base font-bold text-[#0f172a] tracking-wider uppercase">
-              WEB DELETION REQUEST
-            </h3>
-          </div>
-
-          <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-            If you uninstalled the app or cannot sign in with Google, submit this request. We will verify and purge all records within 7 business days.
-          </p>
-
-          {webSubmittedData ? (
-            <div className="p-5 rounded-xl bg-white/80 border border-emerald-300 space-y-2 mt-2">
-              <div className="flex items-center gap-2 text-emerald-700 font-bold text-sm">
-                <CheckCircle2 className="w-5 h-5 shrink-0" />
-                <span>Web Deletion Request Recorded</span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-600">
-                Reference ID: <strong className="font-mono text-slate-900">{webSubmittedData.requestId}</strong>. All associated records will be verified and purged within 7 business days.
-              </p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmitWebRequest} className="space-y-4 pt-1">
-              {/* Registered Email Address * */}
-              <div>
-                <label className="block text-xs font-bold text-[#0f172a] mb-1.5">
-                  Registered Email Address *
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder="yourname@gmail.com"
-                  value={webEmail}
-                  onChange={(e) => setWebEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white/70 focus:bg-white text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition-colors"
-                />
-              </div>
-
-              {/* Reason for Deletion (Optional) */}
-              <div>
-                <label className="block text-xs font-bold text-[#0f172a] mb-1.5">
-                  Reason for Deletion (Optional)
-                </label>
-                <div className="relative">
-                  <select
-                    value={webReason}
-                    onChange={(e) => setWebReason(e.target.value)}
-                    className="w-full appearance-none px-4 py-2.5 pr-10 rounded-xl border border-slate-300 bg-white/70 focus:bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 cursor-pointer transition-colors"
-                  >
-                    <option value="No longer using the application">No longer using the application</option>
-                    <option value="Concerned about data privacy / sharing">Concerned about data privacy / sharing</option>
-                    <option value="Created a duplicate account">Created a duplicate account</option>
-                    <option value="Switching to a different app">Switching to a different app</option>
-                    <option value="Other reason">Other reason</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-600 absolute right-3.5 top-3.5 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Irreversible Confirmation Checkbox */}
-              <div className="pt-0.5">
-                <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={webConfirmed}
-                    onChange={(e) => setWebConfirmed(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded border-slate-300 text-pink-600 focus:ring-pink-500 cursor-pointer"
-                  />
-                  <span className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                    I confirm that this action is irreversible and will permanently delete my medication records and profile.
-                  </span>
-                </label>
-              </div>
-
-              {/* Submit Button */}
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={!webEmail.trim() || !webConfirmed || isSubmittingWeb}
-                  className={`w-full py-3.5 px-6 rounded-xl font-bold text-sm sm:text-base transition-all flex items-center justify-center gap-2 ${
-                    webEmail.trim() && webConfirmed && !isSubmittingWeb
-                      ? 'bg-[#ea5b7e] hover:bg-[#de4a6e] active:bg-[#cf3c5f] text-white shadow-sm cursor-pointer active:scale-[0.99]'
-                      : 'bg-[#ea5b7e]/70 text-white/80 cursor-not-allowed'
-                  }`}
-                >
-                  {isSubmittingWeb ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Submitting Request...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4 stroke-[2.2]" />
-                      <span>Submit Web Deletion Request</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          )}
         </section>
 
       </div>

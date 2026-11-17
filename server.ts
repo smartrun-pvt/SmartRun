@@ -5215,26 +5215,62 @@ async function startServer() {
   app.post("/api/account/delete-account", async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
-      const { userId, phone, email, name, reason } = req.body || {};
-      const cleanPhone = (phone || "").replace(/\D/g, "").slice(-10);
+      const { userId: rawUserId, phone: rawPhone, email: rawEmail, name, reason } = req.body || {};
+
+      let authUser = await getAuthenticatedUser(req);
+      if (!authUser) {
+        const extracted = extractServerSession(req);
+        if (extracted.valid && extracted.session) {
+          authUser = {
+            id: extracted.session.uid,
+            phone: extracted.session.phone,
+            email: extracted.session.email,
+            user_metadata: {
+              master_user_id: extracted.session.uid,
+              linked_user_id: extracted.session.uid
+            }
+          };
+        }
+      }
+
+      const isAuthAdmin = await isAuthorizedAdminOrSecret(req);
+      const allowedIds = new Set(
+        [
+          authUser?.id,
+          authUser?.user_metadata?.master_user_id,
+          authUser?.user_metadata?.linked_user_id
+        ].filter(Boolean)
+      );
+
+      if (!isAuthAdmin) {
+        if (!authUser) {
+          return res.status(401).json({ success: false, message: "Authentication required to delete account." });
+        }
+        if (rawUserId && !allowedIds.has(rawUserId)) {
+          return res.status(403).json({ success: false, message: "Forbidden: You can only delete your own account." });
+        }
+      }
+
+      const userId = isAuthAdmin
+        ? rawUserId
+        : (rawUserId && allowedIds.has(rawUserId)
+            ? rawUserId
+            : (authUser.user_metadata?.master_user_id || authUser.user_metadata?.linked_user_id || authUser.id));
+
+      const authPhoneDigits = String(authUser?.phone || authUser?.user_metadata?.phone || "").replace(/\D/g, "").slice(-10);
+      const requestedPhoneDigits = String(rawPhone || "").replace(/\D/g, "").slice(-10);
+      const cleanPhone = isAuthAdmin
+        ? requestedPhoneDigits
+        : (authPhoneDigits || (allowedIds.has(userId) && userId?.startsWith("uid_") ? userId.replace(/^uid_/, "").replace(/\D/g, "").slice(-10) : ""));
+
+      const authEmail = String(authUser?.email || authUser?.user_metadata?.real_email || "").trim();
+      const email = isAuthAdmin ? rawEmail : authEmail;
 
       if (!userId && !cleanPhone && !email) {
         return res.status(400).json({
           success: false,
           message: "User identifier (userId, phone, or email) required to execute account deletion."
         });
-      }
-
-      const authUser = await getAuthenticatedUser(req);
-      const isAuthAdmin = await isAuthorizedAdminOrSecret(req);
-
-      if (!isAuthAdmin) {
-        if (!authUser) {
-          return res.status(401).json({ success: false, message: "Authentication required to delete account." });
-        }
-        if (userId && authUser.id !== userId) {
-          return res.status(403).json({ success: false, message: "Forbidden: You can only delete your own account." });
-        }
       }
 
       const sb = getServerSupabase();

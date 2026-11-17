@@ -36,6 +36,8 @@ export const FavoritesSubPage = ({
         onBack={onBack}
         backTitle="Back to Profile"
         backAriaLabel="Back to Profile"
+        headerBackgroundColor="#ffe5d9"
+        headerBorderColor="#f2cab8"
         rightContent={
           favoriteProducts.length > 0 ? (
             <button

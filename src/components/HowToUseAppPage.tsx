@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Palette, MapPin, Wrench, ShoppingBag, Truck, User, MessageCircle } from 'lucide-react';
 import { SEOHead } from './SEOHead';
 import { ProfileSubPageNavbar } from './profile/ProfileSubPageNavbar';
+import { navigateBackSafely } from '../utils/navigationHistory';
 
 interface HowToUseAppPageProps {
   onBack?: () => void;
@@ -14,10 +15,8 @@ export const HowToUseAppPage: React.FC<HowToUseAppPageProps> = ({ onBack }) => {
   const handleBack = () => {
     if (onBack) {
       onBack();
-    } else if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-      navigate(-1);
     } else {
-      navigate('/');
+      navigateBackSafely(navigate, '/');
     }
   };
 
@@ -33,7 +32,7 @@ export const HowToUseAppPage: React.FC<HowToUseAppPageProps> = ({ onBack }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F9F6F0] text-[#2C261E] pb-24 font-sans overflow-x-clip">
+    <div className="min-h-screen bg-[#F3EDE0] text-[#2C261E] pb-24 font-sans overflow-x-clip">
       <SEOHead
         title="How to Use App | User Guide & Instructions | SmartRun"
         description="Learn how to use SmartRun to order genuine electrical goods, construction materials, and book certified electricians in Kolkata with 60-minute express delivery."
@@ -46,280 +45,267 @@ export const HowToUseAppPage: React.FC<HowToUseAppPageProps> = ({ onBack }) => {
         backButtonId="btn-how-to-use-back"
         backTitle="Back"
         backAriaLabel="Go back"
+        containerMaxWidthClass="max-w-6xl"
+        containerPaddingClass="px-4 sm:px-6 lg:px-10"
       />
 
-      {/* Main Content Area - Box Design with Warm Beige Styling */}
-      <main
-        className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 space-y-6"
+      {/* Main Content Area - Unboxed Editorial Layout with Warm Beige Styling */}
+      <div
         style={{
-          paddingLeft: 'max(1rem, var(--safe-area-left, env(safe-area-inset-left, 0px)))',
-          paddingRight: 'max(1rem, var(--safe-area-right, env(safe-area-inset-right, 0px)))'
+          paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+          paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
         }}
       >
-        
-        {/* Intro Box */}
-        <section className="bg-[#FFFDF9] border border-[#E6DEC8] rounded-2xl p-5 sm:p-6 shadow-[0_2px_8px_rgba(40,30,10,0.04)] space-y-2">
-          <h2 className="text-base sm:text-lg font-bold text-[#2C261E]">
-            Welcome to SmartRun
-          </h2>
-          <p className="text-sm sm:text-base text-[#4A4235] leading-relaxed">
-            SmartRun is Kolkata’s quick-commerce platform for genuine electrical goods, construction supplies, and certified electrician services. This simple guide explains how to get the most out of the app.
-          </p>
-        </section>
-
-        {/* Content Table Box - Mobile Optimized Card List */}
-        <section className="bg-[#FFFDF9] border border-[#E6DEC8] rounded-2xl p-5 sm:p-6 shadow-[0_2px_8px_rgba(40,30,10,0.04)] space-y-4">
-          <div className="border-b border-[#E6DEC8] pb-2.5">
+        <main className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-6 sm:space-y-8">
+          
+          {/* Intro Section */}
+          <section className="space-y-2">
             <h2 className="text-base sm:text-lg font-bold text-[#2C261E]">
-              Content table
+              Welcome to SmartRun
             </h2>
-            <p className="text-xs sm:text-sm text-[#7C7469] mt-0.5">
-              Tap any topic below to jump directly to its instructions.
+            <p className="text-sm sm:text-base text-[#4A4235] leading-relaxed">
+              SmartRun is Kolkata’s quick-commerce platform for genuine electrical goods, construction supplies, and certified electrician services. This simple guide explains how to get the most out of the app.
             </p>
-          </div>
+          </section>
 
-          <div className="space-y-2">
-            {tableOfContents.map((item) => (
-              <a
-                key={item.id}
-                href={`#${item.id}`}
-                className="flex items-start gap-3 p-3 rounded-xl bg-[#FBF9F4] hover:bg-[#F3EDE0] border border-[#EFE9DC] transition-colors group cursor-pointer"
-              >
-                <div className="w-7 h-7 rounded-lg bg-[#EAE2D0] text-[#2C261E] font-bold text-xs sm:text-sm flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-[#2C261E] group-hover:text-white transition-colors">
-                  {item.no}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm sm:text-base font-semibold text-[#2C261E] group-hover:text-amber-900 transition-colors">
-                    {item.title}
-                  </p>
-                  <p className="text-xs sm:text-sm text-[#6B6254] mt-0.5 line-clamp-2">
-                    {item.summary}
-                  </p>
-                </div>
-              </a>
-            ))}
-          </div>
-        </section>
+          {/* Content Table Section - Laptop & Mobile Responsive Grid */}
+          <section className="pt-6 sm:pt-7 border-t border-[#DFD4BC] space-y-4">
+            <div className="border-b border-[#DFD4BC] pb-2.5">
+              <h2 className="text-base sm:text-lg font-bold text-[#2C261E]">
+                Content table
+              </h2>
+              <p className="text-xs sm:text-sm text-[#7C7469] mt-0.5">
+                Tap any topic below to jump directly to its instructions.
+              </p>
+            </div>
 
-        {/* Step 1 Box: Search & Browse */}
-        <section id="step-search" className="bg-[#FFFDF9] border border-[#E6DEC8] rounded-2xl p-5 sm:p-6 shadow-[0_2px_8px_rgba(40,30,10,0.04)] space-y-3.5 scroll-mt-20">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#F5F0E4] border border-[#E6DEC8] text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
-              <Search className="w-5 h-5" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
+              {tableOfContents.map((item) => (
+                <a
+                  key={item.id}
+                  href={`#${item.id}`}
+                  className="flex items-start gap-3 py-2.5 px-1.5 -mx-1.5 rounded-lg border-b border-[#E2D6BE]/80 hover:bg-[#EAE1CE]/50 transition-colors group cursor-pointer"
+                >
+                  <span className="text-xs sm:text-sm font-bold text-[#7C7469] group-hover:text-[#2C261E] shrink-0 mt-0.5 tabular-nums transition-colors">
+                    {item.no}.
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm sm:text-base font-semibold text-[#2C261E] group-hover:text-amber-900 transition-colors">
+                      {item.title}
+                    </p>
+                    <p className="text-xs sm:text-sm text-[#6B6254] mt-0.5 line-clamp-2">
+                      {item.summary}
+                    </p>
+                  </div>
+                </a>
+              ))}
             </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
-                1. Find &amp; Search Products
-              </h3>
-              <p className="text-xs text-[#7C7469]">Browse wires, switches, MCBs, cement, and tools</p>
-            </div>
-          </div>
-          <div className="text-sm text-[#5A5245] space-y-2 leading-relaxed">
-            <p>
-              Use the top search bar to type any product name, brand, or wire size (such as <em>Polycab 2.5 sq mm</em>, <em>Schneider switch</em>, or <em>UltraTech Cement</em>).
-            </p>
-            <p>
-              You can also switch categories from the Home page between <strong>Electrical Depot</strong> and <strong>Construction Materials</strong>.
-            </p>
-            <p>
-              Each product shows wholesale pricing and discount information clearly so you always get the best rates.
-            </p>
-          </div>
-        </section>
+          </section>
 
-        {/* Step 2 Box: Wire Colors & Quantities */}
-        <section id="step-colors" className="bg-[#FFFDF9] border border-[#E6DEC8] rounded-2xl p-5 sm:p-6 shadow-[0_2px_8px_rgba(40,30,10,0.04)] space-y-3.5 scroll-mt-20">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#F5F0E4] border border-[#E6DEC8] text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
-              <Palette className="w-5 h-5" />
+          {/* Step 1: Search & Browse */}
+          <section id="step-search" className="pt-6 sm:pt-7 border-t border-[#DFD4BC] space-y-3.5 scroll-mt-24">
+            <div className="flex items-start gap-2.5">
+              <Search className="w-5 h-5 text-amber-800 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
+                  1. Find &amp; Search Products
+                </h3>
+                <p className="text-xs text-[#7C7469]">Browse wires, switches, MCBs, cement, and tools</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
-                2. Choose Wire Colors &amp; Quantities
-              </h3>
-              <p className="text-xs text-[#7C7469]">Live photos and pricing change with color selection</p>
+            <div className="text-sm sm:text-base text-[#5A5245] space-y-2 leading-relaxed">
+              <p>
+                Use the top search bar to type any product name, brand, or wire size (such as <em>Polycab 2.5 sq mm</em>, <em>Schneider switch</em>, or <em>UltraTech Cement</em>).
+              </p>
+              <p>
+                You can also switch categories from the Home page between <strong>Electrical Depot</strong> and <strong>Construction Materials</strong>.
+              </p>
+              <p>
+                Each product shows wholesale pricing and discount information clearly so you always get the best rates.
+              </p>
             </div>
-          </div>
-          <div className="text-sm text-[#5A5245] space-y-2 leading-relaxed">
-            <p>
-              When viewing any electrical wire, tap the color swatches below the image (Red, Black, Green, Blue, or Yellow).
-            </p>
-            <p>
-              Selecting a color immediately updates the product picture and shows the exact price for that specific color spool.
-            </p>
-            <p>
-              Use the <strong>+</strong> and <strong>-</strong> buttons to set your required quantity, then tap <strong>Add to Cart</strong> or <strong>Buy Now</strong>.
-            </p>
-          </div>
-        </section>
+          </section>
 
-        {/* Step 3 Box: 60-Minute Delivery & Pincode */}
-        <section id="step-pincode" className="bg-[#FFFDF9] border border-[#E6DEC8] rounded-2xl p-5 sm:p-6 shadow-[0_2px_8px_rgba(40,30,10,0.04)] space-y-3.5 scroll-mt-20">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#F5F0E4] border border-[#E6DEC8] text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
-              <MapPin className="w-5 h-5" />
+          {/* Step 2: Wire Colors & Quantities */}
+          <section id="step-colors" className="pt-6 sm:pt-7 border-t border-[#DFD4BC] space-y-3.5 scroll-mt-24">
+            <div className="flex items-start gap-2.5">
+              <Palette className="w-5 h-5 text-amber-800 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
+                  2. Choose Wire Colors &amp; Quantities
+                </h3>
+                <p className="text-xs text-[#7C7469]">Live photos and pricing change with color selection</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
-                3. Check 60-Minute Delivery
-              </h3>
-              <p className="text-xs text-[#7C7469]">Fast dispatch from Kasba warehouse hub</p>
+            <div className="text-sm sm:text-base text-[#5A5245] space-y-2 leading-relaxed">
+              <p>
+                When viewing any electrical wire, tap the color swatches below the image (Red, Black, Green, Blue, or Yellow).
+              </p>
+              <p>
+                Selecting a color immediately updates the product picture and shows the exact price for that specific color spool.
+              </p>
+              <p>
+                Use the <strong>+</strong> and <strong>-</strong> buttons to set your required quantity, then tap <strong>Add to Cart</strong> or <strong>Buy Now</strong>.
+              </p>
             </div>
-          </div>
-          <div className="text-sm text-[#5A5245] space-y-2 leading-relaxed">
-            <p>
-              On any product detail page, find the <strong>Delivery</strong> box and enter your 6-digit postal pincode.
-            </p>
-            <p>
-              If your location is within our express delivery area, the app confirms 60-minute courier dispatch right away.
-            </p>
-            <p>
-              You can also tap the location bar at the top of the screen anytime to select or update your saved delivery address.
-            </p>
-          </div>
-        </section>
+          </section>
 
-        {/* Step 4 Box: Book Electricians */}
-        <section id="step-technicians" className="bg-[#FFFDF9] border border-[#E6DEC8] rounded-2xl p-5 sm:p-6 shadow-[0_2px_8px_rgba(40,30,10,0.04)] space-y-3.5 scroll-mt-20">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#F5F0E4] border border-[#E6DEC8] text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
-              <Wrench className="w-5 h-5" />
+          {/* Step 3: 60-Minute Delivery & Pincode */}
+          <section id="step-pincode" className="pt-6 sm:pt-7 border-t border-[#DFD4BC] space-y-3.5 scroll-mt-24">
+            <div className="flex items-start gap-2.5">
+              <MapPin className="w-5 h-5 text-amber-800 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
+                  3. Check 60-Minute Delivery
+                </h3>
+                <p className="text-xs text-[#7C7469]">Fast dispatch from Kasba warehouse hub</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
-                4. Book Licensed Electricians
-              </h3>
-              <p className="text-xs text-[#7C7469]">Verified technicians for home wiring and repairs</p>
+            <div className="text-sm sm:text-base text-[#5A5245] space-y-2 leading-relaxed">
+              <p>
+                On any product detail page, find the <strong>Delivery</strong> box and enter your 6-digit postal pincode.
+              </p>
+              <p>
+                If your location is within our express delivery area, the app confirms 60-minute courier dispatch right away.
+              </p>
+              <p>
+                You can also tap the location bar at the top of the screen anytime to select or update your saved delivery address.
+              </p>
             </div>
-          </div>
-          <div className="text-sm text-[#5A5245] space-y-2 leading-relaxed">
-            <p>
-              Tap the <strong>Technician</strong> tab in the bottom menu to browse verified electricians across Kolkata.
-            </p>
-            <p>
-              Check each electrician’s rating, years of experience, specialized skills (such as full flat wiring or distribution boards), and starting rates.
-            </p>
-            <p>
-              Tap <strong>Book Service</strong> to schedule a visit or tap the call button to contact the technician directly.
-            </p>
-          </div>
-        </section>
+          </section>
 
-        {/* Step 5 Box: Cart & Checkout */}
-        <section id="step-checkout" className="bg-[#FFFDF9] border border-[#E6DEC8] rounded-2xl p-5 sm:p-6 shadow-[0_2px_8px_rgba(40,30,10,0.04)] space-y-3.5 scroll-mt-20">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#F5F0E4] border border-[#E6DEC8] text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
-              <ShoppingBag className="w-5 h-5" />
+          {/* Step 4: Book Electricians */}
+          <section id="step-technicians" className="pt-6 sm:pt-7 border-t border-[#DFD4BC] space-y-3.5 scroll-mt-24">
+            <div className="flex items-start gap-2.5">
+              <Wrench className="w-5 h-5 text-amber-800 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
+                  4. Book Licensed Electricians
+                </h3>
+                <p className="text-xs text-[#7C7469]">Verified technicians for home wiring and repairs</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
-                5. Place Orders &amp; Pay Safely
-              </h3>
-              <p className="text-xs text-[#7C7469]">UPI, Cash on Delivery, and Cards</p>
+            <div className="text-sm sm:text-base text-[#5A5245] space-y-2 leading-relaxed">
+              <p>
+                Tap the <strong>Technician</strong> tab in the bottom menu to browse verified electricians across Kolkata.
+              </p>
+              <p>
+                Check each electrician’s rating, years of experience, specialized skills (such as full flat wiring or distribution boards), and starting rates.
+              </p>
+              <p>
+                Tap <strong>Book Service</strong> to schedule a visit or tap the call button to contact the technician directly.
+              </p>
             </div>
-          </div>
-          <div className="text-sm text-[#5A5245] space-y-2 leading-relaxed">
-            <p>
-              Tap the <strong>Cart</strong> icon at any time to review your selected items, quantities, and transparent bill breakdown.
-            </p>
-            <p>
-              Choose your saved delivery address or enter a new one with your building, flat number, and contact phone.
-            </p>
-            <p>
-              Pick your preferred payment option:
-            </p>
-            <ul className="list-disc pl-5 space-y-1.5 text-sm text-[#5A5245]">
-              <li><strong>UPI:</strong> Pay instantly using Google Pay, PhonePe, Paytm, or BHIM.</li>
-              <li><strong>Cash on Delivery (COD):</strong> Pay cash or UPI directly to the delivery rider upon delivery.</li>
-              <li><strong>Debit / Credit Cards &amp; Net Banking:</strong> Secure online checkout powered by Razorpay.</li>
-            </ul>
-          </div>
-        </section>
+          </section>
 
-        {/* Step 6 Box: Live Order Tracking & Invoices */}
-        <section id="step-tracking" className="bg-[#FFFDF9] border border-[#E6DEC8] rounded-2xl p-5 sm:p-6 shadow-[0_2px_8px_rgba(40,30,10,0.04)] space-y-3.5 scroll-mt-20">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#F5F0E4] border border-[#E6DEC8] text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
-              <Truck className="w-5 h-5" />
+          {/* Step 5: Cart & Checkout */}
+          <section id="step-checkout" className="pt-6 sm:pt-7 border-t border-[#DFD4BC] space-y-3.5 scroll-mt-24">
+            <div className="flex items-start gap-2.5">
+              <ShoppingBag className="w-5 h-5 text-amber-800 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
+                  5. Place Orders &amp; Pay Safely
+                </h3>
+                <p className="text-xs text-[#7C7469]">UPI, Cash on Delivery, and Cards</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
-                6. Track Live Orders &amp; Invoices
-              </h3>
-              <p className="text-xs text-[#7C7469]">Live GPS delivery partner map and official GST PDF</p>
+            <div className="text-sm sm:text-base text-[#5A5245] space-y-2 leading-relaxed">
+              <p>
+                Tap the <strong>Cart</strong> icon at any time to review your selected items, quantities, and transparent bill breakdown.
+              </p>
+              <p>
+                Choose your saved delivery address or enter a new one with your building, flat number, and contact phone.
+              </p>
+              <p>
+                Pick your preferred payment option:
+              </p>
+              <ul className="list-disc pl-5 space-y-1.5 text-sm text-[#5A5245]">
+                <li><strong>UPI:</strong> Pay instantly using Google Pay, PhonePe, Paytm, or BHIM.</li>
+                <li><strong>Cash on Delivery (COD):</strong> Pay cash or UPI directly to the delivery rider upon delivery.</li>
+                <li><strong>Debit / Credit Cards &amp; Net Banking:</strong> Secure online checkout powered by Razorpay.</li>
+              </ul>
             </div>
-          </div>
-          <div className="text-sm text-[#5A5245] space-y-2 leading-relaxed">
-            <p>
-              After placing an order, tap <strong>Orders</strong> in the profile menu or use the live tracking shortcut on your screen.
-            </p>
-            <p>
-              Watch your delivery partner move in real time on the map, complete with bike registration number and direct call option.
-            </p>
-            <p>
-              Every delivered order includes a <strong>Download Invoice</strong> button to save an official GST tax invoice PDF.
-            </p>
-          </div>
-        </section>
+          </section>
 
-        {/* Step 7 Box: Profile & Addresses */}
-        <section id="step-profile" className="bg-[#FFFDF9] border border-[#E6DEC8] rounded-2xl p-5 sm:p-6 shadow-[0_2px_8px_rgba(40,30,10,0.04)] space-y-3.5 scroll-mt-20">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#F5F0E4] border border-[#E6DEC8] text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
-              <User className="w-5 h-5" />
+          {/* Step 6: Live Order Tracking & Invoices */}
+          <section id="step-tracking" className="pt-6 sm:pt-7 border-t border-[#DFD4BC] space-y-3.5 scroll-mt-24">
+            <div className="flex items-start gap-2.5">
+              <Truck className="w-5 h-5 text-amber-800 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
+                  6. Track Live Orders &amp; Invoices
+                </h3>
+                <p className="text-xs text-[#7C7469]">Live GPS delivery partner map and official GST PDF</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
-                7. Managing Profile, Addresses &amp; Wallet
-              </h3>
-              <p className="text-xs text-[#7C7469]">Personal details, saved sites, and refund balances</p>
+            <div className="text-sm sm:text-base text-[#5A5245] space-y-2 leading-relaxed">
+              <p>
+                After placing an order, tap <strong>Orders</strong> in the profile menu or use the live tracking shortcut on your screen.
+              </p>
+              <p>
+                Watch your delivery partner move in real time on the map, complete with bike registration number and direct call option.
+              </p>
+              <p>
+                Every delivered order includes a <strong>Download Invoice</strong> button to save an official GST tax invoice PDF.
+              </p>
             </div>
-          </div>
-          <div className="text-sm text-[#5A5245] space-y-2 leading-relaxed">
-            <p>
-              Tap the <strong>Profile</strong> tab to update your name, email, and contact phone number.
-            </p>
-            <p>
-              In <strong>Addresses</strong>, save frequently used locations (like Home, Office, or Project Site) for faster checkout.
-            </p>
-            <p>
-              In <strong>Wallet</strong>, view any instant refund balances or cashback credits from your orders.
-            </p>
-          </div>
-        </section>
+          </section>
 
-        {/* Step 8 Box: WhatsApp Support */}
-        <section id="step-help" className="bg-[#FFFDF9] border border-[#E6DEC8] rounded-2xl p-5 sm:p-6 shadow-[0_2px_8px_rgba(40,30,10,0.04)] space-y-3.5 scroll-mt-20">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#F5F0E4] border border-[#E6DEC8] text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
-              <MessageCircle className="w-5 h-5 text-emerald-600" />
+          {/* Step 7: Profile & Addresses */}
+          <section id="step-profile" className="pt-6 sm:pt-7 border-t border-[#DFD4BC] space-y-3.5 scroll-mt-24">
+            <div className="flex items-start gap-2.5">
+              <User className="w-5 h-5 text-amber-800 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
+                  7. Managing Profile, Addresses &amp; Wallet
+                </h3>
+                <p className="text-xs text-[#7C7469]">Personal details, saved sites, and refund balances</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
-                8. Customer Support on WhatsApp
-              </h3>
-              <p className="text-xs text-[#7C7469]">Direct help from our central Kasba warehouse hub</p>
+            <div className="text-sm sm:text-base text-[#5A5245] space-y-2 leading-relaxed">
+              <p>
+                Tap the <strong>Profile</strong> tab to update your name, email, and contact phone number.
+              </p>
+              <p>
+                In <strong>Addresses</strong>, save frequently used locations (like Home, Office, or Project Site) for faster checkout.
+              </p>
+              <p>
+                In <strong>Wallet</strong>, view any instant refund balances or cashback credits from your orders.
+              </p>
             </div>
-          </div>
-          <div className="text-sm text-[#5A5245] space-y-3 leading-relaxed">
-            <p>
-              Our support team is available on WhatsApp every day from 8:00 AM to 10:00 PM to assist with product inquiries, bulk orders, or delivery tracking.
-            </p>
-            <div>
-              <a
-                href="https://wa.me/918777400280?text=Hello%20SmartRun,%20I%20need%20assistance%20using%20the%20app."
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#2C261E] hover:bg-[#3D352A] text-white text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
-              >
-                <MessageCircle className="w-4 h-4 text-emerald-400" />
-                <span>Chat with Support on WhatsApp</span>
-              </a>
-            </div>
-          </div>
-        </section>
+          </section>
 
-      </main>
+          {/* Step 8: WhatsApp Support */}
+          <section id="step-help" className="pt-6 sm:pt-7 border-t border-[#DFD4BC] space-y-3.5 scroll-mt-24">
+            <div className="flex items-start gap-2.5">
+              <MessageCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-[#2C261E]">
+                  8. Customer Support on WhatsApp
+                </h3>
+                <p className="text-xs text-[#7C7469]">Direct help from our central Kasba warehouse hub</p>
+              </div>
+            </div>
+            <div className="text-sm sm:text-base text-[#5A5245] space-y-3 leading-relaxed">
+              <p>
+                Our support team is available on WhatsApp every day from 8:00 AM to 10:00 PM to assist with product inquiries, bulk orders, or delivery tracking.
+              </p>
+              <div>
+                <a
+                  href="https://wa.me/918777400280?text=Hello%20SmartRun,%20I%20need%20assistance%20using%20the%20app."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#2C261E] hover:bg-[#3D352A] text-white text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  <MessageCircle className="w-4 h-4 text-emerald-400" />
+                  <span>Chat with Support on WhatsApp</span>
+                </a>
+              </div>
+            </div>
+          </section>
+
+        </main>
+      </div>
     </div>
   );
 };

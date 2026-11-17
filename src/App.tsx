@@ -91,6 +91,7 @@ import { sanitizeCustomerName } from './utils/nameHelper';
 import { isNativePhoneApp } from './utils/platformDetection';
 import { fetchServerCurrentUser, syncServerSession, serverLogout } from './services/serverAuthService';
 import { attachSafeAreaListeners, syncSafeAreaCssVariables } from './utils/safeArea';
+import { navigateBackSafely, recordAppRouteVisit } from './utils/navigationHistory';
 
 export default function App() {
   const navigate = useNavigate();
@@ -1220,24 +1221,25 @@ export default function App() {
     if (
       currentPath === '/shipping' ||
       currentPath === '/shipping-policy' ||
+      currentPath === '/shipping-and-return-policy' ||
       currentPath === '/return' ||
       currentPath === '/return-policy' ||
+      currentPath === '/returns' ||
       currentPath === '/refund' ||
       currentPath === '/refund-policy' ||
+      currentPath === '/refunds' ||
       currentPath === '/privacy' ||
       currentPath === '/privacy-policy' ||
       currentPath === '/terms' ||
       currentPath === '/terms-of-service' ||
+      currentPath === '/how-to-use' ||
+      currentPath === '/guide' ||
       currentPath === '/faq' ||
       currentPath === '/faqs' ||
       currentPath === '/delete' ||
       currentPath === '/account-deletion'
     ) {
-      if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-        navigate(-1);
-      } else {
-        navigate(isAuthenticated ? '/profile' : '/');
-      }
+      navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/');
       return;
     }
 
@@ -1350,10 +1352,17 @@ export default function App() {
         p === '/privacy-policy' ||
         p === '/terms' ||
         p === '/terms-of-service' ||
+        p === '/refund' ||
         p === '/refund-policy' ||
         p === '/refunds' ||
+        p === '/return' ||
+        p === '/return-policy' ||
+        p === '/returns' ||
         p === '/shipping-policy' ||
         p === '/shipping' ||
+        p === '/shipping-and-return-policy' ||
+        p === '/how-to-use' ||
+        p === '/guide' ||
         p === '/faq' ||
         p === '/faqs' ||
         p === '/delete' ||
@@ -1369,8 +1378,9 @@ export default function App() {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [location.pathname]);
 
-  // GA4 Page View & Shared Link Referral detection on route change
+  // Record in-session route history & GA4 Page View / Referral detection on route change
   useEffect(() => {
+    recordAppRouteVisit(location.pathname + location.search);
     initShareReferralTracker(location.pathname, location.search);
     trackPageView(location.pathname + location.search);
   }, [location.pathname, location.search]);
@@ -2182,13 +2192,7 @@ export default function App() {
             path="/shipping"
             element={
               <LegalView
-                onBack={() => {
-                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    navigate(isAuthenticated ? '/profile' : '/');
-                  }
-                }}
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
                 type="shipping"
               />
             }
@@ -2197,13 +2201,7 @@ export default function App() {
             path="/shipping-policy"
             element={
               <LegalView
-                onBack={() => {
-                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    navigate(isAuthenticated ? '/profile' : '/');
-                  }
-                }}
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
                 type="shipping"
               />
             }
@@ -2212,13 +2210,7 @@ export default function App() {
             path="/shipping-and-return-policy"
             element={
               <LegalView
-                onBack={() => {
-                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    navigate(isAuthenticated ? '/profile' : '/');
-                  }
-                }}
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
                 type="shipping"
               />
             }
@@ -2227,13 +2219,7 @@ export default function App() {
             path="/return"
             element={
               <LegalView
-                onBack={() => {
-                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    navigate(isAuthenticated ? '/profile' : '/');
-                  }
-                }}
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
                 type="return"
               />
             }
@@ -2242,13 +2228,7 @@ export default function App() {
             path="/return-policy"
             element={
               <LegalView
-                onBack={() => {
-                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    navigate(isAuthenticated ? '/profile' : '/');
-                  }
-                }}
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
                 type="return"
               />
             }
@@ -2257,13 +2237,7 @@ export default function App() {
             path="/returns"
             element={
               <LegalView
-                onBack={() => {
-                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    navigate(isAuthenticated ? '/profile' : '/');
-                  }
-                }}
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
                 type="return"
               />
             }
@@ -2272,13 +2246,7 @@ export default function App() {
             path="/refund"
             element={
               <LegalView
-                onBack={() => {
-                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    navigate(isAuthenticated ? '/profile' : '/');
-                  }
-                }}
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
                 type="refund"
               />
             }
@@ -2287,13 +2255,7 @@ export default function App() {
             path="/refund-policy"
             element={
               <LegalView
-                onBack={() => {
-                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    navigate(isAuthenticated ? '/profile' : '/');
-                  }
-                }}
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
                 type="refund"
               />
             }
@@ -2302,21 +2264,47 @@ export default function App() {
             path="/refunds"
             element={
               <LegalView
-                onBack={() => {
-                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    navigate(isAuthenticated ? '/profile' : '/');
-                  }
-                }}
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
                 type="refund"
               />
             }
           />
-          <Route path="/privacy" element={<LegalView onBack={() => navigate('/')} type="privacy" />} />
-          <Route path="/privacy-policy" element={<LegalView onBack={() => navigate('/')} type="privacy" />} />
-          <Route path="/terms" element={<LegalView onBack={() => navigate('/')} type="terms" />} />
-          <Route path="/terms-of-service" element={<LegalView onBack={() => navigate('/')} type="terms" />} />
+          <Route
+            path="/privacy"
+            element={
+              <LegalView
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
+                type="privacy"
+              />
+            }
+          />
+          <Route
+            path="/privacy-policy"
+            element={
+              <LegalView
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
+                type="privacy"
+              />
+            }
+          />
+          <Route
+            path="/terms"
+            element={
+              <LegalView
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
+                type="terms"
+              />
+            }
+          />
+          <Route
+            path="/terms-of-service"
+            element={
+              <LegalView
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
+                type="terms"
+              />
+            }
+          />
 
           {/* Account & Data Deletion Portal (Google Play Policy Compliant) */}
           <Route
@@ -2326,13 +2314,7 @@ export default function App() {
                 userProfile={userProfile}
                 orders={orders}
                 onOpenAuth={() => navigate('/login')}
-                onBack={() => {
-                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    navigate(isAuthenticated ? '/profile' : '/');
-                  }
-                }}
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
               />
             }
           />
@@ -2343,13 +2325,7 @@ export default function App() {
                 userProfile={userProfile}
                 orders={orders}
                 onOpenAuth={() => navigate('/login')}
-                onBack={() => {
-                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    navigate(isAuthenticated ? '/profile' : '/');
-                  }
-                }}
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
               />
             }
           />
@@ -2359,13 +2335,7 @@ export default function App() {
             path="/how-to-use"
             element={
               <HowToUseAppPage
-                onBack={() => {
-                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    navigate('/');
-                  }
-                }}
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
               />
             }
           />
@@ -2373,13 +2343,7 @@ export default function App() {
             path="/guide"
             element={
               <HowToUseAppPage
-                onBack={() => {
-                  if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                    navigate(-1);
-                  } else {
-                    navigate('/');
-                  }
-                }}
+                onBack={() => navigateBackSafely(navigate, isAuthenticated ? '/profile' : '/')}
               />
             }
           />
