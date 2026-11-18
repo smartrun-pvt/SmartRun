@@ -28,7 +28,6 @@ import { hapticLight, hapticSelection } from '../utils/haptics';
 import { getFlattenedSpecifications } from '../utils/productSpecifications';
 import { getPaginationPages } from '../utils/paginationHelper';
 import { SEOHead } from './SEOHead';
-import { Footer } from './Footer';
 
 interface ConstructionPageProps {
   onAddToCart: (product: Product) => void;
@@ -1310,8 +1309,6 @@ export const ConstructionPage = ({
           </div>
         </div>
       )}
-
-      <Footer />
     </div>
   );
 };

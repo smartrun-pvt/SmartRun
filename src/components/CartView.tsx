@@ -20,6 +20,7 @@ import {
   Info,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
   ChevronRight,
   AlertCircle,
   Sparkles,
@@ -868,29 +869,43 @@ export const CartView = ({
           description="Your SmartRun shopping cart is empty. Explore express electrical items and building materials."
           noIndex={true}
         />
-        <div
-          className="max-w-2xl mx-auto px-3 sm:px-4 pb-4 sm:pb-6"
-          style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
+        <header
+          id="cart-fixed-navbar"
+          className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-200/90 shadow-[0_2px_12px_rgba(15,23,42,0.05)]"
+          style={{
+            paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))',
+            paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+            paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
+          }}
         >
-          {/* Header */}
-          <div className="flex items-center gap-2.5 pt-2 sm:pt-4 mb-6">
-            <button
-              onClick={() => {
-                if (window.history.length > 1) {
-                  navigate(-1);
-                } else {
-                  onContinueShopping();
-                }
-              }}
-              className="p-2 -ml-1 text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-200/60 transition cursor-pointer"
-              title="Back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              My Cart
-            </h1>
+          <div className="max-w-2xl mx-auto w-full px-3 sm:px-4 min-h-[56px] sm:min-h-[64px] py-2 flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.history.length > 1) {
+                    navigate(-1);
+                  } else {
+                    onContinueShopping();
+                  }
+                }}
+                className="min-w-[40px] min-h-[40px] -ml-1.5 text-slate-800 hover:text-slate-950 rounded-full hover:bg-slate-100 active:bg-slate-200/70 transition cursor-pointer flex items-center justify-center shrink-0 touch-manipulation"
+                title="Back"
+                aria-label="Back"
+              >
+                <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
+              </button>
+              <h1
+                className="text-[20px] sm:text-2xl font-normal text-slate-950 font-playfair tracking-normal leading-tight truncate min-w-0"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
+              >
+                My Cart
+              </h1>
+            </div>
           </div>
+        </header>
+
+        <div className="max-w-2xl mx-auto px-3 sm:px-4 pb-4 sm:pb-6 pt-[calc(var(--safe-area-top,env(safe-area-inset-top,0px))+4.25rem)] sm:pt-[calc(var(--safe-area-top,env(safe-area-inset-top,0px))+4.75rem)]">
 
           <div className="min-h-[50vh] flex flex-col items-center justify-center px-4 py-8">
             <div className="max-w-md w-full text-center p-4 sm:p-6">
@@ -975,15 +990,20 @@ export const CartView = ({
         description="Review your electrical supplies and building materials cart with instant express delivery to your doorstep in Kolkata."
         noIndex={true}
       />
-      <div
-        className="max-w-2xl mx-auto px-3 sm:px-4 pb-4 sm:pb-6"
-        style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
+      {/* 1. FIXED TOP NAVBAR */}
+      <header
+        id="cart-fixed-navbar"
+        className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-200/90 shadow-[0_2px_12px_rgba(15,23,42,0.05)]"
+        style={{
+          paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))',
+          paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+          paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
+        }}
       >
-        
-        {/* 1. HEADER */}
-        <div className="flex items-center justify-between pt-2 sm:pt-4 mb-4">
-          <div className="flex items-center gap-2.5">
+        <div className="max-w-2xl mx-auto w-full px-3 sm:px-4 min-h-[56px] sm:min-h-[64px] py-2 flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
             <button
+              type="button"
               onClick={() => {
                 if (window.history.length > 1) {
                   navigate(-1);
@@ -991,26 +1011,34 @@ export const CartView = ({
                   onContinueShopping();
                 }
               }}
-              className="p-2 -ml-1 text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-200/60 transition cursor-pointer"
+              className="min-w-[40px] min-h-[40px] -ml-1.5 text-slate-800 hover:text-slate-950 rounded-full hover:bg-slate-100 active:bg-slate-200/70 transition cursor-pointer flex items-center justify-center shrink-0 touch-manipulation"
               title="Back"
+              aria-label="Back"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
             </button>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            <h1
+              className="text-[20px] sm:text-2xl font-normal text-slate-950 font-playfair tracking-normal leading-tight truncate min-w-0"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 400 }}
+            >
               My Cart
             </h1>
-            <span className="text-xs font-black bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">
+            <span className="text-xs font-black bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
               {items.reduce((sum, i) => sum + i.quantity, 0)} Items
             </span>
           </div>
 
           <button
+            type="button"
             onClick={onClearCart}
-            className="text-xs font-bold text-slate-400 hover:text-rose-600 transition px-2 py-1 rounded-lg hover:bg-rose-50 cursor-pointer"
+            className="text-xs font-bold text-slate-500 hover:text-rose-600 transition px-2.5 py-1.5 rounded-lg hover:bg-rose-50 cursor-pointer shrink-0 whitespace-nowrap"
           >
             Clear All
           </button>
         </div>
+      </header>
+
+      <div className="max-w-2xl mx-auto px-3 sm:px-4 pb-4 sm:pb-6 pt-[calc(var(--safe-area-top,env(safe-area-inset-top,0px))+4.25rem)] sm:pt-[calc(var(--safe-area-top,env(safe-area-inset-top,0px))+4.75rem)]">
 
         {/* 2. CATEGORY TABS (Shown only if more than 1 category exists in the cart) */}
         {hasMultipleCategories && (
@@ -1252,7 +1280,7 @@ export const CartView = ({
                         <div className="relative inline-flex items-center">
                           <select
                             id={`cart-color-select-${product.id}`}
-                            value={currentColor || availableColors[0]?.name}
+                            value={currentColorObj?.name || currentColor || availableColors[0]?.name}
                             onChange={(e) => {
                               const newCol = e.target.value;
                               if (newCol && newCol !== currentColor) {
@@ -1267,11 +1295,16 @@ export const CartView = ({
                             }}
                             className="appearance-none pl-6 pr-6 sm:pl-7 sm:pr-8 py-0.5 sm:py-1 bg-white border border-slate-200 hover:border-blue-400 focus:border-blue-600 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold text-slate-800 shadow-2xs focus:outline-hidden cursor-pointer transition-colors max-w-[130px] sm:max-w-none truncate"
                           >
-                            {availableColors.map((col) => (
-                              <option key={col.name} value={col.name}>
-                                {col.name} {col.shortRole ? `(${col.shortRole})` : ''}
-                              </option>
-                            ))}
+                            {availableColors.map((col) => {
+                              const cleanColorName = String(col.name || '')
+                                .trim()
+                                .replace(/\b\w/g, (ch) => ch.toUpperCase());
+                              return (
+                                <option key={col.name} value={col.name}>
+                                  {cleanColorName}
+                                </option>
+                              );
+                            })}
                           </select>
 
                           {/* Color Dot Visual Indicator */}
@@ -1547,97 +1580,122 @@ export const CartView = ({
               Bill Details
             </span>
 
-            <div className="flex items-center justify-between text-slate-700">
-              <span>Item Total (Subtotal)</span>
-              <span className="font-semibold text-slate-900">₹{totalSellingPrice.toLocaleString('en-IN')}</span>
-            </div>
-
-            {totalProductDiscount > 0 && (
-              <div className="flex items-center justify-between text-emerald-700 font-semibold">
-                <span>Item Discount Savings</span>
-                <span>-₹{totalProductDiscount.toLocaleString('en-IN')}</span>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between text-slate-700">
-              <span>Delivery Partner Fee</span>
-              {deliveryFee === 0 ? (
-                <div className="flex items-center gap-1.5">
-                  <span className="line-through text-slate-400">₹40</span>
-                  <span className="text-emerald-700 font-bold">FREE</span>
-                </div>
-              ) : (
-                <span className="font-semibold text-slate-900">₹{deliveryFee}</span>
-              )}
-            </div>
-
-            {rainFee > 0 && (
-              <div className="flex items-center justify-between text-sky-700 font-medium">
-                <span className="flex items-center gap-1.5">
-                  <span>🌧️</span>
-                  <span>{feeSettings.rainFee?.label || 'Rain Weather Fee'}</span>
-                </span>
-                <span className="font-semibold">₹{rainFee}</span>
-              </div>
-            )}
-
-            {surgeFee > 0 && (
-              <div className="flex items-center justify-between text-amber-700 font-medium">
-                <span className="flex items-center gap-1.5">
-                  <span>⚡</span>
-                  <span>{feeSettings.surgeFee?.label || 'Peak Surge Fee'}</span>
-                </span>
-                <span className="font-semibold">₹{surgeFee}</span>
-              </div>
-            )}
-
-            {productHandlingFee > 0 && (
-              <div className="flex items-center justify-between text-slate-700">
-                <span className="flex items-center gap-1.5">
-                  <span>📦</span>
-                  <span>Special Product Charges</span>
-                </span>
-                <span className="font-semibold text-slate-800">₹{productHandlingFee}</span>
-              </div>
-            )}
-
-            {feeBreakdown.customFees.map((cf) => (
-              <div key={cf.id} className="flex items-center justify-between text-slate-700">
-                <span>{cf.label}</span>
-                <span className="font-semibold text-slate-800">₹{cf.amount}</span>
-              </div>
-            ))}
-
-            <div className="flex items-center justify-between text-slate-700">
-              <span>Platform &amp; Packaging Charge</span>
-              <div className="flex items-center gap-1.5">
-                <span className="line-through text-slate-400">₹15</span>
-                <span className="text-emerald-700 font-bold">FREE (Waived)</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-slate-700">
-              <span>Handling Charges</span>
-              <span className="font-semibold text-slate-800">
-                {handlingFee === 0 ? (
-                  <span className="text-emerald-700 font-bold uppercase">FREE</span>
-                ) : (
-                  `₹${handlingFee}`
-                )}
+            <div className="flex items-center justify-between gap-2 text-slate-700">
+              <span>Items Total</span>
+              <span className="font-semibold text-slate-900 tabular-nums shrink-0">
+                ₹{totalMRP.toLocaleString('en-IN')}
               </span>
             </div>
 
-            <div className="flex items-center justify-between text-slate-700">
-              <span>Govt. Taxes &amp; GST</span>
-              <span className="text-slate-500 font-medium">Included in MRP (18%)</span>
+            <div className={`flex items-center justify-between gap-2 ${totalProductDiscount > 0 ? 'text-emerald-700 font-semibold' : 'text-slate-600'}`}>
+              <span>Item Discount</span>
+              <span className="tabular-nums shrink-0">
+                -₹{totalProductDiscount.toLocaleString('en-IN')}
+              </span>
             </div>
 
-            {discountApplied > 0 && (
-              <div className="flex items-center justify-between text-emerald-700 font-bold">
-                <span>Coupon / Promotional Discount ({appliedOffer?.code || promoCode})</span>
-                <span>-₹{discountApplied.toLocaleString('en-IN')}</span>
-              </div>
-            )}
+            <div className="flex items-center justify-between gap-2 text-slate-700">
+              <span>Delivery Partner Fee</span>
+              {deliveryFee === 0 ? (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="line-through text-slate-400 tabular-nums">₹40</span>
+                  <span className="text-emerald-700 font-bold">FREE</span>
+                </div>
+              ) : (
+                <span className="font-semibold text-slate-900 tabular-nums shrink-0">
+                  ₹{deliveryFee.toLocaleString('en-IN')}
+                </span>
+              )}
+            </div>
+
+            {(() => {
+              const platformFees = feeBreakdown.customFees.filter((cf) => /platform|pack/i.test(cf.label));
+              const otherFees = feeBreakdown.customFees.filter((cf) => !/platform|pack/i.test(cf.label));
+              const platformPackingCharge = platformFees.reduce((sum, cf) => sum + Number(cf.amount || 0), 0);
+              const includedGstAmount = Math.max(0, Math.round(totalSellingPrice - totalSellingPrice / 1.18));
+
+              return (
+                <>
+                  <div className="flex items-center justify-between gap-2 text-slate-700">
+                    <span>Platform &amp; Packing Charges</span>
+                    {platformPackingCharge === 0 ? (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="line-through text-slate-400 tabular-nums">₹15</span>
+                        <span className="text-emerald-700 font-bold">FREE</span>
+                      </div>
+                    ) : (
+                      <span className="font-semibold text-slate-900 tabular-nums shrink-0">
+                        ₹{platformPackingCharge.toLocaleString('en-IN')}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 text-slate-700">
+                    <span>Handling Charges</span>
+                    <span className="font-semibold text-slate-800 tabular-nums shrink-0">
+                      {handlingFee === 0 ? (
+                        <span className="text-emerald-700 font-bold uppercase">FREE</span>
+                      ) : (
+                        `₹${handlingFee.toLocaleString('en-IN')}`
+                      )}
+                    </span>
+                  </div>
+
+                  {rainFee > 0 && (
+                    <div className="flex items-center justify-between gap-2 text-sky-700 font-medium">
+                      <span className="flex items-center gap-1.5">
+                        <span>🌧️</span>
+                        <span>{feeSettings.rainFee?.label || 'Rain Weather Fee'}</span>
+                      </span>
+                      <span className="font-semibold tabular-nums shrink-0">₹{rainFee.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+
+                  {surgeFee > 0 && (
+                    <div className="flex items-center justify-between gap-2 text-amber-700 font-medium">
+                      <span className="flex items-center gap-1.5">
+                        <span>⚡</span>
+                        <span>{feeSettings.surgeFee?.label || 'Peak Surge Fee'}</span>
+                      </span>
+                      <span className="font-semibold tabular-nums shrink-0">₹{surgeFee.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+
+                  {productHandlingFee > 0 && (
+                    <div className="flex items-center justify-between gap-2 text-slate-700">
+                      <span className="flex items-center gap-1.5">
+                        <span>📦</span>
+                        <span>Special Product Charges</span>
+                      </span>
+                      <span className="font-semibold text-slate-800 tabular-nums shrink-0">₹{productHandlingFee.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+
+                  {otherFees.map((cf) => (
+                    <div key={cf.id} className="flex items-center justify-between gap-2 text-slate-700">
+                      <span>{cf.label}</span>
+                      <span className="font-semibold text-slate-800 tabular-nums shrink-0">₹{cf.amount.toLocaleString('en-IN')}</span>
+                    </div>
+                  ))}
+
+                  <div className="flex items-center justify-between gap-2 text-slate-700">
+                    <span>GST (18%)</span>
+                    <span className="text-slate-600 font-medium tabular-nums shrink-0">
+                      Included (₹{includedGstAmount.toLocaleString('en-IN')})
+                    </span>
+                  </div>
+
+                  <div className={`flex items-center justify-between gap-2 ${discountApplied > 0 ? 'text-emerald-700 font-bold' : 'text-slate-600'}`}>
+                    <span>
+                      Coupon Discount{discountApplied > 0 && (appliedOffer?.code || promoCode) ? ` (${appliedOffer?.code || promoCode})` : ''}
+                    </span>
+                    <span className="tabular-nums shrink-0">
+                      -₹{discountApplied.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* Zomato Perforation Cutout Effect */}

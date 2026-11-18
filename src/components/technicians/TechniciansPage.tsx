@@ -10,7 +10,6 @@ import { TechnicianSortModal, TechnicianSortOption } from './TechnicianSortModal
 import { hapticLight, hapticSelection } from '../../utils/haptics';
 import { getPaginationPages } from '../../utils/paginationHelper';
 import { SEOHead } from '../SEOHead';
-import { Footer } from '../Footer';
 
 interface TechniciansPageProps {
   searchQuery?: string;
@@ -731,9 +730,6 @@ export const TechniciansPage = ({
         selectedSort={sortOption}
         onSelectSort={(nextSort) => setSortOption(nextSort)}
       />
-      <div className="w-full mt-auto">
-        <Footer />
-      </div>
     </div>
   );
 };

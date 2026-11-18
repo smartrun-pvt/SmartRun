@@ -241,6 +241,40 @@
   - **Root Cause**: `DEFAULT_FEE_POLICY` defaulted shipping to `0` INR while `seoHelper.ts`, `SEOHead.tsx`, and `server.ts` GMC feed hardcoded `49.00 INR`; `server.ts` passed raw Supabase `snake_case` rows into `injectSeoMetadata` and `generateDynamicSitemap` without normalizing `image_urls`, `mrp`, or `?color=` variants; GMC feed lacked `<g:item_group_id>`, `<g:sale_price>`, `<g:google_product_category>`, `<g:additional_image_link>`, `<g:product_highlight>`, and `<g:product_detail>`.
   - **Permanent Guardrail**: Route all catalog SEO and feed serialization through `normalizeProductForSeo` and `generateGoogleMerchantFeed` in `src/utils/seoHelper.ts`, pass `getServerFeePolicy()` delivery rates to both GMC XML feed and SSR metadata, sync `?color=` query parameters in `ProductDetailPage.tsx` and SSR handlers so landing-page JSON-LD + `product:*` OpenGraph tags match `<g:id>`/`<g:link>`/`<g:price>`/`<g:sale_price>`/`<g:image_link>` 1:1.
 
+- [x] **Bug ID: BUG-UI-019 - Removal of Top Navbar Cart Button (`#top-navbar-cart-btn`)**
+  - **Summary**: Removed `button#top-navbar-cart-btn` from `Header.tsx` (right action bar beside the user profile avatar) while retaining `HeaderProps` compatibility (`cartCount`, `cartTotal`, `onOpenCart`) and keeping the bottom floating navigation Cart tab intact.
+  - **Root Cause**: `Header.tsx` rendered a secondary cart icon button (`#top-navbar-cart-btn`) on `sm+` viewports alongside the profile button.
+  - **Permanent Guardrail**: Keep the top `<Header>` right action bar strictly focused on the profile/login avatar button; do not reintroduce `#top-navbar-cart-btn` in `Header.tsx`. Cart navigation remains accessible via `FloatingBottomNav.tsx` and product CTA flows.
+
+- [x] **Bug ID: BUG-UI-020 - Removal of Visual Breadcrumb Trail & SKU Badge on Product Detail Page**
+  - **Summary**: Removed the visual `<nav aria-label="Breadcrumb">` trail (including child product name `span`) and hid/removed the visual `SKU: SMARTRUN-...` badge `span` from `ProductDetailPage.tsx`, while preserving `breadcrumbs` and `sku` in `<SEOHead>` JSON-LD and `product:retailer_item_id` OpenGraph tags.
+  - **Root Cause**: Extra visual breadcrumb row and monospace SKU tag above the product `<h1>` cluttered the top of the right detail column on product pages.
+  - **Permanent Guardrail**: Keep `ProductDetailPage.tsx` right column clean without visual `<nav>` breadcrumbs or SKU badge pills while retaining structured `breadcrumbs` and `sku` inside `<SEOHead>` for search and Google Merchant Center parity.
+
+- [x] **Bug ID: BUG-UI-021 - Removal of `<Footer />` from Product Detail, Electrical, Construction & Technicians Pages**
+  - **Summary**: Removed `<Footer />` (and its imports) from `ProductDetailPage.tsx`, `ElectricalListingPage.tsx`, `ConstructionPage.tsx`, and `TechniciansPage.tsx` while keeping global `Footer.tsx` and footers on home/editorial/policy pages intact.
+  - **Root Cause**: Rendering the page footer below catalog/product/service feeds and floating dock navigation added redundant bottom chrome on core shopping and technician routes.
+  - **Permanent Guardrail**: Do not render `<Footer />` inside `ProductDetailPage.tsx`, `ElectricalListingPage.tsx`, `ConstructionPage.tsx`, or `TechniciansPage.tsx`; keep `<Footer />` strictly on its remaining routes (`HomePage`, `SitemapPage`, etc.).
+
+- [x] **Bug ID: BUG-UI-022 - Cart Bill Details Full-Price MRP, Discounts, Fees & Inclusive GST Reconciliation**
+  - **Summary**: Updated the Cart `Bill Details` breakdown (`CartView.tsx`) to display `Items Total` using undiscounted MRP (`totalMRP`), `Item Discount` (`-₹totalProductDiscount`), `Delivery Partner Fee`, `Platform & Packing Charges`, `Handling Charges`, `GST (18%)` (`Included (₹...)`), and `Coupon Discount` (`-₹discountApplied`), reconciling cleanly with `finalTotalAmount`.
+  - **Root Cause**: `Bill Details` previously printed discounted `totalSellingPrice` as `Item Total (Subtotal)` while also displaying `-₹totalProductDiscount` directly beneath it, creating a visual double-discount discrepancy, and hid the Item Discount / Coupon rows when zero.
+  - **Permanent Guardrail**: Always display `Items Total` in `CartView.tsx` Bill Details as `totalMRP` paired with `-₹totalProductDiscount` (`Item Discount`), derive inclusive 18% GST (`Math.round(totalSellingPrice - totalSellingPrice / 1.18)`) without adding extra charges to `finalTotalAmount`, and keep checkout totals synchronized with `POST /api/orders` validation in `server.ts`.
+
+- [x] **Bug ID: BUG-UI-023 - Fixed Top "My Cart" Navbar with Tailless Back Button & Playfair Font**
+  - **Summary**: Converted the Cart page `My Cart` heading row (`CartView.tsx`, `#cart-fixed-navbar`) into a viewport-fixed translucent top navbar across empty and populated cart views, replaced the tailed `ArrowLeft` icon with the tailless `ChevronLeft` icon, styled the heading in Playfair Display (`font-playfair`), and added top clearance (`--safe-area-top + 4.25rem/4.75rem`) for scrollable cart content.
+  - **Root Cause**: The `My Cart` header scrolled out of view with page content, used a tailed `ArrowLeft` icon and default sans font, and lacked a unified fixed header rail matching subpage navigation standards.
+  - **Permanent Guardrail**: Keep `#cart-fixed-navbar` fixed at `top-0 left-0 right-0 z-40` with `--safe-area-top` / `--safe-area-left` / `--safe-area-right` insets, tailless `<ChevronLeft />` back navigation, Playfair Display typography, and matching top padding on the cart body container so scrolled items never slide behind the header or camera cutout.
+
+- [x] **Bug ID: BUG-UI-024 - Cart Colour Dropdown Duplicate Label (`black(black)`) Cleanup**
+  - **Summary**: Updated `select#cart-color-select-*` in `CartView.tsx` to display only the clean Title-Cased colour name (e.g. `Black`, `Red`, `White`) without the parenthetical `shortRole` suffix (`(${col.shortRole})`), and normalized `<select value>` via `currentColorObj?.name`.
+  - **Root Cause**: `CartView.tsx` interpolated `{col.name} (${col.shortRole})`, which caused duplicate text such as `black(black)` whenever `shortRole` mirrored the colour name.
+  - **Permanent Guardrail**: Render only the Title-Cased colour name inside Cart `<option>` labels while preserving raw `col.name` as `option.value` and matching `currentColorObj?.name` so variant prices, photos, and order snapshots remain synced.
+
+
+
+
+
 
 
 

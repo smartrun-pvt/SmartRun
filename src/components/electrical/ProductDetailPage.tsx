@@ -47,7 +47,6 @@ import { checkKolkataDeliveryService, getUserLocationPincode } from '../../data/
 import { trackProductView } from '../../utils/analytics';
 import { hapticLight, hapticMedium } from '../../utils/haptics';
 import { SEOHead } from '../SEOHead';
-import { Footer } from '../Footer';
 import { shareProductDetails } from '../../utils/shareProduct';
 import { ZoomableImage } from '../ZoomableImage';
 import { FullscreenImageViewer } from '../FullscreenImageViewer';
@@ -975,47 +974,15 @@ export const ProductDetailPage = ({
           {/* RIGHT COLUMN: PRODUCT DETAILS & REVIEWS */}
           {/* ========================================================================= */}
           <div className="lg:col-span-7 space-y-6">
-            
-            {/* Visual Breadcrumb Trail */}
-            <nav aria-label="Breadcrumb" className="text-xs text-slate-500 flex items-center gap-1.5 flex-wrap -mb-2">
-              <button
-                type="button"
-                onClick={() => navigate('/')}
-                className="hover:text-slate-900 transition-colors cursor-pointer"
-              >
-                Home
-              </button>
-              <span>/</span>
-              <button
-                type="button"
-                onClick={() => navigate(catalogBackRoute)}
-                className="hover:text-slate-900 transition-colors cursor-pointer"
-              >
-                {isConstructionCategory ? 'Construction Materials' : 'Electrical Goods'}
-              </button>
-              {product.subcategory && (
-                <>
-                  <span>/</span>
-                  <span className="text-slate-600 font-medium">{product.subcategory}</span>
-                </>
-              )}
-              <span>/</span>
-              <span className="text-slate-800 font-semibold truncate max-w-[200px] sm:max-w-xs">{product.name}</span>
-            </nav>
-
             {/* Title, Brand & Telegram-Style Share Button */}
             <div>
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                {product.brand && (
+              {product.brand && (
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-xs font-black text-amber-600 uppercase tracking-wider">
                     {product.brand}
                   </span>
-                )}
-                <span className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                  <span className="text-slate-400 font-sans font-semibold">SKU:</span>
-                  SMARTRUN-{String(product.id).slice(0, 8).toUpperCase()}
-                </span>
-              </div>
+                </div>
+              )}
               
               <div className="flex items-start justify-between gap-4">
                 <h1 className="text-lg sm:text-2xl font-black text-slate-900 leading-tight flex-1">
@@ -1802,9 +1769,6 @@ export const ProductDetailPage = ({
           handleThumbnailClick(thumb, idx);
         }}
       />
-
-      {/* Global Transparency & Merchant Center Compliant Footer */}
-      <Footer />
     </div>
   );
 };

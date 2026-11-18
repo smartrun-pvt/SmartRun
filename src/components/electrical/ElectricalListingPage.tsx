@@ -29,7 +29,6 @@ import { hapticLight, hapticSelection } from '../../utils/haptics';
 import { getFlattenedSpecifications } from '../../utils/productSpecifications';
 import { getPaginationPages } from '../../utils/paginationHelper';
 import { SEOHead } from '../SEOHead';
-import { Footer } from '../Footer';
 
 interface ElectricalListingPageProps {
   onAddToCart: (product: Product) => void;
@@ -721,9 +720,6 @@ export const ElectricalListingPage = ({
           </div>
         )}
       </div>
-
-      {/* Global Transparency & Policy Footer */}
-      <Footer />
 
       {/* 5. SIDE-TAB / FULL-PAGE FILTER (Full page on mobile, right drawer on desktop, independent scroll, stack-wise buttons) */}
       {isSideFilterOpen && typeof document !== 'undefined' && createPortal(

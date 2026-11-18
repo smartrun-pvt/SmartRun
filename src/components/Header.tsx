@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Zap, ShoppingBag, User, ChevronDown, Home, Briefcase, Building2, MapPin, Wrench, Search, X, SlidersHorizontal, ArrowUpDown, ArrowRight, ArrowLeft, Check, Navigation, Loader2 } from 'lucide-react';
+import { Zap, User, ChevronDown, Home, Briefcase, Building2, MapPin, Wrench, Search, X, SlidersHorizontal, ArrowUpDown, ArrowRight, ArrowLeft, Check, Navigation, Loader2 } from 'lucide-react';
 import { KolkataArea, SavedAddress, UserProfile, Product } from '../types';
 import { detectQueryCategory, searchAllProducts } from '../utils/searchHelper';
 import { isConstructionProduct } from '../utils/categoryHelper';
@@ -301,14 +301,6 @@ export const Header = ({
     return 'BN';
   };
 
-  const handleCartClick = () => {
-    if (onOpenCart) {
-      onOpenCart();
-    } else {
-      onTabChange('cart');
-    }
-  };
-
   const accountDisplayLabel = effectiveName || effectiveEmail || effectivePhone || 'Account';
 
   return (
@@ -369,30 +361,8 @@ export const Header = ({
             </div>
           </div>
 
-          {/* Right Action Icons: Cart Button, Profile Button */}
+          {/* Right Action Icons: Profile Button */}
           <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
-            {/* Cart Button (Hidden on mobile small screens, visible on larger screens) */}
-            <button
-              id="top-navbar-cart-btn"
-              onClick={handleCartClick}
-              className={`relative p-1.5 sm:p-2 hidden sm:flex items-center justify-center transition-colors cursor-pointer border-0 bg-transparent ${
-                activeTab === 'cart'
-                  ? 'text-amber-600'
-                  : 'text-slate-800 hover:text-amber-600'
-              }`}
-              title="View Cart"
-              aria-label="Shopping Cart"
-            >
-              <div className="relative">
-                <ShoppingBag className="w-6 h-6 sm:w-6.5 sm:h-6.5" strokeWidth={2.2} />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black min-w-4.5 h-4.5 px-1 rounded-full flex items-center justify-center border-2 border-white shadow-xs">
-                    {cartCount > 99 ? '99+' : cartCount}
-                  </span>
-                )}
-              </div>
-            </button>
-
             {/* User Profile / Login Button */}
             <button
               id="user-profile-avatar-btn"
