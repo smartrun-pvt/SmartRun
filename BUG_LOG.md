@@ -296,6 +296,11 @@
   - **Root Cause**: Cart page previously used cool slate `#f8fafc` canvas and white fixed header; changing canvas without updating Receipt edge cutouts would leave mismatched grey notches.
   - **Permanent Guardrail**: Whenever `CartView` page background changes, keep `#cart-fixed-navbar` and all Receipt perforation semicircle cutouts synchronized to the exact canvas hex (`#fefae0`) while preserving `bg-white` across all content cards and checkout bars.
 
+- [x] **Bug ID: BUG-UI-030 - Removal of Item Count Pill Badge from `#cart-fixed-navbar`**
+  - **Summary**: Removed the amber `{N} Items` pill `<span>` next to the `My Cart` Playfair heading inside `#cart-fixed-navbar` in `CartView.tsx`.
+  - **Root Cause**: The pill badge cluttered the streamlined `#cart-fixed-navbar` header alongside the Playfair Display title and `Clear All` action.
+  - **Permanent Guardrail**: Keep `#cart-fixed-navbar` clean with only `<ChevronLeft />`, `My Cart`, and `Clear All` (when cart is populated).
+
 
 
 

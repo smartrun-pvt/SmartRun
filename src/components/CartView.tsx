@@ -1023,9 +1023,6 @@ export const CartView = ({
             >
               My Cart
             </h1>
-            <span className="text-xs font-black bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
-              {items.reduce((sum, i) => sum + i.quantity, 0)} Items
-            </span>
           </div>
 
           <button
