@@ -142,7 +142,11 @@ public class MainActivity extends BridgeActivity {
         }
 
         if (getBridge() != null && getBridge().getWebView() != null) {
-            getBridge().getWebView().addJavascriptInterface(new SmartRunInsetsBridge(), "SmartRunInsets");
+            WebView webView = getBridge().getWebView();
+            webView.addJavascriptInterface(new SmartRunInsetsBridge(), "SmartRunInsets");
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                webView.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
+            }
         }
 
         // Single authoritative insets handler: measure density-normalized DP insets for CSS variables

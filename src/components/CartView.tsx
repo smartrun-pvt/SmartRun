@@ -71,6 +71,7 @@ import {
   SavedItemRecord
 } from '../services/cartService';
 import { launchRazorpayCheckout } from '../services/razorpayService';
+import { getInAppNavigationDepth, navigateBackSafely } from '../utils/navigationHistory';
 import confetti from 'canvas-confetti';
 
 interface CartViewProps {
@@ -858,6 +859,17 @@ export const CartView = ({
     await finishOrderCreation(newOrder);
   };
 
+  const handleCartBack = () => {
+    hapticLight();
+    if (getInAppNavigationDepth() > 0) {
+      navigateBackSafely(navigate, '/electrical');
+    } else if (typeof onContinueShopping === 'function') {
+      onContinueShopping();
+    } else {
+      navigate('/electrical');
+    }
+  };
+
   // ==========================================================================
   // EMPTY CART STATE
   // ==========================================================================
@@ -881,19 +893,14 @@ export const CartView = ({
           <div className="max-w-2xl mx-auto w-full px-3 sm:px-4 min-h-[56px] sm:min-h-[64px] py-2 flex items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <button
+                id="cart-back-btn"
                 type="button"
-                onClick={() => {
-                  if (window.history.length > 1) {
-                    navigate(-1);
-                  } else {
-                    onContinueShopping();
-                  }
-                }}
-                className="min-w-[40px] min-h-[40px] -ml-1.5 text-slate-800 hover:text-slate-950 rounded-full hover:bg-slate-100 active:bg-slate-200/70 transition cursor-pointer flex items-center justify-center shrink-0 touch-manipulation"
+                onClick={handleCartBack}
+                className="relative z-20 pointer-events-auto touch-manipulation min-w-[40px] min-h-[40px] -ml-1.5 text-slate-800 hover:text-slate-950 rounded-full hover:bg-slate-100 active:bg-slate-200/70 transition cursor-pointer flex items-center justify-center shrink-0"
                 title="Back"
                 aria-label="Back"
               >
-                <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
+                <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2] pointer-events-none" />
               </button>
               <h1
                 className="text-[20px] sm:text-2xl font-normal text-slate-950 font-playfair tracking-normal leading-tight truncate min-w-0"
@@ -1003,19 +1010,14 @@ export const CartView = ({
         <div className="max-w-2xl mx-auto w-full px-3 sm:px-4 min-h-[56px] sm:min-h-[64px] py-2 flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
             <button
+              id="cart-back-btn"
               type="button"
-              onClick={() => {
-                if (window.history.length > 1) {
-                  navigate(-1);
-                } else {
-                  onContinueShopping();
-                }
-              }}
-              className="min-w-[40px] min-h-[40px] -ml-1.5 text-slate-800 hover:text-slate-950 rounded-full hover:bg-slate-100 active:bg-slate-200/70 transition cursor-pointer flex items-center justify-center shrink-0 touch-manipulation"
+              onClick={handleCartBack}
+              className="relative z-20 pointer-events-auto touch-manipulation min-w-[40px] min-h-[40px] -ml-1.5 text-slate-800 hover:text-slate-950 rounded-full hover:bg-slate-100 active:bg-slate-200/70 transition cursor-pointer flex items-center justify-center shrink-0"
               title="Back"
               aria-label="Back"
             >
-              <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2]" />
+              <ChevronLeft className="w-5.5 h-5.5 sm:w-6 sm:h-6 stroke-[2.2] pointer-events-none" />
             </button>
             <h1
               className="text-[20px] sm:text-2xl font-normal text-slate-950 font-playfair tracking-normal leading-tight truncate min-w-0"
@@ -1730,15 +1732,16 @@ export const CartView = ({
 
       </div>
 
-      {/* 9. STICKY BOTTOM BAR (Fixed like bottom navbar, elevated above Android phone navigation buttons & tablet-optimized) */}
+      {/* 9. STICKY BOTTOM BAR (Flush bottom on laptop, elevated above navigation buttons on phone & tablet) */}
       <div
         id="cart-sticky-checkout-bar"
         style={{
-          bottom: 'calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 0.6rem)'
+          paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
+          paddingRight: 'var(--safe-area-right, env(safe-area-inset-right, 0px))'
         }}
-        className="fixed left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] sm:w-[calc(100%-2rem)] max-w-[min(42rem,calc(100vw-var(--safe-area-left,0px)-var(--safe-area-right,0px)-1.5rem))] rounded-2xl sm:rounded-[1.25rem] bg-white/95 backdrop-blur-xl border border-slate-200/90 px-3.5 py-2.5 sm:px-5 sm:py-3.5 md:px-6 md:py-3.5 shadow-[0_12px_36px_rgba(15,23,42,0.12),0_3px_10px_rgba(0,0,0,0.04)]"
+        className="fixed left-0 right-0 bottom-[calc(var(--safe-area-bottom,env(safe-area-inset-bottom,0px))+0.55rem)] lg:bottom-[var(--safe-area-bottom,env(safe-area-inset-bottom,0px))] z-40 rounded-none bg-white/95 backdrop-blur-xl border-y lg:border-b-0 border-slate-200/90 shadow-[0_-4px_20px_rgba(15,23,42,0.08),0_6px_16px_rgba(15,23,42,0.06)] lg:shadow-[0_-4px_20px_rgba(15,23,42,0.08)]"
       >
-        <div className="w-full flex items-center justify-between gap-2.5 sm:gap-4">
+        <div className="max-w-2xl mx-auto w-full px-3.5 py-2.5 sm:px-4 sm:py-3.5 flex items-center justify-between gap-2.5 sm:gap-4">
           
           <div className="min-w-0 flex-1">
             <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400 block leading-tight">

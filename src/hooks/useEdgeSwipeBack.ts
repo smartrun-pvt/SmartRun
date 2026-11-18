@@ -21,6 +21,11 @@ export function useEdgeSwipeBack({
   const handleTouchStart = useCallback(
     (e: TouchEvent) => {
       if (disabled || e.touches.length !== 1) return;
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest('[data-no-edge-swipe="true"]')) {
+        isEdgeTouch.current = false;
+        return;
+      }
       const touch = e.touches[0];
       if (touch.clientX <= edgeThreshold) {
         startX.current = touch.clientX;

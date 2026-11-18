@@ -87,8 +87,20 @@ export const ProductDetailPage = ({
   const [hoveredImage, setHoveredImage] = useState<string | null>(null);
   const [hoveredColor, setHoveredColor] = useState<string | null>(null);
   const [isFullscreenImageViewerOpen, setIsFullscreenImageViewerOpen] = useState(false);
+  const [fullscreenSessionItems, setFullscreenSessionItems] = useState<
+    Array<{
+      id: string;
+      url: string;
+      label: string;
+      colorName?: string;
+      colorHex?: string;
+      isColorVariant?: boolean;
+    }>
+  >([]);
 
   const thumbnailContainerRef = useRef<HTMLDivElement>(null);
+  const photoSectionRef = useRef<HTMLDivElement>(null);
+  const colorAutoScrollCountRef = useRef(0);
 
   const scrollThumbnails = (direction: 'prev' | 'next') => {
     if (!thumbnailContainerRef.current) return;
@@ -185,6 +197,7 @@ export const ProductDetailPage = ({
     if (!id) return;
     let isMounted = true;
     setLoading(true);
+    colorAutoScrollCountRef.current = 0;
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 
     fetchElectricalProductById(id)
@@ -343,31 +356,35 @@ export const ProductDetailPage = ({
       });
     });
 
-    // 2. If product has multiple color options, show preview thumbnails for colors that have their own distinct photo
-    const baseProductImg =
-      (Array.isArray(product.image_urls) && product.image_urls[0]) ||
-      (Array.isArray((product as any)?.images) && (product as any)?.images[0]) ||
-      (product as any)?.image ||
-      '';
-
+    // 2. Include other available color variant photos so all colour options are accessible
     if (colorOptions.length > 1) {
       colorOptions.forEach((opt) => {
-        // Skip if this is the active color and already present as active-0
+        // Skip if this is the active color and already added via effectiveImageUrls
         if (opt.name.toLowerCase() === (selectedWireColor || '').toLowerCase()) {
           return;
         }
-        const optImg = resolveColorPreviewImage(opt, product);
-        // Only include if it has its own distinct photo different from the base product image
-        if (optImg && optImg !== baseProductImg && !items.some((it) => it.url === optImg)) {
-          items.push({
-            id: `color-${opt.name}`,
-            url: optImg,
-            label: `${opt.name} (${opt.shortRole})`,
-            colorName: opt.name,
-            colorHex: opt.hex,
-            isColorVariant: true
-          });
+        const optUrls: string[] = [];
+        if (Array.isArray(opt.image_urls) && opt.image_urls.length > 0) {
+          optUrls.push(...opt.image_urls.filter(Boolean));
+        } else if (Array.isArray(opt.images) && opt.images.length > 0) {
+          optUrls.push(...opt.images.filter(Boolean));
+        } else {
+          const resolved = resolveColorPreviewImage(opt, product);
+          if (resolved) optUrls.push(resolved);
         }
+
+        optUrls.forEach((optImg, optIdx) => {
+          if (optImg && optImg !== NEUTRAL_PRODUCT_PLACEHOLDER && !items.some((it) => it.url === optImg)) {
+            items.push({
+              id: `color-${opt.name}-${optIdx}`,
+              url: optImg,
+              label: `${opt.name} (${opt.shortRole})`,
+              colorName: opt.name,
+              colorHex: opt.hex,
+              isColorVariant: true
+            });
+          }
+        });
       });
     }
 
@@ -396,6 +413,9 @@ export const ProductDetailPage = ({
     return items;
   }, [product, effectiveImageUrls, colorOptions, selectedWireColor, activeColorOption]);
 
+  const safeImageIndex =
+    galleryThumbnails.length > 0 ? Math.max(0, Math.min(selectedImageIndex, galleryThumbnails.length - 1)) : 0;
+
   // Currently active thumbnail in the side preview bar
   const activeThumbnailId = useMemo(() => {
     if (hoveredColor) {
@@ -406,8 +426,17 @@ export const ProductDetailPage = ({
       const match = galleryThumbnails.find((t) => t.url === hoveredImage);
       if (match) return match.id;
     }
-    return `active-${selectedImageIndex}`;
-  }, [hoveredColor, hoveredImage, selectedImageIndex, galleryThumbnails]);
+    return galleryThumbnails[safeImageIndex]?.id || 'active-0';
+  }, [hoveredColor, hoveredImage, safeImageIndex, galleryThumbnails]);
+
+  // Keep selected thumbnail visible inside the scrollable preview strip on phone & desktop
+  useEffect(() => {
+    if (!thumbnailContainerRef.current || galleryThumbnails.length <= 1) return;
+    const activeEl = thumbnailContainerRef.current.children[safeImageIndex] as HTMLElement | undefined;
+    if (activeEl && typeof activeEl.scrollIntoView === 'function') {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [safeImageIndex, galleryThumbnails.length]);
 
   // Index of currently active image in galleryThumbnails for Flipkart full screen viewer
   const currentFullscreenIndex = useMemo(() => {
@@ -418,11 +447,11 @@ export const ProductDetailPage = ({
     }
     const currentImgUrl =
       hoveredImage ||
-      effectiveImageUrls[selectedImageIndex] ||
+      galleryThumbnails[safeImageIndex]?.url ||
       effectiveImageUrls[0];
     const urlIdx = galleryThumbnails.findIndex((t) => t.url === currentImgUrl);
     return urlIdx >= 0 ? urlIdx : 0;
-  }, [galleryThumbnails, activeThumbnailId, hoveredImage, effectiveImageUrls, selectedImageIndex]);
+  }, [galleryThumbnails, activeThumbnailId, hoveredImage, safeImageIndex, effectiveImageUrls]);
 
   // Set default or URL-requested color when product changes
   useEffect(() => {
@@ -443,25 +472,61 @@ export const ProductDetailPage = ({
     }
   }, [product, urlColorParam]);
 
-  // User selects a colour variant: updates color, resets image index, clears temporary hover
-  const handleSelectColor = (colorName: string) => {
+  const openFullscreenViewer = (startIdx?: number) => {
+    if (galleryThumbnails.length === 0) return;
     hapticLight();
+    setFullscreenSessionItems(galleryThumbnails);
+    if (typeof startIdx === 'number' && startIdx >= 0 && startIdx < galleryThumbnails.length) {
+      setSelectedImageIndex(startIdx);
+    }
+    setIsFullscreenImageViewerOpen(true);
+  };
+
+  // User selects a colour variant: updates color, resets image index, and scrolls up to photo section up to 2 times when scrolled below
+  const handleSelectColor = (colorName: string, options?: { skipAutoScroll?: boolean }) => {
+    hapticLight();
+    const isDifferentColor =
+      (colorName || '').trim().toLowerCase() !== (selectedWireColor || '').trim().toLowerCase();
+
     setSelectedWireColor(colorName);
     setSelectedImageIndex(0);
     setHoveredImage(null);
     setHoveredColor(null);
+
+    if (
+      isDifferentColor &&
+      !options?.skipAutoScroll &&
+      photoSectionRef.current &&
+      colorAutoScrollCountRef.current < 2
+    ) {
+      const rect = photoSectionRef.current.getBoundingClientRect();
+      const stickyHeaderEl = document.querySelector('header');
+      const headerOffset = stickyHeaderEl ? stickyHeaderEl.getBoundingClientRect().height : 64;
+      const isPhotoSectionOffscreen = rect.top < headerOffset - 8 || rect.bottom < headerOffset + 120;
+
+      if (isPhotoSectionOffscreen) {
+        colorAutoScrollCountRef.current += 1;
+        const targetY = Math.max(0, window.scrollY + rect.top - headerOffset - 8);
+        window.scrollTo({
+          top: targetY,
+          behavior: 'smooth'
+        });
+      }
+    }
   };
 
-  // Thumbnail click handler
-  const handleThumbnailClick = (thumb: any, idx: number) => {
+  // Thumbnail click handler: switches main image (or opens fullscreen with all images if tapping the active preview)
+  const handleThumbnailClick = (thumb: (typeof galleryThumbnails)[0], idx: number) => {
     hapticLight();
+    setHoveredImage(null);
+    setHoveredColor(null);
     if (thumb.colorName && thumb.isColorVariant) {
-      handleSelectColor(thumb.colorName);
+      handleSelectColor(thumb.colorName, { skipAutoScroll: true });
+    } else if (safeImageIndex === idx) {
+      openFullscreenViewer(idx);
     } else {
       setSelectedImageIndex(idx);
     }
-    setHoveredImage(null);
-    setHoveredColor(null);
   };
 
   // Thumbnail hover handlers (Amazon-style live side preview)
@@ -666,7 +731,7 @@ export const ProductDetailPage = ({
 
   const currentImage =
     hoveredImage ||
-    effectiveImageUrls[selectedImageIndex] ||
+    galleryThumbnails[safeImageIndex]?.url ||
     effectiveImageUrls[0] ||
     NEUTRAL_PRODUCT_PLACEHOLDER;
 
@@ -742,14 +807,14 @@ export const ProductDetailPage = ({
           {/* ========================================================================= */}
           {/* LEFT COLUMN: IMAGE GALLERY WITH ZOOM + FLOATING BOTTOM ACTION BAR */}
           {/* ========================================================================= */}
-          <div className="lg:col-span-5 flex flex-col gap-4 self-start lg:sticky lg:top-6">
+          <div ref={photoSectionRef} className="lg:col-span-5 flex flex-col gap-4 self-start lg:sticky lg:top-6">
             
             {/* Gallery Image Display */}
-            <div className="flex flex-col-reverse sm:flex-row gap-3">
+            <div data-no-edge-swipe="true" className="flex flex-col-reverse sm:flex-row gap-3">
               
               {/* Thumbnail Strip with Up/Down and Left/Right Scroll Arrows */}
               {galleryThumbnails.length > 1 && (
-                <div className="flex sm:flex-col items-center justify-center relative select-none">
+                <div className="flex sm:flex-col items-center justify-center relative select-none w-full sm:w-auto min-w-0">
                   {/* Desktop Up Scroll Button (shown when 5+ images) */}
                   {galleryThumbnails.length >= 5 && (
                     <button
@@ -779,7 +844,10 @@ export const ProductDetailPage = ({
                   {/* Scrollable Thumbnails List */}
                   <div
                     ref={thumbnailContainerRef}
-                    className="flex sm:flex-col gap-2 overflow-x-auto sm:overflow-y-auto sm:max-h-96 px-6 sm:px-0 py-0.5 sm:py-1 scrollbar-none scroll-smooth"
+                    data-no-edge-swipe="true"
+                    className={`w-full max-w-full flex sm:flex-col gap-2 overflow-x-auto sm:overflow-y-auto sm:max-h-96 py-0.5 sm:py-1 scrollbar-none scroll-smooth touch-pan-x sm:touch-pan-y overscroll-x-contain snap-x ${
+                      galleryThumbnails.length >= 5 ? 'px-7 sm:px-0' : 'px-0.5 sm:px-0'
+                    }`}
                   >
                     {galleryThumbnails.map((thumb, idx) => {
                       const isCurrentActive = activeThumbnailId === thumb.id;
@@ -790,7 +858,7 @@ export const ProductDetailPage = ({
                           onClick={() => handleThumbnailClick(thumb, idx)}
                           onMouseEnter={() => handleThumbnailHover(thumb)}
                           onMouseLeave={handleThumbnailLeave}
-                          className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl border p-1 bg-white shrink-0 transition-all cursor-pointer relative group ${
+                          className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl border p-1 bg-white shrink-0 snap-start transition-all cursor-pointer relative group ${
                             isCurrentActive
                               ? 'border-yellow-500 ring-2 ring-yellow-400 shadow-sm'
                               : 'border-slate-200 hover:border-slate-400 opacity-85 hover:opacity-100 shadow-2xs'
@@ -843,8 +911,9 @@ export const ProductDetailPage = ({
                 </div>
               )}
 
-              {/* Main Product Image (Clean display with zoom gestures and on-hover navigation arrows) */}
+              {/* Main Product Image (Clean display with swipe, zoom gestures, and tap-to-open all images) */}
               <div
+                data-no-edge-swipe="true"
                 className="flex-1 aspect-square relative bg-slate-50 border border-slate-200 rounded-xl overflow-hidden flex items-center justify-center p-2 group select-none"
               >
                 <ZoomableImage
@@ -852,25 +921,34 @@ export const ProductDetailPage = ({
                   alt={product.name}
                   className="w-full h-full object-contain cursor-pointer"
                   containerClassName="w-full h-full"
-                  onClick={() => setIsFullscreenImageViewerOpen(true)}
+                  onClick={() => openFullscreenViewer(currentFullscreenIndex)}
                   onSwipeLeft={() => {
-                    if (effectiveImageUrls.length > 1) {
-                      setSelectedImageIndex((prev) => (prev + 1) % effectiveImageUrls.length);
+                    if (galleryThumbnails.length > 1) {
+                      setHoveredImage(null);
+                      setHoveredColor(null);
+                      setSelectedImageIndex((prev) => (prev + 1) % galleryThumbnails.length);
                     }
                   }}
                   onSwipeRight={() => {
-                    if (effectiveImageUrls.length > 1) {
-                      setSelectedImageIndex((prev) => (prev === 0 ? effectiveImageUrls.length - 1 : prev - 1));
+                    if (galleryThumbnails.length > 1) {
+                      setHoveredImage(null);
+                      setHoveredColor(null);
+                      setSelectedImageIndex((prev) => (prev === 0 ? galleryThumbnails.length - 1 : prev - 1));
                     }
                   }}
                 />
 
                 {/* Left & Right on-image navigation buttons if multiple images exist */}
-                {effectiveImageUrls.length > 1 && (
+                {galleryThumbnails.length > 1 && (
                   <>
                     <button
                       type="button"
-                      onClick={() => setSelectedImageIndex((prev) => (prev === 0 ? effectiveImageUrls.length - 1 : prev - 1))}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setHoveredImage(null);
+                        setHoveredColor(null);
+                        setSelectedImageIndex((prev) => (prev === 0 ? galleryThumbnails.length - 1 : prev - 1));
+                      }}
                       className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-800 flex items-center justify-center shadow-md border border-slate-200 cursor-pointer active:scale-90 transition-all opacity-0 group-hover:opacity-100 z-10"
                       title="Previous image"
                     >
@@ -878,19 +956,36 @@ export const ProductDetailPage = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setSelectedImageIndex((prev) => (prev + 1) % effectiveImageUrls.length)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setHoveredImage(null);
+                        setHoveredColor(null);
+                        setSelectedImageIndex((prev) => (prev + 1) % galleryThumbnails.length);
+                      }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-800 flex items-center justify-center shadow-md border border-slate-200 cursor-pointer active:scale-90 transition-all opacity-0 group-hover:opacity-100 z-10"
                       title="Next image"
                     >
                       <ChevronRight className="w-4 h-4 stroke-[2.5]" />
                     </button>
-
-                    {/* Image indicator pill */}
-                    <div className="absolute bottom-2 right-2 bg-slate-900/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs z-10">
-                      {selectedImageIndex + 1} / {effectiveImageUrls.length}
-                    </div>
                   </>
                 )}
+
+                {/* Bottom-right Image Counter & Tap-to-Expand Fullscreen Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openFullscreenViewer(currentFullscreenIndex);
+                  }}
+                  className="absolute bottom-2 right-2 bg-slate-900/75 hover:bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-xs z-10 inline-flex items-center gap-1 cursor-pointer active:scale-95 transition-all"
+                  title="Tap to view all images fullscreen"
+                  aria-label="Tap to view all images fullscreen"
+                >
+                  <Maximize2 className="w-3 h-3" />
+                  {galleryThumbnails.length > 1 && (
+                    <span>{safeImageIndex + 1} / {galleryThumbnails.length}</span>
+                  )}
+                </button>
               </div>
             </div>
 
@@ -1761,12 +1856,22 @@ export const ProductDetailPage = ({
       {/* Fullscreen Image Viewer Modal (Flipkart / Amazon mobile style) */}
       <FullscreenImageViewer
         isOpen={isFullscreenImageViewerOpen}
-        onClose={() => setIsFullscreenImageViewerOpen(false)}
-        items={galleryThumbnails}
+        onClose={() => {
+          setIsFullscreenImageViewerOpen(false);
+          setFullscreenSessionItems([]);
+        }}
+        items={fullscreenSessionItems.length > 0 ? fullscreenSessionItems : galleryThumbnails}
         initialIndex={currentFullscreenIndex}
         productName={product.name}
-        onSelectThumbnail={(thumb, idx) => {
-          handleThumbnailClick(thumb, idx);
+        onSelectThumbnail={(thumb) => {
+          if (thumb.colorName && thumb.isColorVariant) {
+            handleSelectColor(thumb.colorName, { skipAutoScroll: true });
+          } else {
+            const matchedIdx = galleryThumbnails.findIndex((t) => t.url === thumb.url);
+            if (matchedIdx >= 0) {
+              setSelectedImageIndex(matchedIdx);
+            }
+          }
         }}
       />
     </div>

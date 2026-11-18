@@ -69,6 +69,41 @@ const isPhoneInput = (input: string): boolean => {
   return digits.length >= 7;
 };
 
+// Helper: Safely extract a 6-digit OTP from raw autofill, WebOTP, or full pasted SMS text
+// Avoids grabbing the leading 6 digits of a 10-digit mobile number if full SMS is pasted.
+const extractOtpDigits = (raw: string): string => {
+  const text = String(raw || '').trim();
+  if (!text) return '';
+
+  // Pure digit input (normal typing / standard autofill)
+  if (/^\d+$/.test(text)) {
+    return text.slice(0, 6);
+  }
+
+  // Prioritize explicit WebOTP/SMS markers (e.g. "#482910", "code is 482910", "OTP: 482910", "G-482910")
+  const explicitOtp =
+    text.match(/#(\d{6})\b/) ||
+    text.match(/\b(?:otp|code|pin|passcode)\s*(?:is|:|-)?\s*(\d{6})\b/i) ||
+    text.match(/\bG-(\d{6})\b/i);
+  if (explicitOtp && explicitOtp[1]) {
+    return explicitOtp[1];
+  }
+
+  // Isolated 6-digit token (e.g. "482910 is your verification code", skips 10-digit phone numbers)
+  const isolatedSix = text.match(/(?:^|[^\d])(\d{6})(?:[^\d]|$)/);
+  if (isolatedSix && isolatedSix[1]) {
+    return isolatedSix[1];
+  }
+
+  // Spaced or hyphenated 3+3 format (e.g. "482 910" or "482-910")
+  const splitSix = text.match(/(?:^|[^\d])(\d{3})[\s-](\d{3})(?:[^\d]|$)/);
+  if (splitSix && splitSix[1] && splitSix[2]) {
+    return `${splitSix[1]}${splitSix[2]}`;
+  }
+
+  return text.replace(/\D/g, '').slice(0, 6);
+};
+
 // Helper: Check and persist terms agreement across sessions (defaults to YES tick)
 const isTermsAgreedSaved = (): boolean => {
   try {
@@ -127,6 +162,8 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
 
   // Phone OTP states
   const [otpSent, setOtpSent] = useState(false);
+  const [isWaitingOtp, setIsWaitingOtp] = useState(false);
+  const [otpAttemptId, setOtpAttemptId] = useState(0);
   const [otpCode, setOtpCode] = useState('');
   const [otpCooldown, setOtpCooldown] = useState(0);
   const [sentToPhone, setSentToPhone] = useState('');
@@ -162,12 +199,30 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
   const [termsAgreed, setTermsAgreed] = useState<boolean>(() => isTermsAgreedSaved());
 
   const secondInputRef = useRef<HTMLInputElement>(null);
+  const isVerifyingOtpRef = useRef(false);
+  const hasCompletedPhoneAuthRef = useRef(false);
+  const lastAutoPastedOtpRef = useRef('');
+  const latestVerifyPhoneOtpRef = useRef<(overrideOtp?: string) => Promise<void>>(async () => {});
+  const supportsClipboardRead = typeof navigator !== 'undefined' && Boolean(navigator.clipboard?.readText);
 
-  // Auto-focus second field when revealed
+  // Auto-focus second field when revealed (with animation-frame sync for Safari/Android Autofill bars)
   useEffect(() => {
-    if (showSecondField && secondInputRef.current) {
-      secondInputRef.current.focus();
+    if (!showSecondField) return;
+    let rafId: number | null = null;
+    const focusTimer = setTimeout(() => {
+      secondInputRef.current?.focus();
+    }, 50);
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      rafId = window.requestAnimationFrame(() => {
+        secondInputRef.current?.focus();
+      });
     }
+    return () => {
+      clearTimeout(focusTimer);
+      if (rafId !== null && typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
   }, [showSecondField]);
 
   // Phone OTP cooldown timer
@@ -209,25 +264,30 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
     };
   }, []);
 
-  // Google Autofill WebOTP API integration for SMS OTP auto-detection
+  // Google & Cross-Device WebOTP API integration (Android Phones, Tablets, Chromebooks, & Laptop Chrome)
   useEffect(() => {
-    if (!otpSent || !showSecondField || !isPhoneInput(identifier)) return;
-    if (typeof window === 'undefined' || !('OTPCredential' in window)) return;
+    if (authStep !== 'primary') return;
+    if (!isPhoneInput(identifier)) return;
+    if (!otpAttemptId || (!isWaitingOtp && !(otpSent && showSecondField))) return;
+    if (typeof window === 'undefined' || !('OTPCredential' in window) || !navigator.credentials?.get) return;
 
     const ac = new AbortController();
+    let isCancelled = false;
+
     try {
       (navigator.credentials as any)
-        ?.get({
+        .get({
           otp: { transport: ['sms'] },
           signal: ac.signal
         })
         .then((content: any) => {
-          if (content && content.code) {
-            const codeDigits = content.code.replace(/\D/g, '').slice(0, 6);
-            if (codeDigits.length === 6) {
-              setOtpCode(codeDigits);
-              handleVerifyPhoneOtp(codeDigits);
-            }
+          if (isCancelled || !content?.code) return;
+          const codeDigits = extractOtpDigits(String(content.code));
+          if (codeDigits.length === 6) {
+            setShowSecondField(true);
+            setOtpSent(true);
+            setOtpCode(codeDigits);
+            latestVerifyPhoneOtpRef.current(codeDigits);
           }
         })
         .catch((err: any) => {
@@ -236,15 +296,64 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
           }
         });
     } catch {
-      // Ignore if WebOTP not supported
+      // Ignore if WebOTP not supported on current browser
     }
 
     return () => {
+      isCancelled = true;
       try {
         ac.abort();
       } catch {}
     };
-  }, [otpSent, showSecondField, identifier]);
+  }, [authStep, otpAttemptId, isWaitingOtp, otpSent, showSecondField, identifier]);
+
+  // Silent Clipboard OTP Auto-Detect on Tab Focus (for Tablet/Laptop Google Messages Web, Phone Link & iCloud Clipboard)
+  // Only triggers when 'clipboard-read' permission is already granted so no unsolicited permission popup occurs.
+  useEffect(() => {
+    if (authStep !== 'primary' || !otpSent || !showSecondField || !isPhoneInput(identifier)) return;
+    if (typeof window === 'undefined' || !navigator.clipboard?.readText) return;
+
+    let isDisposed = false;
+
+    const checkClipboardSilently = async () => {
+      if (isDisposed || hasCompletedPhoneAuthRef.current || isVerifyingOtpRef.current) return;
+      if (otpCode.length > 0) return;
+
+      try {
+        const permApi = (navigator as any)?.permissions;
+        if (!permApi?.query) return;
+        const perm = await permApi.query({ name: 'clipboard-read' });
+        if (perm?.state !== 'granted' || isDisposed) return;
+
+        const text = await navigator.clipboard.readText();
+        if (isDisposed || !text) return;
+
+        const extracted = extractOtpDigits(text);
+        if (extracted.length === 6 && extracted !== lastAutoPastedOtpRef.current) {
+          lastAutoPastedOtpRef.current = extracted;
+          setOtpCode(extracted);
+          latestVerifyPhoneOtpRef.current(extracted);
+        }
+      } catch {
+        // Silently ignore clipboard/permission errors
+      }
+    };
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        checkClipboardSilently();
+      }
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    return () => {
+      isDisposed = true;
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
+  }, [authStep, otpSent, showSecondField, identifier, otpCode]);
 
   // WebAuthn Passkey Conditional Autofill (zero UI intrusion - pops up in browser autofill dropdown)
   useEffect(() => {
@@ -479,6 +588,63 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
     }
   };
 
+  // Shared Post-Verification Profile Resolution & Routing
+  const completeVerifiedPhoneLogin = async (
+    result: { success: boolean; user?: any; profile?: UserProfile; error?: string },
+    clean10: string
+  ) => {
+    if (hasCompletedPhoneAuthRef.current) return;
+    if (!result.success) {
+      setError(result.error || 'The OTP code is invalid or has expired. Please try again.');
+      return;
+    }
+
+    hasCompletedPhoneAuthRef.current = true;
+
+    let existingProfile: any = null;
+    try {
+      const resolveRes = await fetch(apiUrl('/api/auth/resolve-phone-user'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: clean10 })
+      });
+      if (resolveRes.ok) {
+        const rData = await resolveRes.json().catch(() => null);
+        if (rData?.exists && rData?.profile) {
+          existingProfile = rData.profile;
+        }
+      }
+    } catch (checkErr) {
+      console.debug('[User check notice]:', checkErr);
+    }
+
+    const existingFullName = (existingProfile?.full_name || result.profile?.name || '').trim();
+    const isExistingUser = Boolean(
+      existingProfile?.user_id &&
+      existingFullName &&
+      existingFullName.toLowerCase() !== 'customer' &&
+      !existingFullName.toLowerCase().startsWith('giriraj')
+    );
+
+    if (isExistingUser) {
+      saveTermsAgreed(true);
+      const finalName = existingFullName;
+      const finalEmail = (existingProfile?.email && !existingProfile.email.includes('@girirajpower.internal'))
+        ? existingProfile.email
+        : (result.profile?.email && !result.profile.email.includes('@girirajpower.internal') ? result.profile.email : '');
+      onAuthSuccess(`+91${clean10}`, finalName, finalEmail, result.user);
+      navigate(getPostAuthRedirect(), { replace: true });
+    } else {
+      setOnboardingPhone(clean10);
+      setOnboardingName('');
+      setOnboardingEmail(result.profile?.email && !result.profile.email.includes('@girirajpower.internal') ? result.profile.email : '');
+      setOnboardingDob('');
+      setIsPhoneLocked(true);
+      setAuthStep('personal_info');
+      resetMessages();
+    }
+  };
+
   // --- 2. SEND PHONE OTP ---
   const handleSendPhoneOtp = async () => {
     resetMessages();
@@ -493,22 +659,52 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
       return;
     }
 
+    hasCompletedPhoneAuthRef.current = false;
+    isVerifyingOtpRef.current = false;
+    lastAutoPastedOtpRef.current = '';
     setIsLoading(true);
+    setIsWaitingOtp(true);
+    setOtpAttemptId((prev) => prev + 1);
+
     try {
-      const res = await sendFirebasePhoneOtp(clean10);
+      const res = await sendFirebasePhoneOtp(clean10, 'recaptcha-container', {
+        onAutoFillOtp: (autoCode) => {
+          if (hasCompletedPhoneAuthRef.current) return;
+          setShowSecondField(true);
+          setOtpSent(true);
+          setOtpCode(autoCode);
+        },
+        onNativeVerificationCompleted: async (nativeResult) => {
+          if (hasCompletedPhoneAuthRef.current || isVerifyingOtpRef.current) return;
+          isVerifyingOtpRef.current = true;
+          setIsLoading(true);
+          try {
+            await completeVerifiedPhoneLogin(nativeResult, clean10);
+          } finally {
+            isVerifyingOtpRef.current = false;
+            setIsLoading(false);
+          }
+        }
+      });
 
       if (!res.success) {
+        setIsWaitingOtp(false);
         setError(res.error || 'Failed to send OTP to mobile number. Please try again.');
+      } else if (res.autoVerified) {
+        const phone = res.formattedPhone || formatToE164Phone(clean10);
+        setSentToPhone(phone);
+        setOtpCooldown(60);
       } else {
         const phone = res.formattedPhone || formatToE164Phone(clean10);
         setSentToPhone(phone);
         setOtpSent(true);
         setShowSecondField(true);
         setOtpCooldown(60); // 1 minute gap to resend OTP
-        setInfoMessage(null); // Removed "firebase otp code sent to..." message banner as requested
+        setInfoMessage(null);
         setOtpCode('');
       }
     } catch (err: unknown) {
+      setIsWaitingOtp(false);
       const msg = err instanceof Error ? err.message : 'Failed to send OTP.';
       setError(msg);
     } finally {
@@ -518,9 +714,11 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
 
   // --- 3. VERIFY PHONE OTP & DETECT IF NEW OR EXISTING USER ---
   const handleVerifyPhoneOtp = async (overrideOtp?: string) => {
+    if (isVerifyingOtpRef.current || hasCompletedPhoneAuthRef.current) return;
+
     resetMessages();
     const phone = sentToPhone || formatToE164Phone(identifier);
-    const cleanOtp = (overrideOtp ?? otpCode).replace(/\D/g, '');
+    const cleanOtp = extractOtpDigits(overrideOtp ?? otpCode);
     const clean10 = phone.replace(/\D/g, '').slice(-10);
 
     if (!cleanOtp || cleanOtp.length < 6) {
@@ -528,68 +726,41 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
       return;
     }
 
+    isVerifyingOtpRef.current = true;
     setIsLoading(true);
     try {
-      // 1. Verify OTP with server-authoritative backend
       const result = await verifyFirebaseOtpAndBridgeToSupabase(cleanOtp, undefined, phone);
-
-      if (!result.success) {
-        setError(result.error || 'The OTP code is invalid or has expired. Please try again.');
-        setIsLoading(false);
-        return;
-      }
-
-      // 2. Check if this mobile number already exists on the server (checks both Supabase & Firebase)
-      let existingProfile: any = null;
-      try {
-        const resolveRes = await fetch(apiUrl('/api/auth/resolve-phone-user'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: clean10 })
-        });
-        if (resolveRes.ok) {
-          const rData = await resolveRes.json().catch(() => null);
-          if (rData?.exists && rData?.profile) {
-            existingProfile = rData.profile;
-          }
-        }
-      } catch (checkErr) {
-        console.debug('[User check notice]:', checkErr);
-      }
-
-      // Check if user already exists on the server or in auth with a valid completed name
-      const existingFullName = (existingProfile?.full_name || result.profile?.name || '').trim();
-      const isExistingUser = Boolean(
-        existingProfile?.user_id &&
-        existingFullName &&
-        existingFullName.toLowerCase() !== 'customer' &&
-        !existingFullName.toLowerCase().startsWith('giriraj')
-      );
-
-      if (isExistingUser) {
-        // Sign in immediately with unified existing account identity!
-        saveTermsAgreed(true);
-        const finalName = existingFullName;
-        const finalEmail = (existingProfile?.email && !existingProfile.email.includes('@girirajpower.internal'))
-          ? existingProfile.email
-          : (result.profile?.email && !result.profile.email.includes('@girirajpower.internal') ? result.profile.email : '');
-        onAuthSuccess(`+91${clean10}`, finalName, finalEmail, result.user);
-        navigate(getPostAuthRedirect(), { replace: true });
-      } else {
-        // First-time new user -> Open Personal Info page
-        setOnboardingPhone(clean10);
-        setOnboardingName('');
-        setOnboardingEmail(result.profile?.email && !result.profile.email.includes('@girirajpower.internal') ? result.profile.email : '');
-        setOnboardingDob('');
-        setIsPhoneLocked(true);
-        setAuthStep('personal_info');
-        resetMessages();
-      }
+      await completeVerifiedPhoneLogin(result, clean10);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to verify OTP.';
       setError(msg);
     } finally {
+      isVerifyingOtpRef.current = false;
       setIsLoading(false);
+    }
+  };
+
+  latestVerifyPhoneOtpRef.current = handleVerifyPhoneOtp;
+
+  // --- 3B. ONE-TAP CLIPBOARD PASTE FOR LAPTOP / TABLET / PHONE ---
+  const handlePasteOtpFromClipboard = async () => {
+    if (isVerifyingOtpRef.current || hasCompletedPhoneAuthRef.current) return;
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.readText) return;
+    resetMessages();
+    try {
+      const rawText = await navigator.clipboard.readText();
+      const digits = extractOtpDigits(rawText);
+      if (digits.length === 6) {
+        lastAutoPastedOtpRef.current = digits;
+        setOtpCode(digits);
+        await handleVerifyPhoneOtp(digits);
+      } else if (digits.length > 0) {
+        setOtpCode(digits);
+      } else {
+        setError('No 6-digit OTP found in clipboard. Please type it manually.');
+      }
+    } catch {
+      setError('Clipboard access was denied. Please paste (Ctrl+V / Cmd+V) or type your OTP.');
     }
   };
 
@@ -1248,25 +1419,21 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
           </div>
         </div>
 
-        {/* Clean Heading */}
-        <div className="text-center pt-0 pb-0">
-          <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-            {authStep === 'primary' && 'Sign in'}
-            {authStep === 'onboarding_phone' && 'Complete Your Profile'}
-            {authStep === 'onboarding_email' && 'Complete Your Profile'}
-            {authStep === 'forgot' && 'Reset Password'}
-          </h1>
-          {authStep === 'onboarding_phone' && (
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Mobile number +91 {onboardingPhone} verified. Fill details to finish.
-            </p>
-          )}
-          {authStep === 'onboarding_email' && (
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              New to SmartRun? Fill in your details to create your account.
-            </p>
-          )}
-        </div>
+        {/* Onboarding Subtitle */}
+        {(authStep === 'onboarding_phone' || authStep === 'onboarding_email') && (
+          <div className="text-center pt-0 pb-0">
+            {authStep === 'onboarding_phone' && (
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Mobile number +91 {onboardingPhone} verified. Fill details to finish.
+              </p>
+            )}
+            {authStep === 'onboarding_email' && (
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                New to SmartRun? Fill in your details to create your account.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Feedback Messages */}
         {infoMessage && (
@@ -1346,17 +1513,20 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
                 </label>
 
                 {isPhone ? (
-                  /* Mobile OTP Input */
+                  /* Mobile OTP Input (Supports WebOTP, Native Auto-Retrieval, OS AutoFill, & Smart Paste) */
                   <div>
                     <div className="flex items-center border-b border-slate-300 focus-within:border-slate-800 transition-colors pb-1">
                       <KeyRound className="w-5 h-5 text-slate-400 shrink-0 mr-2.5" />
                       <input
                         ref={secondInputRef}
+                        id="login-otp-input"
+                        name="one-time-code"
                         type="text"
                         inputMode="numeric"
                         autoComplete="one-time-code"
+                        enterKeyHint="done"
+                        aria-label="6-digit SMS OTP code"
                         pattern="[0-9]*"
-                        maxLength={6}
                         placeholder="Enter 6-digit OTP"
                         value={otpCode}
                         onFocus={(e) => {
@@ -1370,8 +1540,19 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
                             }
                           }, 200);
                         }}
+                        onPaste={(e) => {
+                          const pasted = e.clipboardData?.getData('text') || '';
+                          if (!pasted) return;
+                          e.preventDefault();
+                          const digits = extractOtpDigits(pasted);
+                          setOtpCode(digits);
+                          if (error) setError(null);
+                          if (digits.length === 6) {
+                            handleVerifyPhoneOtp(digits);
+                          }
+                        }}
                         onChange={(e) => {
-                          const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                          const digits = extractOtpDigits(e.target.value);
                           setOtpCode(digits);
                           if (error) setError(null);
                           if (digits.length === 6) {
@@ -1381,11 +1562,21 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
                         className="w-full bg-transparent py-2 text-sm font-semibold tracking-widest text-slate-900 placeholder:text-slate-400 focus:outline-none"
                         required={showSecondField && isPhone}
                       />
-                      {otpCode.length > 0 && (
+                      {otpCode.length > 0 ? (
                         <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0 select-none">
                           {otpCode.length}/6
                         </span>
-                      )}
+                      ) : supportsClipboardRead ? (
+                        <button
+                          type="button"
+                          onClick={handlePasteOtpFromClipboard}
+                          disabled={isLoading}
+                          className="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 px-2 py-0.5 rounded-full shrink-0 transition-colors cursor-pointer disabled:opacity-50"
+                          title="Paste OTP from clipboard"
+                        >
+                          Paste
+                        </button>
+                      ) : null}
                     </div>
 
                     <div className="flex justify-between items-center pt-2">
@@ -1393,6 +1584,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
                         type="button"
                         onClick={() => {
                           setOtpSent(false);
+                          setIsWaitingOtp(false);
                           setShowSecondField(false);
                           setOtpCode('');
                           resetMessages();

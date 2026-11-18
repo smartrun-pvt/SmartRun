@@ -37,6 +37,29 @@ let lastSentPhoneNumber: string | null = null;
 let activeBackendOtpToken: string | null = null;
 let activeBackendOtpPhone: string | null = null;
 let activeNativeVerificationId: string | null = null;
+let activeNativeCompletedSub: { remove?: () => Promise<void> | void } | null = null;
+let activeNativeCodeSentSub: { remove?: () => Promise<void> | void } | null = null;
+let activeNativeFailedSub: { remove?: () => Promise<void> | void } | null = null;
+let activeNativeCompletedTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+function clearNativePhoneListeners(): void {
+  if (activeNativeCompletedTimeoutId) {
+    clearTimeout(activeNativeCompletedTimeoutId);
+    activeNativeCompletedTimeoutId = null;
+  }
+  try {
+    activeNativeCompletedSub?.remove?.();
+  } catch {}
+  try {
+    activeNativeCodeSentSub?.remove?.();
+  } catch {}
+  try {
+    activeNativeFailedSub?.remove?.();
+  } catch {}
+  activeNativeCompletedSub = null;
+  activeNativeCodeSentSub = null;
+  activeNativeFailedSub = null;
+}
 
 /**
  * Format any Indian phone number into strict E.164 (+91XXXXXXXXXX)
@@ -232,6 +255,7 @@ export interface SendFirebaseOtpResult {
   success: boolean;
   formattedPhone?: string;
   provider?: 'firebase';
+  autoVerified?: boolean;
   error?: string;
   isBillingRequired?: boolean;
   isRateLimited?: boolean;
@@ -239,15 +263,21 @@ export interface SendFirebaseOtpResult {
   diagnostic?: FirebaseDiagnostic;
 }
 
+export interface SendFirebaseOtpCallbacks {
+  onAutoFillOtp?: (code: string) => void;
+  onNativeVerificationCompleted?: (result: VerifyFirebaseOtpResult) => void;
+}
+
 /**
  * Sends phone OTP via official Google Firebase Phone Auth SDK.
- * On native Android / iOS devices, utilizes native Play Integrity and SMS Retriever
- * without web reCAPTCHA or localhost origin restrictions.
+ * On native Android / iOS devices, utilizes native Play Integrity, Instant Verification,
+ * and Google Play Services SMS Auto-Retrieval without web reCAPTCHA or localhost origin restrictions.
  * On Web, utilizes Firebase Web SDK with headless reCAPTCHA and server fallback.
  */
 export async function sendFirebasePhoneOtp(
   rawPhone: string,
-  containerId = 'recaptcha-container'
+  containerId = 'recaptcha-container',
+  callbacks?: SendFirebaseOtpCallbacks
 ): Promise<SendFirebaseOtpResult> {
   const digits = rawPhone.replace(/\D/g, '').slice(-10);
   if (digits.length !== 10) {
@@ -263,6 +293,7 @@ export async function sendFirebasePhoneOtp(
   activeNativeVerificationId = null;
   activeBackendOtpToken = null;
   activeBackendOtpPhone = null;
+  clearNativePhoneListeners();
 
   // 1. Native Android & iOS Capacitor Platform Phone Auth
   if (Capacitor.isNativePlatform()) {
@@ -271,23 +302,80 @@ export async function sendFirebasePhoneOtp(
       const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
 
       const nativeResult = await new Promise<SendFirebaseOtpResult>(async (resolve) => {
-        let codeSentSub: any = null;
-        let codeFailedSub: any = null;
-        let timeoutId: any = null;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
         let hasResolved = false;
+        let hasHandledCompletion = false;
 
-        const cleanup = () => {
-          if (timeoutId) clearTimeout(timeoutId);
-          try { codeSentSub?.remove?.(); } catch {}
-          try { codeFailedSub?.remove?.(); } catch {}
+        const cleanupWaiters = () => {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          try { activeNativeCodeSentSub?.remove?.(); } catch {}
+          try { activeNativeFailedSub?.remove?.(); } catch {}
+          activeNativeCodeSentSub = null;
+          activeNativeFailedSub = null;
         };
 
-        codeSentSub = await FirebaseAuthentication.addListener('phoneCodeSent', (event) => {
+        // Listen for Google Play Services SMS Auto-Retrieval & Instant Verification
+        activeNativeCompletedSub = await FirebaseAuthentication.addListener('phoneVerificationCompleted', async (event) => {
+          if (hasHandledCompletion) return;
+          hasHandledCompletion = true;
+
+          const retrievedCode = (event?.verificationCode || '').replace(/\D/g, '').slice(0, 6);
+          if (retrievedCode.length === 6) {
+            try {
+              callbacks?.onAutoFillOtp?.(retrievedCode);
+            } catch {}
+          }
+
+          if (!hasResolved) {
+            hasResolved = true;
+            cleanupWaiters();
+            resolve({
+              success: true,
+              formattedPhone,
+              provider: 'firebase',
+              autoVerified: true,
+              message: `Verified ${formattedPhone} automatically.`
+            });
+          }
+
+          try {
+            if (event?.user) {
+              activeNativeVerificationId = null;
+              clearNativePhoneListeners();
+              const bridgeResult = await bridgeVerifiedPhoneToSupabase(formattedPhone, undefined, event.user as any);
+              callbacks?.onNativeVerificationCompleted?.({
+                success: bridgeResult.success,
+                user: bridgeResult.user,
+                session: bridgeResult.session,
+                profile: bridgeResult.profile,
+                firebaseUser: event.user as any,
+                error: bridgeResult.error
+              });
+            } else if (retrievedCode.length === 6 && activeNativeVerificationId) {
+              const autoResult = await verifyFirebaseOtpAndBridgeToSupabase(retrievedCode, undefined, formattedPhone);
+              callbacks?.onNativeVerificationCompleted?.(autoResult);
+            }
+          } catch (autoErr: any) {
+            console.debug('[Native Firebase Phone Auth] Auto-completion notice:', autoErr);
+          }
+        });
+
+        // Auto-expire lingering SMS retrieval listener after 2 minutes
+        activeNativeCompletedTimeoutId = setTimeout(() => {
+          try { activeNativeCompletedSub?.remove?.(); } catch {}
+          activeNativeCompletedSub = null;
+          activeNativeCompletedTimeoutId = null;
+        }, 120000);
+
+        activeNativeCodeSentSub = await FirebaseAuthentication.addListener('phoneCodeSent', (event) => {
           if (!hasResolved) {
             hasResolved = true;
             activeNativeVerificationId = event.verificationId;
             console.log('[Native Firebase Phone Auth] phoneCodeSent event received, verificationId:', event.verificationId);
-            cleanup();
+            cleanupWaiters();
             resolve({
               success: true,
               formattedPhone,
@@ -297,11 +385,12 @@ export async function sendFirebasePhoneOtp(
           }
         });
 
-        codeFailedSub = await FirebaseAuthentication.addListener('phoneVerificationFailed', (event) => {
+        activeNativeFailedSub = await FirebaseAuthentication.addListener('phoneVerificationFailed', (event) => {
           if (!hasResolved) {
             hasResolved = true;
             console.error('[Native Firebase Phone Auth] phoneVerificationFailed event:', event);
-            cleanup();
+            cleanupWaiters();
+            clearNativePhoneListeners();
             resolve({
               success: false,
               formattedPhone,
@@ -314,7 +403,7 @@ export async function sendFirebasePhoneOtp(
         timeoutId = setTimeout(() => {
           if (!hasResolved) {
             hasResolved = true;
-            cleanup();
+            cleanupWaiters();
             console.warn('[Native Firebase Phone Auth] Timed out waiting for phoneCodeSent event, falling back...');
             resolve({
               success: false,
@@ -329,7 +418,8 @@ export async function sendFirebasePhoneOtp(
         } catch (nativeErr: any) {
           if (!hasResolved) {
             hasResolved = true;
-            cleanup();
+            cleanupWaiters();
+            clearNativePhoneListeners();
             console.error('[Native Firebase Phone Auth] signInWithPhoneNumber invocation error:', nativeErr);
             resolve({
               success: false,
@@ -346,6 +436,7 @@ export async function sendFirebasePhoneOtp(
       console.warn('[Native Firebase Phone Auth] Native dispatch did not complete, falling back...');
     } catch (pluginErr: any) {
       console.warn('[Native Firebase Phone Auth] Native plugin unavailable or error:', pluginErr);
+      clearNativePhoneListeners();
     }
   }
 
@@ -450,6 +541,7 @@ export async function verifyFirebaseOtpAndBridgeToSupabase(
         verificationCode: cleanCode
       });
       activeNativeVerificationId = null;
+      clearNativePhoneListeners();
       console.log('[Native Firebase Phone Auth] Successfully verified OTP! Native User UID:', signInResult.user?.uid);
       firebaseUser = signInResult.user as any;
     } catch (err: any) {
@@ -1023,7 +1115,9 @@ export async function signOutFromAll(): Promise<void> {
     await supabase.auth.signOut();
   } catch {}
   resetRecaptchaVerifier();
+  clearNativePhoneListeners();
   activeConfirmationResult = null;
+  activeNativeVerificationId = null;
   lastSentPhoneNumber = null;
   activeBackendOtpToken = null;
 }

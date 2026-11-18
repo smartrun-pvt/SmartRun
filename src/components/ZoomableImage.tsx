@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import { hapticLight, hapticMedium } from '../utils/haptics';
 
@@ -32,8 +32,16 @@ export const ZoomableImage = ({
   const initialScale = useRef(1);
   const dragStart = useRef({ x: 0, y: 0 });
   const singleTouchStart = useRef({ x: 0, y: 0, time: 0 });
+  const didTouchGestureRef = useRef(false);
 
   const isZoomed = scale > 1.05;
+
+  // Reset inline zoom cleanly whenever active image or colour variant changes
+  useEffect(() => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+    setIsDragging(false);
+  }, [src]);
 
   const handleResetZoom = useCallback(() => {
     setScale(1);
@@ -64,8 +72,10 @@ export const ZoomableImage = ({
   );
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    didTouchGestureRef.current = false;
     if (e.touches.length === 2) {
       // Pinch to zoom initiation
+      didTouchGestureRef.current = true;
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
@@ -85,6 +95,7 @@ export const ZoomableImage = ({
 
       // Check for double tap
       if (now - lastTouchTime.current < 300) {
+        didTouchGestureRef.current = true;
         handleDoubleTap(touch.clientX, touch.clientY);
         lastTouchTime.current = 0;
         return;
@@ -104,6 +115,7 @@ export const ZoomableImage = ({
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length === 2 && initialDistance.current > 0) {
       // Handle pinch zoom
+      didTouchGestureRef.current = true;
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
@@ -117,11 +129,21 @@ export const ZoomableImage = ({
       }
     } else if (e.touches.length === 1 && isZoomed && isDragging) {
       // Pan while zoomed
+      didTouchGestureRef.current = true;
       const touch = e.touches[0];
       const maxOffset = (scale - 1) * 120;
       const newX = Math.max(-maxOffset, Math.min(maxOffset, touch.clientX - dragStart.current.x));
       const newY = Math.max(-maxOffset, Math.min(maxOffset, touch.clientY - dragStart.current.y));
       setPosition({ x: newX, y: newY });
+    } else if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      const movedDist = Math.hypot(
+        touch.clientX - singleTouchStart.current.x,
+        touch.clientY - singleTouchStart.current.y
+      );
+      if (movedDist > 12) {
+        didTouchGestureRef.current = true;
+      }
     }
   };
 
@@ -141,7 +163,12 @@ export const ZoomableImage = ({
       const deltaY = Math.abs(touch.clientY - singleTouchStart.current.y);
       const duration = Date.now() - singleTouchStart.current.time;
 
-      if (duration < 500 && Math.abs(deltaX) > 45 && deltaY < 60) {
+      if (Math.abs(deltaX) > 18 || deltaY > 18) {
+        didTouchGestureRef.current = true;
+      }
+
+      if (duration < 600 && Math.abs(deltaX) > 40 && deltaY < 75) {
+        didTouchGestureRef.current = true;
         if (deltaX < 0 && onSwipeLeft) {
           hapticLight();
           onSwipeLeft();
@@ -150,6 +177,12 @@ export const ZoomableImage = ({
           onSwipeRight();
         }
       }
+    }
+
+    if (didTouchGestureRef.current) {
+      setTimeout(() => {
+        didTouchGestureRef.current = false;
+      }, 350);
     }
   };
 
@@ -160,11 +193,15 @@ export const ZoomableImage = ({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onClick={() => {
+        if (didTouchGestureRef.current) {
+          didTouchGestureRef.current = false;
+          return;
+        }
         if (!isZoomed && onClick) {
           onClick();
         }
       }}
-      className={`relative select-none overflow-hidden touch-manipulation flex items-center justify-center ${containerClassName}`}
+      className={`relative select-none overflow-hidden touch-pan-y flex items-center justify-center ${containerClassName}`}
     >
       <img
         src={src}

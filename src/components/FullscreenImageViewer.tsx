@@ -57,21 +57,28 @@ export const FullscreenImageViewer: React.FC<FullscreenImageViewerProps> = ({
 
   const isZoomed = scale > 1.05;
 
-  // Sync initial index when modal opens or initialIndex changes
+  const wasOpenRef = useRef(false);
+
+  // Sync initial index strictly when modal opens (never reset mid-swipe while already open)
   useEffect(() => {
-    if (isOpen) {
-      const validIndex = Math.max(0, Math.min(initialIndex, displayItems.length - 1));
+    if (isOpen && !wasOpenRef.current) {
+      const validIndex = Math.max(0, Math.min(initialIndex, Math.max(0, displayItems.length - 1)));
       setCurrentIndex(validIndex);
       setScale(1);
       setPosition({ x: 0, y: 0 });
-      // Prevent background scrolling while modal is open
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
     }
+    wasOpenRef.current = isOpen;
   }, [isOpen, initialIndex, displayItems.length]);
+
+  // Prevent background scrolling while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
 
   // Auto-scroll active thumbnail into view in the bottom bar
   useEffect(() => {
