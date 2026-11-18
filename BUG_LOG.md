@@ -271,6 +271,31 @@
   - **Root Cause**: `CartView.tsx` interpolated `{col.name} (${col.shortRole})`, which caused duplicate text such as `black(black)` whenever `shortRole` mirrored the colour name.
   - **Permanent Guardrail**: Render only the Title-Cased colour name inside Cart `<option>` labels while preserving raw `col.name` as `option.value` and matching `currentColorObj?.name` so variant prices, photos, and order snapshots remain synced.
 
+- [x] **Bug ID: BUG-UI-025 - Order Bill Receipt Header Badge & Subtitle Removal**
+  - **Summary**: Removed the `TAX INVOICE` badge `<span>`, `SmartRun Express · Doorstep Dispatch` subtitle `<p>`, and `Verified` badge `<span>` from the Cart `Order Bill Receipt` header in `CartView.tsx`, aligning `Order Bill Receipt` and the item count cleanly on a single row.
+  - **Root Cause**: Redundant micro-badges (`TAX INVOICE`, `Verified`) and dispatch tagline cluttered the compact receipt header inside the Cart page.
+  - **Permanent Guardrail**: Keep the Cart `Order Bill Receipt` header streamlined with only the Receipt icon, `Order Bill Receipt` title, and item count (`N Items`).
+
+- [x] **Bug ID: BUG-UI-026 - Receipt Heading Rename & Itemized Order List Label Removal**
+  - **Summary**: Renamed the Cart receipt card `<h3>` heading from `Order Bill Receipt` to `Receipt` and removed the uppercase `Itemized Order List` `<span>` above the line-item list in `CartView.tsx`.
+  - **Root Cause**: Verbose header text (`Order Bill Receipt`) and the extra `Itemized Order List` sub-label added visual clutter to the compact bill card.
+  - **Permanent Guardrail**: Keep the receipt card header titled cleanly as `Receipt` with direct itemized product lines beneath the header divider.
+
+- [x] **Bug ID: BUG-UI-027 - Itemized Receipt Line Prices Aligned to Full Undiscounted MRP**
+  - **Summary**: Updated each itemized product row in `CartView.tsx`'s `Receipt` card to compute `lineMrpTotal` using color-variant MRP (`colorObj.mrp ?? product.originalPrice ?? product.price`) × `quantity`, display full undiscounted price (`₹{lineMrpTotal}`) in the right-aligned `<span>`, and remove the redundant strikethrough MRP tag next to `Qty`.
+  - **Root Cause**: Itemized receipt rows previously displayed post-discount `lineTotal` without variant MRP lookup, causing line items not to sum to `Items Total` (`totalMRP`) when discounts or colour variants applied.
+  - **Permanent Guardrail**: Always resolve `colorObj.mrp` consistently in both `totalMRP` and `Receipt` itemized rows so the sum of displayed line-item prices equals `Items Total` cleanly before `Item Discount` is deducted.
+
+- [x] **Bug ID: BUG-UI-028 - Unified Receipt Semicircle Cutouts & Dark Dashed Cutting-Pattern Dividers**
+  - **Summary**: Added matching side semicircle cutouts (`rounded-r-full` / `rounded-l-full` tinted to `#f8fafc` cart canvas) and darkened the dashed perforation line (`border-b-[1.5px] border-dashed border-slate-700/85`) on both the upper divider (between product rows and `Bill Details`) and the lower divider (above `Total Bill`) inside `CartView.tsx`.
+  - **Root Cause**: The upper divider lacked semicircle edge cutouts and both dashed lines used pale `border-slate-200`/`border-slate-300` strokes instead of a cohesive dark cutting-ticket pattern.
+  - **Permanent Guardrail**: Keep both Receipt card horizontal dividers in `CartView.tsx` synchronized with matching semicircle cutouts on both edges and dark `border-slate-700/85` dashed perforation lines.
+
+- [x] **Bug ID: BUG-UI-029 - Cart Page & Navbar `#fefae0` Canvas with Crisp White Cards**
+  - **Summary**: Updated `CartView.tsx` page canvas (`min-h-screen`), `#cart-fixed-navbar` (`bg-[#fefae0]/95`, warm border `#ece4b8/90`), and Receipt semicircle cutouts (`bg-[#fefae0]`) across empty and populated cart views while keeping all card boxes (`bg-white`), including Cancellation Policy and `#cart-sticky-checkout-bar`, clean white.
+  - **Root Cause**: Cart page previously used cool slate `#f8fafc` canvas and white fixed header; changing canvas without updating Receipt edge cutouts would leave mismatched grey notches.
+  - **Permanent Guardrail**: Whenever `CartView` page background changes, keep `#cart-fixed-navbar` and all Receipt perforation semicircle cutouts synchronized to the exact canvas hex (`#fefae0`) while preserving `bg-white` across all content cards and checkout bars.
+
 
 
 

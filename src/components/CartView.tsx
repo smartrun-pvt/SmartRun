@@ -863,7 +863,7 @@ export const CartView = ({
   // ==========================================================================
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans pb-16">
+      <div className="min-h-screen bg-[#fefae0] text-slate-900 font-sans pb-16">
         <SEOHead
           title="Shopping Cart | SmartRun Kolkata"
           description="Your SmartRun shopping cart is empty. Explore express electrical items and building materials."
@@ -871,7 +871,7 @@ export const CartView = ({
         />
         <header
           id="cart-fixed-navbar"
-          className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-200/90 shadow-[0_2px_12px_rgba(15,23,42,0.05)]"
+          className="fixed top-0 left-0 right-0 z-40 bg-[#fefae0]/95 backdrop-blur-xl border-b border-[#ece4b8]/90 shadow-[0_2px_12px_rgba(15,23,42,0.05)]"
           style={{
             paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))',
             paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
@@ -984,7 +984,7 @@ export const CartView = ({
   // FULL CART VIEW LAYOUT
   // ==========================================================================
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 pb-[calc(var(--safe-area-bottom,env(safe-area-inset-bottom,0px))+7.5rem)] sm:pb-36 font-sans">
+    <div className="min-h-screen bg-[#fefae0] text-slate-900 pb-[calc(var(--safe-area-bottom,env(safe-area-inset-bottom,0px))+7.5rem)] sm:pb-36 font-sans">
       <SEOHead
         title={`Shopping Cart (${items.length} ${items.length === 1 ? 'item' : 'items'}) | SmartRun Kolkata`}
         description="Review your electrical supplies and building materials cart with instant express delivery to your doorstep in Kolkata."
@@ -993,7 +993,7 @@ export const CartView = ({
       {/* 1. FIXED TOP NAVBAR */}
       <header
         id="cart-fixed-navbar"
-        className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-200/90 shadow-[0_2px_12px_rgba(15,23,42,0.05)]"
+        className="fixed top-0 left-0 right-0 z-40 bg-[#fefae0]/95 backdrop-blur-xl border-b border-[#ece4b8]/90 shadow-[0_2px_12px_rgba(15,23,42,0.05)]"
         style={{
           paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))',
           paddingLeft: 'var(--safe-area-left, env(safe-area-inset-left, 0px))',
@@ -1497,44 +1497,31 @@ export const CartView = ({
         <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs relative overflow-hidden mb-4">
           
           {/* Receipt Header */}
-          <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200/60 shrink-0">
                 <Receipt className="w-4 h-4" />
               </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h3 className="text-sm font-black text-slate-900 tracking-tight">
-                    Order Bill Receipt
-                  </h3>
-                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-sans">
-                    TAX INVOICE
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 font-medium">
-                  SmartRun Express · Doorstep Dispatch
-                </p>
-              </div>
+              <h3 className="text-sm font-black text-slate-900 tracking-tight">
+                Receipt
+              </h3>
             </div>
             <div className="text-right">
               <span className="text-[11px] font-bold text-slate-600 block">
                 {activeItemsForBill.length} {activeItemsForBill.length === 1 ? 'Item' : 'Items'}
-              </span>
-              <span className="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 uppercase">
-                Verified
               </span>
             </div>
           </div>
 
           {/* Itemized Items Breakdown (Zomato Style) */}
           <div className="py-3 space-y-2.5">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-              Itemized Order List
-            </span>
             {activeItemsForBill.map((item, idx) => {
-              const itemPrice = Number(item.product.price || 0);
-              const itemMrp = Number(item.product.originalPrice || item.product.price || 0);
-              const lineTotal = itemPrice * item.quantity;
+              const availableColors = getProductColorOptions(item.product);
+              const currentColor = item.selectedColor || item.product.selectedColor;
+              const colorObj = availableColors.find((c) => c.name.toLowerCase() === (currentColor || '').toLowerCase());
+              const itemMrp = (colorObj && typeof colorObj.mrp === 'number' && colorObj.mrp > 0)
+                ? colorObj.mrp
+                : Number(item.product.originalPrice || item.product.price || 0);
               const lineMrpTotal = itemMrp * item.quantity;
 
               return (
@@ -1553,17 +1540,12 @@ export const CartView = ({
                         {item.selectedColor && (
                           <span className="text-slate-500">· {item.selectedColor}</span>
                         )}
-                        {itemMrp > itemPrice && (
-                          <span className="line-through text-slate-400">
-                            ₹{lineMrpTotal.toLocaleString('en-IN')}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="font-bold text-slate-900 block">
-                      ₹{lineTotal.toLocaleString('en-IN')}
+                    <span className="font-bold text-slate-900 tabular-nums block">
+                      ₹{lineMrpTotal.toLocaleString('en-IN')}
                     </span>
                   </div>
                 </div>
@@ -1571,8 +1553,12 @@ export const CartView = ({
             })}
           </div>
 
-          {/* Dashed separator */}
-          <div className="border-b border-dashed border-slate-200 my-2" />
+          {/* Receipt Perforation Cutout Divider (Items -> Bill Details) */}
+          <div className="relative my-2.5 -mx-4 sm:-mx-5 flex items-center">
+            <div className="w-3.5 h-5 -ml-[1px] rounded-r-full bg-[#fefae0] border-r border-y border-slate-200/90 shrink-0" />
+            <div className="flex-1 border-b-[1.5px] border-dashed border-slate-700/85 mx-1.5" />
+            <div className="w-3.5 h-5 -mr-[1px] rounded-l-full bg-[#fefae0] border-l border-y border-slate-200/90 shrink-0" />
+          </div>
 
           {/* Zomato Cost Breakdown / Bill Details */}
           <div className="py-2 space-y-2 text-xs">
@@ -1698,11 +1684,11 @@ export const CartView = ({
             })()}
           </div>
 
-          {/* Zomato Perforation Cutout Effect */}
+          {/* Receipt Perforation Cutout Divider (Bill Details -> Total Bill) */}
           <div className="relative my-3 -mx-4 sm:-mx-5 flex items-center">
-            <div className="w-3.5 h-4 -ml-0.5 rounded-r-full bg-slate-100 border-r border-y border-slate-200" />
-            <div className="flex-1 border-b border-dashed border-slate-300 mx-1" />
-            <div className="w-3.5 h-4 -mr-0.5 rounded-l-full bg-slate-100 border-l border-y border-slate-200" />
+            <div className="w-3.5 h-5 -ml-[1px] rounded-r-full bg-[#fefae0] border-r border-y border-slate-200/90 shrink-0" />
+            <div className="flex-1 border-b-[1.5px] border-dashed border-slate-700/85 mx-1.5" />
+            <div className="w-3.5 h-5 -mr-[1px] rounded-l-full bg-[#fefae0] border-l border-y border-slate-200/90 shrink-0" />
           </div>
 
           {/* Grand Total (Total Bill) */}
@@ -1734,7 +1720,7 @@ export const CartView = ({
         </div>
 
         {/* 7. CANCELLATION POLICY (Matching reference photo) */}
-        <div className="px-4 py-3 bg-slate-50/80 rounded-2xl border border-slate-200/60 mb-6 text-left">
+        <div className="px-4 py-3 bg-white rounded-2xl border border-slate-200/80 shadow-2xs mb-6 text-left">
           <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
             CANCELLATION POLICY
           </h4>
