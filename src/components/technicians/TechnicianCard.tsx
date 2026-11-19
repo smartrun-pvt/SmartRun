@@ -8,7 +8,7 @@ interface TechnicianCardProps {
   onSelect: (technician: Technician) => void;
 }
 
-export const TechnicianCard = ({
+export const TechnicianCard = React.memo(({
   technician,
   onSelect
 }: TechnicianCardProps) => {
@@ -28,7 +28,7 @@ export const TechnicianCard = ({
         hapticSelection();
         onSelect(technician);
       }}
-      className="group relative bg-white hover:bg-slate-50/80 rounded-2xl p-4 sm:p-5 transition-all duration-200 cursor-pointer shadow-2xs hover:shadow-md flex flex-col justify-between select-none"
+      className="group relative bg-white hover:bg-slate-50/80 rounded-2xl p-4 sm:p-5 transition-[background-color,box-shadow] duration-200 cursor-pointer shadow-2xs hover:shadow-md flex flex-col justify-between select-none content-auto"
     >
       <div>
         {/* Top Row: Left Photo + Right (Name, Rating, Experience, Jobs Done) */}
@@ -38,8 +38,9 @@ export const TechnicianCard = ({
             <img
               src={technician.photo}
               alt={displayName}
-              className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
+              className="w-full h-full object-cover object-top transition-transform duration-300 ease-out group-hover:scale-105"
               loading="lazy"
+              decoding="async"
             />
           </div>
 
@@ -86,7 +87,7 @@ export const TechnicianCard = ({
             hapticSelection();
             onSelect(technician);
           }}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white text-xs font-bold transition-all cursor-pointer"
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white text-xs font-bold transition-colors cursor-pointer"
         >
           <span>View Details</span>
           <ChevronRight className="w-3.5 h-3.5" />
@@ -94,4 +95,5 @@ export const TechnicianCard = ({
       </div>
     </div>
   );
-};
+});
+TechnicianCard.displayName = 'TechnicianCard';

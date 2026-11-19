@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useDeferredValue } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Zap, User, ChevronDown, Home, Briefcase, Building2, MapPin, Wrench, Search, X, SlidersHorizontal, ArrowUpDown, ArrowRight, ArrowLeft, Check, Navigation, Loader2 } from 'lucide-react';
 import { KolkataArea, SavedAddress, UserProfile, Product } from '../types';
@@ -56,7 +56,7 @@ function getHeaderDisplayLocation(currentArea: KolkataArea | null, activeAddress
   };
 }
 
-export const Header = ({
+export const Header = React.memo(({
   currentArea,
   activeAddress,
   onOpenLocationModal,
@@ -84,7 +84,8 @@ export const Header = ({
   const searchDropdownRef = useRef<HTMLFormElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const locationInfo = getHeaderDisplayLocation(currentArea, activeAddress);
+  const locationInfo = useMemo(() => getHeaderDisplayLocation(currentArea, activeAddress), [currentArea, activeAddress]);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   // Show All Filters button strictly on Electrical, Construction, and Technicians pages (Hidden on Home and others)
   const currentPath = location.pathname.toLowerCase();
@@ -187,19 +188,23 @@ export const Header = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Live matching products across the entire database (excluding demo items)
-  const searchResultsData = useMemo(() => {
-    const q = (searchQuery || '').trim();
-    if (!q || isTechniciansPage) {
-      return { results: [], electricalCount: 0, constructionCount: 0, suggestedCategory: 'electrical' as const };
-    }
-    const filteredCatalog = (allProducts || []).filter((p) => {
+  // Pre-filter non-demo catalog once when product list updates
+  const cleanCatalog = useMemo(() => {
+    return (allProducts || []).filter((p) => {
       const name = String(p.name || '').trim().toLowerCase();
       const brand = String(p.brand || '').trim().toLowerCase();
       return name !== 'demo' && !name.includes('demo product') && brand !== 'demo';
     });
-    return searchAllProducts(q, filteredCatalog, 6);
-  }, [searchQuery, allProducts, isTechniciansPage]);
+  }, [allProducts]);
+
+  // Live matching products across the entire database (deferred so typing never lags)
+  const searchResultsData = useMemo(() => {
+    const q = (deferredSearchQuery || '').trim();
+    if (!q || isTechniciansPage) {
+      return { results: [], electricalCount: 0, constructionCount: 0, suggestedCategory: 'electrical' as const };
+    }
+    return searchAllProducts(q, cleanCatalog, 6);
+  }, [deferredSearchQuery, cleanCatalog, isTechniciansPage]);
 
   // Instant Enter key handler for search input - navigates directly without delay
   const handleSearchSubmit = (e?: React.FormEvent) => {
@@ -305,12 +310,12 @@ export const Header = ({
 
   return (
     <header
-      className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xs [transform:translateZ(0)] [backface-visibility:hidden] will-change-transform"
+      className="sticky top-0 z-40 bg-[#fffdf6]/95 backdrop-blur-md border-b border-amber-200/50 shadow-[0_2px_10px_rgba(120,53,15,0.04)] [transform:translateZ(0)] [backface-visibility:hidden]"
       style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
     >
       {/* Main Brand & Action Bar (collapses smoothly on product detail page scroll) */}
       <div
-        className={`overflow-hidden transition-[max-height,opacity,padding] duration-200 ease-out [transform:translateZ(0)] ${
+        className={`overflow-hidden bg-gradient-to-b from-[#fff9eb]/80 to-[#fffdf6]/40 transition-[max-height,opacity,padding] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] [transform:translateZ(0)] ${
           isProductDetailPage && isScrolled
             ? 'max-h-0 opacity-0 pointer-events-none py-0'
             : 'max-h-24 opacity-100 py-1.5 sm:py-2.5'
@@ -401,7 +406,7 @@ export const Header = ({
     </div>
 
       {/* Row 2: Fixed Liquid Glass Search Bar + Right-side All Filters Button (Visible strictly on Electrical, Construction & Wiring, NOT on Home) */}
-      <div className="border-t border-slate-100/80 bg-white/95 px-3 sm:px-6 py-1.5 sm:py-2.5 [transform:translateZ(0)]">
+      <div className="border-t border-amber-200/35 bg-[#fffdf6]/95 px-3 sm:px-6 py-1.5 sm:py-2.5 [transform:translateZ(0)]">
         <div className="max-w-3xl mx-auto w-full flex items-center gap-2 sm:gap-3">
           {/* Back Button beside search bar when viewing product details - only arrow and nothing */}
           {isProductDetailPage && (
@@ -409,7 +414,7 @@ export const Header = ({
               id="header-product-back-btn"
               type="button"
               onClick={handleProductBack}
-              className="p-1.5 sm:p-2 -ml-1 min-w-[36px] min-h-[36px] text-slate-800 hover:text-black hover:bg-slate-100 active:bg-slate-200 rounded-full transition-colors cursor-pointer flex items-center justify-center shrink-0 active:scale-90"
+              className="p-1.5 sm:p-2 -ml-1 min-w-[36px] min-h-[36px] text-slate-800 hover:text-black hover:bg-amber-100/60 active:bg-amber-100 rounded-full transition-colors cursor-pointer flex items-center justify-center shrink-0 active:scale-90"
               title={isConstructionDetailPage ? 'Back to Construction Store' : 'Back to Electrical Store'}
               aria-label="Back"
             >
@@ -417,7 +422,7 @@ export const Header = ({
             </button>
           )}
 
-          {/* Reduced Search Bar */}
+          {/* Reduced Search Bar with Sculpted Depth Effect */}
           <form
             ref={searchDropdownRef}
             onSubmit={handleSearchSubmit}
@@ -426,9 +431,9 @@ export const Header = ({
             toolname="search_smartrun_catalog"
             tooldescription="Search SmartRun Kolkata express catalog for electrical wires, switches, MCBs, construction materials, or licensed electricians."
           >
-            <div className="relative flex items-center w-full rounded-full bg-slate-100 hover:bg-slate-100/90 focus-within:bg-white border border-slate-200/80 focus-within:border-[#00875a]/50 focus-within:ring-2 focus-within:ring-[#00875a]/20 shadow-[0_2px_12px_rgba(0,0,0,0.03)] focus-within:shadow-[0_4px_20px_rgba(0,135,90,0.12)] transition-colors duration-150">
+            <div className="relative flex items-center w-full rounded-full bg-gradient-to-b from-[#f3efe5] to-[#fbf9f3] hover:from-[#efeae0] hover:to-[#fcfaf5] focus-within:from-white focus-within:to-white border border-stone-300/80 focus-within:border-[#00875a]/55 focus-within:ring-2 focus-within:ring-[#00875a]/15 shadow-[inset_0_2px_5px_rgba(15,23,42,0.09),inset_0_1px_1.5px_rgba(15,23,42,0.06),0_1px_0_rgba(255,255,255,0.95),0_2px_6px_rgba(120,53,15,0.06)] focus-within:shadow-[0_6px_18px_-2px_rgba(0,135,90,0.16),0_2px_6px_rgba(15,23,42,0.07),inset_0_1px_2px_rgba(15,23,42,0.03)] transition-[background-color,border-color,box-shadow] duration-200 ease-out">
               {/* Google-style Magnifying Glass Icon */}
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#00875a] pointer-events-none transition-colors">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-[#00875a] pointer-events-none transition-colors">
                 <Search className="w-4 h-4 sm:w-4.5 sm:h-4.5" strokeWidth={2.2} />
               </div>
 
@@ -621,4 +626,5 @@ export const Header = ({
       </div>
     </header>
   );
-};
+});
+Header.displayName = 'Header';

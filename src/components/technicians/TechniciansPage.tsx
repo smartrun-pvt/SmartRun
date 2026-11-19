@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, X, RefreshCw, UserCheck, Wrench, Sparkles, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -28,7 +28,7 @@ const INITIAL_FILTERS: TechnicianFilterState = {
   minRating: undefined
 };
 
-export const TechniciansPage = ({
+export const TechniciansPage = React.memo(({
   searchQuery: propSearchQuery = '',
   onSearchChange,
   onSelectTechnician
@@ -37,6 +37,7 @@ export const TechniciansPage = ({
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
   const activeQuery = propSearchQuery !== undefined ? propSearchQuery : urlQuery;
+  const deferredQuery = useDeferredValue(activeQuery);
 
   const [allTechnicians, setAllTechnicians] = useState<Technician[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -122,8 +123,8 @@ export const TechniciansPage = ({
   const filteredTechnicians = useMemo(() => {
     return allTechnicians.filter((tech) => {
       // 1. Text Search Query
-      if (activeQuery.trim()) {
-        const q = activeQuery.toLowerCase().trim();
+      if (deferredQuery.trim()) {
+        const q = deferredQuery.toLowerCase().trim();
         const matchesName = tech.name.toLowerCase().includes(q);
         const matchesTitle = tech.title.toLowerCase().includes(q);
         const matchesBadge = tech.badgeId.toLowerCase().includes(q);
@@ -264,7 +265,7 @@ export const TechniciansPage = ({
 
       return true;
     });
-  }, [allTechnicians, activeQuery, filters]);
+  }, [allTechnicians, deferredQuery, filters]);
 
   // Sort logic (Handles Price Low/High, Top Rated, Nearest, and Recommended)
   const sortedTechnicians = useMemo(() => {
@@ -732,4 +733,5 @@ export const TechniciansPage = ({
       />
     </div>
   );
-};
+});
+TechniciansPage.displayName = 'TechniciansPage';

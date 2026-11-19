@@ -49,7 +49,7 @@ const PersonNavIcon = ({
   );
 };
 
-export const FloatingBottomNav = ({
+export const FloatingBottomNav = React.memo(({
   activeTab,
   activeCategory,
   onTabChange,
@@ -69,10 +69,10 @@ export const FloatingBottomNav = ({
       id="floating-liquid-bottom-navbar"
       aria-label="Bottom Navigation"
       style={{ bottom: 'calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 0.55rem)' }}
-      className="fixed left-1/2 -translate-x-1/2 z-40 w-[93vw] max-w-[390px] sm:max-w-[430px]"
+      className="fixed left-1/2 -translate-x-1/2 z-40 w-[93vw] max-w-[390px] sm:max-w-[430px] [transform:translateZ(0)] [backface-visibility:hidden]"
     >
       {/* Transparent glassmorphism floating navbar container */}
-      <div className="flex items-center justify-between gap-1 sm:gap-1.5 px-3 py-2 sm:py-2.5 rounded-full bg-white/40 backdrop-blur-2xl backdrop-saturate-[180%] border border-white/50 shadow-[0_12px_32px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.03] transition-all duration-300">
+      <div className="flex items-center justify-between gap-1 sm:gap-1.5 px-3 py-2 sm:py-2.5 rounded-full bg-white/55 backdrop-blur-lg backdrop-saturate-[160%] border border-white/60 shadow-[0_12px_32px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.03] transition-shadow duration-200">
         {/* 1. Home Button */}
         <button
           id="floating-nav-home"
@@ -206,4 +206,5 @@ export const FloatingBottomNav = ({
       </div>
     </nav>
   );
-};
+});
+FloatingBottomNav.displayName = 'FloatingBottomNav';

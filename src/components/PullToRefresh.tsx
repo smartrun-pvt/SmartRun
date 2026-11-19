@@ -29,10 +29,7 @@ export const PullToRefresh = ({
     pullDistance,
     progress,
     canRelease,
-    containerRef,
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd
+    containerRef
   } = usePullToRefresh({
     onRefresh,
     threshold: 65,
@@ -41,25 +38,23 @@ export const PullToRefresh = ({
   });
 
   const showIndicator = pullDistance > 0 || isRefreshing;
+  const isActivePull = isPulling || isRefreshing;
 
   return (
     <div
       ref={containerRef}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       className={`relative w-full ${className}`}
     >
       {/* Pull to refresh floating indicator */}
       {showIndicator && (
         <div
-          className="absolute left-0 right-0 top-0 z-40 flex items-center justify-center pointer-events-none transition-all duration-150 ease-out"
+          className="absolute left-0 right-0 top-0 z-40 flex items-center justify-center pointer-events-none transition-[transform,opacity] duration-150 ease-out"
           style={{
-            transform: `translateY(${Math.max(0, pullDistance - 48)}px)`,
+            transform: `translate3d(0, ${Math.max(0, pullDistance - 48)}px, 0)`,
             opacity: Math.min(1, Math.max(0, (pullDistance - 10) / 30))
           }}
         >
-          <div className="flex items-center gap-2.5 px-4 py-2 bg-slate-900/95 text-white rounded-full shadow-xl border border-slate-700/80 backdrop-blur-md text-xs font-semibold">
+          <div className="flex items-center gap-2.5 px-4 py-2 bg-slate-900/95 text-white rounded-full shadow-xl border border-slate-700/80 text-xs font-semibold">
             {isRefreshing ? (
               <>
                 <RefreshCw className="w-3.5 h-3.5 text-amber-400 animate-spin" />
@@ -83,12 +78,14 @@ export const PullToRefresh = ({
         </div>
       )}
 
-      {/* Content shifted down smoothly during pull */}
+      {/* Content shifted down smoothly during pull (no permanent GPU layer bloat when idle) */}
       <div
-        className="w-full transition-transform duration-150 ease-out will-change-transform"
-        style={{
-          transform: isPulling || isRefreshing ? `translateY(${pullDistance * 0.35}px)` : 'none'
-        }}
+        className={`w-full ${isActivePull ? 'transition-transform duration-150 ease-out will-change-transform' : ''}`}
+        style={
+          isActivePull
+            ? { transform: `translate3d(0, ${pullDistance * 0.35}px, 0)` }
+            : undefined
+        }
       >
         {children}
       </div>

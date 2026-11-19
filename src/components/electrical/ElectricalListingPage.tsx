@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
@@ -63,7 +63,7 @@ const SORT_LABELS: Record<SortOption, string> = {
   newest: 'Newest First'
 };
 
-export const ElectricalListingPage = ({
+export const ElectricalListingPage = React.memo(({
   onAddToCart,
   onUpdateQuantity,
   cartItems = [],
@@ -95,6 +95,7 @@ export const ElectricalListingPage = ({
 
   const [sortOption, setSortOption] = useState<SortOption>('popularity');
   const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [isSideFilterOpen, setIsSideFilterOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<'category' | 'brand' | 'type' | 'price' | 'sort' | null>(null);
@@ -187,7 +188,7 @@ export const ElectricalListingPage = ({
     setLoading(true);
 
     const loadData = () => {
-      fetchElectricalProducts(filters, sortOption, searchQuery)
+      fetchElectricalProducts(filters, sortOption, deferredSearchQuery)
         .then(({ products: data, total }) => {
           if (isMounted) {
             setProducts(data);
@@ -219,7 +220,7 @@ export const ElectricalListingPage = ({
       isMounted = false;
       supabase.removeChannel(channel);
     };
-  }, [filters, sortOption, searchQuery]);
+  }, [filters, sortOption, deferredSearchQuery]);
 
   // Sync subcategory filter if URL param changes
   useEffect(() => {
@@ -317,11 +318,17 @@ export const ElectricalListingPage = ({
     return count;
   }, [filters]);
 
-  // Helper to check cart quantity
-  const getProductCartQty = (productId: string) => {
-    const match = cartItems.find((i) => String(i.product.id) === String(productId));
-    return match ? match.quantity : 0;
-  };
+  // O(1) cart quantity lookup map
+  const cartQtyById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of cartItems) {
+      const id = String(item.product.id);
+      map.set(id, (map.get(id) || 0) + item.quantity);
+    }
+    return map;
+  }, [cartItems]);
+
+  const getProductCartQty = (productId: string) => cartQtyById.get(String(productId)) || 0;
 
   // Convert ElectricalProduct to local Product for cart handler
   const adaptToCartProduct = (ep: ElectricalProduct): Product => ({
@@ -496,9 +503,10 @@ export const ElectricalListingPage = ({
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-6 sm:gap-y-8">
-            {paginatedProducts.map((product, index) => {
+            {paginatedProducts.map((product) => {
               const cartQty = getProductCartQty(product.id);
               const adapted = adaptToCartProduct(product);
+              const colorOptions = getProductColorOptions(adapted);
               const primaryImage =
                 product.image_urls[0] ||
                 NEUTRAL_PRODUCT_PLACEHOLDER;
@@ -506,7 +514,7 @@ export const ElectricalListingPage = ({
               return (
                 <div
                   key={product.id}
-                  className="group flex flex-col justify-between transition-all duration-300 ease-out border border-transparent hover:border-slate-200/80 hover:shadow-xl rounded-2xl p-2 sm:p-2.5 hover:-translate-y-1 bg-white"
+                  className="group flex flex-col justify-between transition-[transform,box-shadow,border-color] duration-200 ease-out border border-transparent hover:border-slate-200/80 hover:shadow-xl rounded-2xl p-2 sm:p-2.5 hover:-translate-y-1 bg-white content-auto"
                 >
                   {/* Clean Product Image with Floating Discount Tag */}
                   <Link
@@ -552,7 +560,7 @@ export const ElectricalListingPage = ({
                       </div>
 
                       {/* Available Colours / Finishes Indicator */}
-                      {getProductColorOptions(adapted).length > 0 && (
+                      {colorOptions.length > 0 && (
                         <div className="mt-1.5 pt-1 border-t border-dashed border-slate-100 flex items-center justify-between gap-1">
                           <span className="text-[10px] font-bold text-slate-500">
                             {isPipeProduct(adapted)
@@ -562,7 +570,7 @@ export const ElectricalListingPage = ({
                               : 'Colours / Finishes:'}
                           </span>
                           <div className="flex items-center gap-1 flex-wrap justify-end">
-                            {getProductColorOptions(adapted).slice(0, 5).map((c) => (
+                            {colorOptions.slice(0, 5).map((c) => (
                               <span
                                 key={c.name}
                                 title={`${c.name} (${c.shortRole || c.name})`}
@@ -570,9 +578,9 @@ export const ElectricalListingPage = ({
                                 style={{ backgroundColor: c.hex }}
                               />
                             ))}
-                            {getProductColorOptions(adapted).length > 5 && (
+                            {colorOptions.length > 5 && (
                               <span className="text-[9px] text-slate-400 font-bold">
-                                +{getProductColorOptions(adapted).length - 5}
+                                +{colorOptions.length - 5}
                               </span>
                             )}
                           </div>
@@ -1035,4 +1043,5 @@ export const ElectricalListingPage = ({
 
     </div>
   );
-};
+});
+ElectricalListingPage.displayName = 'ElectricalListingPage';

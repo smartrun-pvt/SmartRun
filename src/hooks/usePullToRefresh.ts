@@ -37,6 +37,9 @@ export function usePullToRefresh({
 
   const startYRef = useRef<number | null>(null);
   const isDraggingRef = useRef(false);
+  const isPullingRef = useRef(false);
+  const pullDistanceRef = useRef(0);
+  const rafIdRef = useRef<number | null>(null);
   const hasTriggeredHapticRef = useRef(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -46,6 +49,21 @@ export function usePullToRefresh({
       return containerRef.current.scrollTop <= 0 && window.scrollY <= 0;
     }
     return (window.pageYOffset || document.documentElement.scrollTop || 0) <= 0;
+  }, []);
+
+  const resetPullState = useCallback(() => {
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    if (isPullingRef.current || pullDistanceRef.current !== 0) {
+      isPullingRef.current = false;
+      pullDistanceRef.current = 0;
+      setPullDistance(0);
+      setIsPulling(false);
+      setCanRelease(false);
+    }
+    hasTriggeredHapticRef.current = false;
   }, []);
 
   const handleTouchStart = useCallback(
@@ -68,9 +86,7 @@ export function usePullToRefresh({
       if (disabled || isRefreshing || !isDraggingRef.current || startYRef.current === null) return;
       if (!isAtTop()) {
         isDraggingRef.current = false;
-        setPullDistance(0);
-        setIsPulling(false);
-        setCanRelease(false);
+        resetPullState();
         return;
       }
 
@@ -78,39 +94,57 @@ export function usePullToRefresh({
       if (!touch) return;
 
       const deltaY = touch.clientY - startYRef.current;
-      if (deltaY > 5) {
-        setIsPulling(true);
-        // Non-linear damping calculation for smooth elastic resistance
+      if (deltaY > 8) {
         const damped = Math.min(maxPull, Math.pow(deltaY, 0.82) * 1.6);
-        setPullDistance(damped);
+        pullDistanceRef.current = damped;
 
-        const ready = damped >= threshold;
-        setCanRelease(ready);
+        if (rafIdRef.current === null) {
+          rafIdRef.current = requestAnimationFrame(() => {
+            rafIdRef.current = null;
+            const currentDamped = pullDistanceRef.current;
+            if (!isPullingRef.current) {
+              isPullingRef.current = true;
+              setIsPulling(true);
+            }
+            setPullDistance(currentDamped);
 
-        // Haptic feedback when crossing threshold
-        if (ready && !hasTriggeredHapticRef.current) {
-          hapticLight();
-          hasTriggeredHapticRef.current = true;
-        } else if (!ready && hasTriggeredHapticRef.current) {
-          hasTriggeredHapticRef.current = false;
+            const ready = currentDamped >= threshold;
+            setCanRelease(ready);
+
+            if (ready && !hasTriggeredHapticRef.current) {
+              hapticLight();
+              hasTriggeredHapticRef.current = true;
+            } else if (!ready && hasTriggeredHapticRef.current) {
+              hasTriggeredHapticRef.current = false;
+            }
+          });
         }
-      } else {
-        setPullDistance(0);
-        setIsPulling(false);
-        setCanRelease(false);
+      } else if (deltaY < -4) {
+        // User is scrolling down normally: immediately stop tracking so scrolling triggers zero state updates
+        isDraggingRef.current = false;
+        resetPullState();
       }
     },
-    [disabled, isRefreshing, isAtTop, maxPull, threshold]
+    [disabled, isRefreshing, isAtTop, maxPull, threshold, resetPullState]
   );
 
   const handleTouchEnd = useCallback(async () => {
     if (!isDraggingRef.current || disabled) return;
     isDraggingRef.current = false;
     startYRef.current = null;
+
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+
+    const finalPull = pullDistanceRef.current;
+    isPullingRef.current = false;
     setIsPulling(false);
 
-    if (pullDistance >= threshold && !isRefreshing) {
+    if (finalPull >= threshold && !isRefreshing) {
       setIsRefreshing(true);
+      pullDistanceRef.current = 55;
       setPullDistance(55); // Hold at active spinner height
       hapticSuccess();
 
@@ -119,22 +153,20 @@ export function usePullToRefresh({
       } catch (err) {
         console.warn('Pull-to-refresh error:', err);
       } finally {
-        // Quick visual confirmation before snapping back
         setTimeout(() => {
           setIsRefreshing(false);
+          pullDistanceRef.current = 0;
           setPullDistance(0);
           setCanRelease(false);
           hasTriggeredHapticRef.current = false;
         }, 350);
       }
     } else {
-      setPullDistance(0);
-      setCanRelease(false);
-      hasTriggeredHapticRef.current = false;
+      resetPullState();
     }
-  }, [disabled, pullDistance, threshold, isRefreshing, onRefresh]);
+  }, [disabled, threshold, isRefreshing, onRefresh, resetPullState]);
 
-  // Bind passive touch listeners to window when pulling starts
+  // Bind single set of passive touch listeners to window
   useEffect(() => {
     const handleWindowTouchStart = (e: TouchEvent) => {
       if (isAtTop()) {
@@ -143,7 +175,7 @@ export function usePullToRefresh({
     };
 
     const handleWindowTouchMove = (e: TouchEvent) => {
-      if (isDraggingRef.current && isAtTop()) {
+      if (isDraggingRef.current) {
         handleTouchMove(e);
       }
     };
@@ -160,6 +192,9 @@ export function usePullToRefresh({
     window.addEventListener('touchcancel', handleWindowTouchEnd, { passive: true });
 
     return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
       window.removeEventListener('touchstart', handleWindowTouchStart);
       window.removeEventListener('touchmove', handleWindowTouchMove);
       window.removeEventListener('touchend', handleWindowTouchEnd);

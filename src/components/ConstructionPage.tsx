@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import {
@@ -107,7 +107,7 @@ const SORT_LABELS: Record<SortOption, string> = {
   newest: 'Newest First'
 };
 
-export const ConstructionPage = ({
+export const ConstructionPage = React.memo(({
   onAddToCart,
   onUpdateQuantity,
   cartItems = [],
@@ -146,6 +146,7 @@ export const ConstructionPage = ({
 
   const [sortOption, setSortOption] = useState<SortOption>('popularity');
   const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [isSideFilterOpen, setIsSideFilterOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<'sort' | null>(null);
@@ -513,9 +514,9 @@ export const ConstructionPage = ({
       list = list.filter((p) => p.inStock);
     }
 
-    // Search Query (Multi-token, specifications & description matching)
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    // Search Query (Multi-token, specifications & description matching, deferred for smooth typing)
+    if (deferredSearchQuery.trim()) {
+      const q = deferredSearchQuery.toLowerCase().trim();
       const tokens = q.split(/\s+/).filter(Boolean);
       list = list.filter((p) => {
         const name = (p.name || '').toLowerCase();
@@ -552,7 +553,7 @@ export const ConstructionPage = ({
     }
 
     return list;
-  }, [rawProducts, filters, sortOption, searchQuery]);
+  }, [rawProducts, filters, sortOption, deferredSearchQuery]);
 
   // Paginated slices
   const paginatedProducts = useMemo(() => {
@@ -563,11 +564,17 @@ export const ConstructionPage = ({
   const totalCount = filteredAndSortedProducts.length;
   const totalPages = Math.ceil(filteredAndSortedProducts.length / itemsPerPage) || 1;
 
-  // Helper to check cart quantity
-  const getProductCartQty = (productId: string) => {
-    const match = cartItems.find((i) => String(i.product.id) === String(productId));
-    return match ? match.quantity : 0;
-  };
+  // O(1) cart quantity lookup map
+  const cartQtyById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of cartItems) {
+      const id = String(item.product.id);
+      map.set(id, (map.get(id) || 0) + item.quantity);
+    }
+    return map;
+  }, [cartItems]);
+
+  const getProductCartQty = (productId: string) => cartQtyById.get(String(productId)) || 0;
 
   const hasBackendProducts = rawProducts.length > 0;
 
@@ -819,7 +826,7 @@ export const ConstructionPage = ({
               return (
                 <div
                   key={product.id}
-                  className="group flex flex-col justify-between transition-all duration-200 border-0 p-1"
+                  className="group flex flex-col justify-between transition-transform duration-200 ease-out border-0 p-1 content-auto"
                 >
                   {/* Clean Product Image with Floating Discount Tag */}
                   <Link
@@ -1311,4 +1318,5 @@ export const ConstructionPage = ({
       )}
     </div>
   );
-};
+});
+ConstructionPage.displayName = 'ConstructionPage';

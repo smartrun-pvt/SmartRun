@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { flushSync } from 'react-dom';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { MotionConfig } from 'motion/react';
 import { Product, CartItem, KolkataArea, SavedAddress, Order, WiringServiceBooking, UserProfile } from './types';
 import { KOLKATA_AREAS, getKolkataAreaByPincode, isKolkataServiceable } from './data/kolkataAreas';
 import { getResilientCurrentPosition, reverseGeocodeWithFallback } from './utils/geolocationHelper';
@@ -1386,11 +1387,30 @@ export default function App() {
     trackPageView(location.pathname + location.search);
   }, [location.pathname, location.search]);
 
-  // Cart Helpers
-  const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
-  const cartTotal = cartItems.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
+  // Memoized Cart Totals & Stable Handlers (prevents redundant re-renders of Header, FloatingBottomNav, HomePage, & Listings)
+  const cartCount = useMemo(() => cartItems.reduce((acc, item) => acc + item.quantity, 0), [cartItems]);
+  const cartTotal = useMemo(() => cartItems.reduce((acc, item) => acc + (item.product.price * item.quantity), 0), [cartItems]);
 
-  const handleAddToCart = (product: Product, quantityToAdd: number = 1) => {
+  const handleOpenLocationModal = useCallback(() => setIsLocationModalOpen(true), []);
+  const handleOpenCart = useCallback(() => navigate('/cart'), [navigate]);
+  const handleOpenProfile = useCallback(() => navigate('/profile'), [navigate]);
+  const handleOpenAiAssistant = useCallback(() => setIsAiAssistantOpen(true), []);
+  const handleOpenInstallApp = useCallback(() => setIsInstallModalOpen(true), []);
+  const handleOpenQuickView = useCallback((prod: Product) => {
+    setSelectedProductQuickView(prod);
+    trackProductView(prod);
+  }, []);
+  const handleNavigateHomeCategory = useCallback((categoryName: string) => {
+    if (categoryName.toLowerCase().includes('wire') || categoryName.toLowerCase().includes('switch') || categoryName.toLowerCase().includes('electric')) {
+      setActiveCategory('electrical');
+      navigate('/electrical');
+    } else {
+      setActiveCategory('construction');
+      navigate('/construction');
+    }
+  }, [navigate]);
+
+  const handleAddToCart = useCallback((product: Product, quantityToAdd: number = 1) => {
     if (!product || product.id === undefined || product.id === null) return;
     const prodIdStr = String(product.id);
     const productCol = product.selectedColor || undefined;
@@ -1431,9 +1451,9 @@ export default function App() {
       syncCartItemToSupabase(prodIdStr, targetQty, productCol).catch(() => {});
       return updated;
     });
-  };
+  }, []);
 
-  const handleUpdateCartQuantity = (productId: string, delta: number, color?: string) => {
+  const handleUpdateCartQuantity = useCallback((productId: string, delta: number, color?: string) => {
     const prodIdStr = String(productId);
     hapticLight();
 
@@ -1473,7 +1493,7 @@ export default function App() {
 
       return updated;
     });
-  };
+  }, []);
 
   const handleRemoveCartItem = (productId: string, color?: string) => {
     const prodIdStr = String(productId);
@@ -1825,6 +1845,7 @@ export default function App() {
   }
 
   return (
+    <MotionConfig reducedMotion="user" transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900 selection:bg-yellow-400 selection:text-black">
       {/* Dynamic SEO Meta & Structured Data Manager */}
       <SEOHead />
@@ -1861,25 +1882,25 @@ export default function App() {
         <Header
           currentArea={currentArea}
           activeAddress={activeSavedAddress}
-          onOpenLocationModal={() => setIsLocationModalOpen(true)}
+          onOpenLocationModal={handleOpenLocationModal}
           isLocationFetching={isLocationFetching}
           searchQuery={searchQuery}
           onSearchChange={handleSearchChange}
           allProducts={products}
           cartCount={cartCount}
           cartTotal={cartTotal}
-          onOpenCart={() => navigate('/cart')}
+          onOpenCart={handleOpenCart}
           userPhone={userPhone}
           userName={userName}
           userPhoto={userProfile?.photoURL}
           userProfile={userProfile}
-          onOpenAuth={() => navigate('/profile')}
-          onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
+          onOpenAuth={handleOpenProfile}
+          onOpenAiAssistant={handleOpenAiAssistant}
           activeTab={activeTab}
           onTabChange={handleTabChange}
           activeCategory={activeCategory}
           onSelectCategory={handleCategorySelect}
-          onOpenInstallApp={() => setIsInstallModalOpen(true)}
+          onOpenInstallApp={handleOpenInstallApp}
         />
       )}
 
@@ -2416,19 +2437,8 @@ export default function App() {
                   onUpdateQuantity={handleUpdateCartQuantity}
                   cartItems={cartItems}
                   onRefresh={handleRefreshAll}
-                  onNavigateCategory={(categoryName) => {
-                    if (categoryName.toLowerCase().includes('wire') || categoryName.toLowerCase().includes('switch') || categoryName.toLowerCase().includes('electric')) {
-                      setActiveCategory('electrical');
-                      navigate('/electrical');
-                    } else {
-                      setActiveCategory('construction');
-                      navigate('/construction');
-                    }
-                  }}
-                  onOpenProductQuickView={(prod) => {
-                    setSelectedProductQuickView(prod);
-                    trackProductView(prod);
-                  }}
+                  onNavigateCategory={handleNavigateHomeCategory}
+                  onOpenProductQuickView={handleOpenQuickView}
                 />
               )
             }
@@ -2455,7 +2465,7 @@ export default function App() {
           onSelectCategory={handleCategorySelect}
           cartCount={cartCount}
           cartTotal={cartTotal}
-          onOpenCart={() => navigate('/cart')}
+          onOpenCart={handleOpenCart}
         />
       )}
 
@@ -2598,5 +2608,6 @@ export default function App() {
       )}
 
     </div>
+    </MotionConfig>
   );
 }

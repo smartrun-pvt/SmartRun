@@ -12,7 +12,7 @@ interface ProductCardImageProps {
   enableHoverRotate?: boolean;
 }
 
-export const ProductCardImage = ({
+export const ProductCardImage = React.memo(({
   images = [],
   imageUrl,
   alt,
@@ -90,7 +90,7 @@ export const ProductCardImage = ({
       <img
         src={allImages[currentIndex] || allImages[0]}
         alt={`${alt} preview ${currentIndex + 1}`}
-        className={`max-h-full max-w-full object-contain transition-all duration-300 drop-shadow-2xs ${className}`}
+        className={`max-h-full max-w-full object-contain transition-transform duration-300 ease-out drop-shadow-2xs ${className}`}
         loading="lazy"
         decoding="async"
         referrerPolicy="no-referrer"
@@ -107,7 +107,7 @@ export const ProductCardImage = ({
       {hasMultipleImages && (
         <>
           {/* Subtle multi-image count badge at top right */}
-          <div className="absolute top-1.5 right-1.5 z-10 flex items-center gap-1 bg-slate-900/85 hover:bg-slate-900/95 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md backdrop-blur-xs transition-opacity duration-200 shadow-xs pointer-events-none">
+          <div className="absolute top-1.5 right-1.5 z-10 flex items-center gap-1 bg-slate-900/85 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-opacity duration-200 shadow-xs pointer-events-none">
             <Images className="w-2.5 h-2.5" />
             <span>
               {currentIndex + 1}/{allImages.length}
@@ -158,4 +158,5 @@ export const ProductCardImage = ({
       )}
     </div>
   );
-};
+});
+ProductCardImage.displayName = 'ProductCardImage';

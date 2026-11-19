@@ -340,7 +340,7 @@ const PARTNER_BRANDS = [
   { name: 'Supreme', segment: 'Plumbing & Drainage', badge: 'Heavy Duty' }
 ];
 
-export const HomePage = ({
+export const HomePage = React.memo(({
   onAddToCart,
   onUpdateQuantity,
   cartItems = [],
@@ -352,6 +352,7 @@ export const HomePage = ({
 }: HomePageProps) => {
   const navigate = useNavigate();
   const [activePosterIndex, setActivePosterIndex] = useState(0);
+  const [prevPosterIndex, setPrevPosterIndex] = useState(0);
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const electricalScrollRef = useRef<HTMLDivElement>(null);
@@ -375,8 +376,10 @@ export const HomePage = ({
     }
   };
 
-  // Fetch live products directly from backend Supabase database
+  // Only fetch/subscribe independently when parent App hasn't already provided live products
+  const hasParentProducts = Boolean(products && products.length > 0);
   useEffect(() => {
+    if (hasParentProducts) return;
     let isMounted = true;
     setIsLoadingProducts(true);
 
@@ -415,7 +418,7 @@ export const HomePage = ({
       isMounted = false;
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [hasParentProducts]);
 
   // Compute live products source of truth
   const liveProducts = useMemo(() => {
@@ -429,19 +432,28 @@ export const HomePage = ({
     }
   };
 
-  // Auto-advance posters
+  // Auto-advance posters (tracks previous slide for smooth 2-layer crossfade instead of compositing all 10 slides)
   useEffect(() => {
     const timer = setInterval(() => {
-      setActivePosterIndex((prev) => (prev + 1) % HERO_POSTERS.length);
+      setActivePosterIndex((prev) => {
+        setPrevPosterIndex(prev);
+        return (prev + 1) % HERO_POSTERS.length;
+      });
     }, 6000);
     return () => clearInterval(timer);
   }, []);
 
-  // Helper to check cart quantity
-  const getProductCartQty = (productId: string) => {
-    const match = cartItems.find((i) => String(i.product.id) === String(productId));
-    return match ? match.quantity : 0;
-  };
+  // O(1) cart quantity map to avoid linear scan per product card
+  const cartQtyById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of cartItems) {
+      const id = String(item.product.id);
+      map.set(id, (map.get(id) || 0) + item.quantity);
+    }
+    return map;
+  }, [cartItems]);
+
+  const getProductCartQty = (productId: string) => cartQtyById.get(String(productId)) || 0;
 
   // -------------------------------------------------------------------------
   // ROW 3: Restocked / Refilled items (Strictly from real backend database)
@@ -489,7 +501,7 @@ export const HomePage = ({
     return (
       <div
         key={product.id}
-        className="group h-full flex flex-col justify-between transition-all duration-200 border border-slate-100/80 rounded-2xl bg-white p-2 sm:p-2.5 font-sans shadow-2xs hover:shadow-sm hover:border-slate-200"
+        className="group h-full flex flex-col justify-between transition-[transform,box-shadow,border-color] duration-200 ease-out border border-slate-100/80 rounded-2xl bg-white p-2 sm:p-2.5 font-sans shadow-2xs hover:shadow-sm hover:border-slate-200"
       >
         {/* Top Segment: Image + Product Info with locked heights */}
         <div className="flex flex-col">
@@ -618,14 +630,16 @@ export const HomePage = ({
             ROW 1: POSTERS (Hero Banner Carousel - Uniform Sleek Rectangular Size & Seamless Motion)
             ===================================================================== */}
         <section id="row-1-posters" className="relative space-y-4">
-          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs border border-slate-200 h-56 sm:h-64 md:h-72 w-full">
+          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs border border-slate-200 h-56 sm:h-64 md:h-72 w-full [contain:strict]">
             {HERO_POSTERS.map((poster, index) => {
               const isActive = index === activePosterIndex;
+              const isPrevious = index === prevPosterIndex;
+              if (!isActive && !isPrevious) return null;
               return (
                 <div
                   key={poster.id}
                   aria-hidden={!isActive}
-                  className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ease-in-out ${
+                  className={`absolute inset-0 w-full h-full transition-opacity duration-700 ease-out ${
                     isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                   } bg-gradient-to-r ${poster.bgGradient} text-white px-6 sm:px-10 md:px-12 py-5 sm:py-7 overflow-hidden flex flex-col justify-center`}
                 >
@@ -639,22 +653,22 @@ export const HomePage = ({
                           alt=""
                           loading={index === 0 ? 'eager' : 'lazy'}
                           decoding="async"
-                          className="absolute inset-0 w-full h-full object-cover object-center opacity-30 mix-blend-luminosity scale-105 transition-transform duration-10000 ease-out"
+                          className="absolute inset-0 w-full h-full object-cover object-center opacity-30 mix-blend-luminosity scale-105"
                         />
 
                         {/* Canvas Texture Scrim & Ambient Color Glow */}
                         <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/60 to-black/40" />
-                        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-amber-400/15 blur-3xl" />
-                        <div className="absolute -bottom-24 right-1/4 w-72 h-72 rounded-full bg-red-600/10 blur-3xl" />
+                        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-amber-400/15 blur-2xl" />
+                        <div className="absolute -bottom-24 right-1/4 w-72 h-72 rounded-full bg-red-600/10 blur-2xl" />
 
-                        {/* Fine Canvas Stippled Mesh Pattern */}
-                        <svg className="absolute inset-0 w-full h-full opacity-15" xmlns="http://www.w3.org/2000/svg">
-                          <filter id={`noise-${poster.id}`}>
-                            <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch" />
-                            <feColorMatrix type="saturate" values="0" />
-                          </filter>
-                          <rect width="100%" height="100%" filter={`url(#noise-${poster.id})`} opacity="0.3" />
-                        </svg>
+                        {/* Lightweight GPU-friendly stippled canvas mesh texture */}
+                        <div
+                          className="absolute inset-0 opacity-15"
+                          style={{
+                            backgroundImage: 'radial-gradient(rgba(255,255,255,0.28) 1px, transparent 1px)',
+                            backgroundSize: '10px 10px'
+                          }}
+                        />
 
                         {/* Subtle Architectural Stroke Lines */}
                         <svg className="absolute right-0 top-0 h-full w-1/2 opacity-20 text-amber-300 pointer-events-none" viewBox="0 0 400 300" fill="none">
@@ -787,13 +801,13 @@ export const HomePage = ({
                   }}
                   className="w-[calc((100%-1rem)/3)] sm:w-[calc((100%-3.75rem)/6)] group flex flex-col items-center cursor-pointer select-none"
                 >
-                  {/* Apple Liquid Glass Depth Card with Seamless Image Integration */}
-                  <div className="w-full aspect-square relative flex items-center justify-center rounded-xl sm:rounded-2xl p-1.5 sm:p-2 bg-gradient-to-b from-white/95 via-[#e6f2fb]/85 to-[#d1e8f8]/90 backdrop-blur-md border border-white/90 shadow-[inset_0_2px_4px_rgba(255,255,255,0.95),inset_0_-2px_6px_rgba(14,116,144,0.12),0_4px_14px_rgba(14,116,144,0.12)] hover:shadow-[inset_0_2px_6px_rgba(255,255,255,1),inset_0_-2px_6px_rgba(14,116,144,0.18),0_8px_20px_rgba(14,116,144,0.2)] transition-all duration-300 hover:-translate-y-1 overflow-hidden group-hover:border-white">
+                  {/* Apple Liquid Glass Depth Card with Seamless Image Integration (zero offscreen backdrop-blur overhead) */}
+                  <div className="w-full aspect-square relative flex items-center justify-center rounded-xl sm:rounded-2xl p-1.5 sm:p-2 bg-gradient-to-b from-white via-[#eaf4fc] to-[#d6ebf9] border border-white/95 shadow-[inset_0_2px_4px_rgba(255,255,255,0.95),inset_0_-2px_6px_rgba(14,116,144,0.12),0_4px_14px_rgba(14,116,144,0.12)] hover:shadow-[inset_0_2px_6px_rgba(255,255,255,1),inset_0_-2px_6px_rgba(14,116,144,0.18),0_8px_20px_rgba(14,116,144,0.2)] transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-1 overflow-hidden group-hover:border-white">
                     {/* Apple-style Top Specular Liquid Glass Highlight */}
                     <span className="pointer-events-none absolute inset-x-0 top-0 h-[48%] bg-gradient-to-b from-white/75 via-white/25 to-transparent rounded-t-xl sm:rounded-t-2xl z-1" />
 
                     {/* Bottom Glass Refraction Sheen */}
-                    <span className="pointer-events-none absolute inset-x-2 bottom-0 h-[30%] bg-gradient-to-t from-sky-400/20 via-sky-300/5 to-transparent rounded-b-xl sm:rounded-b-2xl blur-[1px]" />
+                    <span className="pointer-events-none absolute inset-x-2 bottom-0 h-[30%] bg-gradient-to-t from-sky-400/20 via-sky-300/5 to-transparent rounded-b-xl sm:rounded-b-2xl" />
 
                     {cat.badge && (
                       <span className="absolute top-1 left-1 sm:top-1.5 sm:left-1.5 bg-gradient-to-b from-amber-300 to-amber-400 text-slate-950 font-black text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded-full shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(0,0,0,0.12)] border border-amber-200/80 z-10 select-none leading-none">
@@ -830,7 +844,7 @@ export const HomePage = ({
             ROW 3: RESTOCKED ITEMS (Refilled after out of stock - From Backend Database)
             ===================================================================== */}
         {restockedProducts.length > 0 && (
-          <section id="row-3-restocked" className="space-y-3 pt-1">
+          <section id="row-3-restocked" className="space-y-3 pt-1 content-auto">
             <div className="border-b border-slate-100 pb-1.5">
               <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
                 Back in Stock
@@ -848,7 +862,7 @@ export const HomePage = ({
             ROW 4: NEWLY LAUNCHED / ELECTRICAL SEGMENT
             ===================================================================== */}
         {newlyLaunchedElectrical.length > 0 && (
-          <section id="row-4-new-electrical" className="space-y-3 pt-1">
+          <section id="row-4-new-electrical" className="space-y-3 pt-1 content-auto">
             <div>
               <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
                 New Launched
@@ -860,14 +874,14 @@ export const HomePage = ({
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => scrollRow(electricalScrollRef, -320)}
-                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 flex items-center justify-center transition-colors cursor-pointer shadow-2xs active:scale-95"
                     aria-label="Scroll left"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => scrollRow(electricalScrollRef, 320)}
-                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 flex items-center justify-center transition-colors cursor-pointer shadow-2xs active:scale-95"
                     aria-label="Scroll right"
                   >
                     <ChevronRight className="w-4 h-4" />
@@ -879,7 +893,7 @@ export const HomePage = ({
             {/* Horizontal Product Scroll Row */}
             <div
               ref={electricalScrollRef}
-              className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar momentum-scroll scroll-smooth py-1 -mx-4 px-4 sm:mx-0 sm:px-0 items-stretch"
+              className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar momentum-scroll py-1 -mx-4 px-4 sm:mx-0 sm:px-0 items-stretch"
             >
               {newlyLaunchedElectrical.map((p) => (
                 <div key={p.id} className="w-44 sm:w-56 shrink-0 flex flex-col">
@@ -890,7 +904,7 @@ export const HomePage = ({
               <div className="w-36 sm:w-44 shrink-0 flex flex-col">
                 <Link
                   to="/electrical"
-                  className="h-full min-h-[250px] flex flex-col items-center justify-center rounded-2xl border border-slate-100/80 bg-white p-4 shadow-2xs hover:shadow-sm hover:border-blue-300 group transition-all cursor-pointer text-center"
+                  className="h-full min-h-[250px] flex flex-col items-center justify-center rounded-2xl border border-slate-100/80 bg-white p-4 shadow-2xs hover:shadow-sm hover:border-blue-300 group transition-[box-shadow,border-color] duration-200 cursor-pointer text-center"
                 >
                   <div className="w-10 h-10 rounded-full bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center mb-2 transition-colors">
                     <ChevronRight className="w-5 h-5 text-blue-600 group-hover:translate-x-0.5 transition-transform" />
@@ -909,7 +923,7 @@ export const HomePage = ({
             (Hidden when no construction products exist in database, auto-appears when products added)
             ===================================================================== */}
         {newlyLaunchedConstruction.length > 0 && (
-          <section id="row-5-new-construction" className="space-y-3 pt-1">
+          <section id="row-5-new-construction" className="space-y-3 pt-1 content-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
               <h3 className="text-xs sm:text-sm font-bold text-amber-800 uppercase tracking-wider">
                 Construction
@@ -917,14 +931,14 @@ export const HomePage = ({
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => scrollRow(constructionScrollRef, -320)}
-                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 flex items-center justify-center transition-colors cursor-pointer shadow-2xs active:scale-95"
                   aria-label="Scroll left"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => scrollRow(constructionScrollRef, 320)}
-                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 flex items-center justify-center transition-colors cursor-pointer shadow-2xs active:scale-95"
                   aria-label="Scroll right"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -935,7 +949,7 @@ export const HomePage = ({
             {/* Horizontal Product Scroll Row */}
             <div
               ref={constructionScrollRef}
-              className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar momentum-scroll scroll-smooth py-1 -mx-4 px-4 sm:mx-0 sm:px-0 items-stretch"
+              className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar momentum-scroll py-1 -mx-4 px-4 sm:mx-0 sm:px-0 items-stretch"
             >
               {newlyLaunchedConstruction.map((p) => (
                 <div key={p.id} className="w-44 sm:w-56 shrink-0 flex flex-col">
@@ -1145,4 +1159,5 @@ export const HomePage = ({
     </div>
   </PullToRefresh>
   );
-};
+});
+HomePage.displayName = 'HomePage';
