@@ -25,8 +25,8 @@ export const ProfileSubPageNavbar: React.FC<ProfileSubPageNavbarProps> = ({
   rightContent,
   containerMaxWidthClass = 'max-w-3xl',
   containerPaddingClass = 'px-4 sm:px-6',
-  headerBackgroundColor = '#74c69d',
-  headerBorderColor = '#52b788'
+  headerBackgroundColor = '#ffe5d9',
+  headerBorderColor = '#f2cab8'
 }) => {
   return (
     <header
