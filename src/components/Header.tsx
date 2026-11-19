@@ -308,105 +308,118 @@ export const Header = React.memo(({
 
   const accountDisplayLabel = effectiveName || effectiveEmail || effectivePhone || 'Account';
 
+  const isRow1Collapsed = isProductDetailPage && isScrolled;
+
   return (
     <header
-      className="sticky top-0 z-40 bg-[#fffdf6]/95 backdrop-blur-md border-b border-amber-200/50 shadow-[0_2px_10px_rgba(120,53,15,0.04)] [transform:translateZ(0)] [backface-visibility:hidden]"
+      className="sticky top-0 z-40 bg-gradient-to-b from-[#fffaf0]/95 via-[#fffdf6]/95 to-[#fffdf7]/95 backdrop-blur-md border-b border-amber-200/45 shadow-[0_2px_12px_rgba(120,53,15,0.045)] [transform:translateZ(0)] [backface-visibility:hidden]"
       style={{ paddingTop: 'var(--safe-area-top, env(safe-area-inset-top, 0px))' }}
     >
-      {/* Main Brand & Action Bar (collapses smoothly on product detail page scroll) */}
+      {/* Row 1: Main Brand & Action Bar (glides smoothly behind Row 2 on product detail page scroll) */}
       <div
-        className={`overflow-hidden bg-gradient-to-b from-[#fff9eb]/80 to-[#fffdf6]/40 transition-[max-height,opacity,padding] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] [transform:translateZ(0)] ${
-          isProductDetailPage && isScrolled
-            ? 'max-h-0 opacity-0 pointer-events-none py-0'
-            : 'max-h-24 opacity-100 py-1.5 sm:py-2.5'
+        className={`grid bg-transparent transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          isRow1Collapsed
+            ? 'grid-rows-[0fr] opacity-0 pointer-events-none'
+            : 'grid-rows-[1fr] opacity-100'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-3 sm:px-6">
-          <div className="flex items-center justify-between gap-2 sm:gap-4">
-          
-          {/* Brand Title & Location Header */}
-          <div className="flex items-center shrink-0">
-            {/* Brand Title & Below-Logo Exact Location Selector */}
-            <div className="flex flex-col justify-center text-left">
-              <button
-                onClick={() => onTabChange('home')}
-                className="text-xl sm:text-2xl font-black tracking-tight leading-none flex items-center text-left cursor-pointer focus:outline-none font-baloo text-black"
-                style={{ fontFamily: "'Baloo 2', 'Baloo Bhai 2', cursive, sans-serif" }}
-                title="SmartRun - Home"
-              >
-                <span className="text-black">SmartRun</span>
-              </button>
+        <div className="overflow-hidden min-h-0">
+          <div
+            className={`max-w-7xl mx-auto px-3 sm:px-6 transition-[transform,padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] [transform:translateZ(0)] ${
+              isRow1Collapsed
+                ? 'py-0 -translate-y-2.5'
+                : 'pt-1.5 pb-1 sm:pt-2.5 sm:pb-1.5 translate-y-0'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
+              {/* Brand Title & Location Header */}
+              <div className="flex items-center shrink-0">
+                {/* Brand Title & Below-Logo Exact Location Selector */}
+                <div className="flex flex-col justify-center text-left">
+                  <button
+                    onClick={() => onTabChange('home')}
+                    className="text-xl sm:text-2xl font-black tracking-tight leading-none flex items-center text-left cursor-pointer focus:outline-none font-baloo text-black"
+                    style={{ fontFamily: "'Baloo 2', 'Baloo Bhai 2', cursive, sans-serif" }}
+                    title="SmartRun - Home"
+                  >
+                    <span className="text-black">SmartRun</span>
+                  </button>
 
-              {/* Saved Address House Name Only / Location Selector */}
-              <button
-                id="header-location-selector-btn"
-                onClick={onOpenLocationModal}
-                className="flex items-center gap-1.5 text-xs font-normal text-slate-700 hover:text-black transition-colors text-left cursor-pointer group leading-none mt-0.5 py-0.5 min-h-[22px] focus:outline-none max-w-[210px] sm:max-w-[340px] truncate"
-                title="View full address or change location"
-                aria-label={`Current delivery address: ${locationInfo.houseNameOnly}. Click to change address`}
-              >
-                {isLocationFetching && !activeAddress ? (
-                  <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin shrink-0" />
-                ) : activeAddress?.tag === 'home' ? (
-                  <Home className="w-3.5 h-3.5 text-pink-600 shrink-0" />
-                ) : activeAddress?.tag === 'work' ? (
-                  <Briefcase className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                ) : activeAddress?.tag === 'hotel' ? (
-                  <Building2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                ) : (
-                  <MapPin className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                )}
-                <span className="truncate text-slate-700 group-hover:text-slate-900 font-normal text-[12px] sm:text-[13px]">
-                  {isLocationFetching && !activeAddress && (!currentArea?.exactStreet && (!currentArea?.name || currentArea?.name === 'Kasba'))
-                    ? 'Detecting location...'
-                    : locationInfo.houseNameOnly}
-                </span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 shrink-0 transition-transform group-hover:translate-y-0.5" />
-              </button>
+                  {/* Saved Address House Name Only / Location Selector */}
+                  <button
+                    id="header-location-selector-btn"
+                    onClick={onOpenLocationModal}
+                    className="flex items-center gap-1.5 text-xs font-normal text-slate-700 hover:text-black transition-colors text-left cursor-pointer group leading-none mt-0.5 py-0.5 min-h-[22px] focus:outline-none max-w-[210px] sm:max-w-[340px] truncate"
+                    title="View full address or change location"
+                    aria-label={`Current delivery address: ${locationInfo.houseNameOnly}. Click to change address`}
+                  >
+                    {isLocationFetching && !activeAddress ? (
+                      <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin shrink-0" />
+                    ) : activeAddress?.tag === 'home' ? (
+                      <Home className="w-3.5 h-3.5 text-pink-600 shrink-0" />
+                    ) : activeAddress?.tag === 'work' ? (
+                      <Briefcase className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    ) : activeAddress?.tag === 'hotel' ? (
+                      <Building2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    ) : (
+                      <MapPin className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                    )}
+                    <span className="truncate text-slate-700 group-hover:text-slate-900 font-normal text-[12px] sm:text-[13px]">
+                      {isLocationFetching && !activeAddress && (!currentArea?.exactStreet && (!currentArea?.name || currentArea?.name === 'Kasba'))
+                        ? 'Detecting location...'
+                        : locationInfo.houseNameOnly}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 shrink-0 transition-transform group-hover:translate-y-0.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Action Icons: Profile Button */}
+              <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
+                {/* User Profile / Login Button */}
+                <button
+                  id="user-profile-avatar-btn"
+                  onClick={() => {
+                    if (isLoggedIn) {
+                      onTabChange('profile');
+                    } else {
+                      onOpenAuth();
+                    }
+                  }}
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 transition-all hover:shadow-2xs active:scale-95 cursor-pointer overflow-hidden relative"
+                  title={isLoggedIn ? `Account: ${accountDisplayLabel} (Click to open Profile)` : 'Sign in / Sign up'}
+                  aria-label={isLoggedIn ? `Profile: ${accountDisplayLabel}` : 'Sign in'}
+                >
+                  {isLoggedIn ? (
+                    effectivePhoto && !imgError ? (
+                      <img
+                        src={effectivePhoto}
+                        alt={accountDisplayLabel}
+                        onError={() => setImgError(true)}
+                        className="w-full h-full object-cover rounded-full"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span className="text-xs font-black text-amber-950 bg-amber-400 w-full h-full rounded-full flex items-center justify-center border border-amber-500 shadow-inner">
+                        {getInitials(effectiveName, effectivePhone, effectiveEmail)}
+                      </span>
+                    )
+                  ) : (
+                    <User className="w-5 h-5 text-slate-600" />
+                  )}
+                </button>
+              </div>
             </div>
-          </div>
-
-          {/* Right Action Icons: Profile Button */}
-          <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
-            {/* User Profile / Login Button */}
-            <button
-              id="user-profile-avatar-btn"
-              onClick={() => {
-                if (isLoggedIn) {
-                  onTabChange('profile');
-                } else {
-                  onOpenAuth();
-                }
-              }}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 transition-all hover:shadow-2xs active:scale-95 cursor-pointer overflow-hidden relative"
-              title={isLoggedIn ? `Account: ${accountDisplayLabel} (Click to open Profile)` : 'Sign in / Sign up'}
-              aria-label={isLoggedIn ? `Profile: ${accountDisplayLabel}` : 'Sign in'}
-            >
-              {isLoggedIn ? (
-                effectivePhoto && !imgError ? (
-                  <img
-                    src={effectivePhoto}
-                    alt={accountDisplayLabel}
-                    onError={() => setImgError(true)}
-                    className="w-full h-full object-cover rounded-full"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <span className="text-xs font-black text-amber-950 bg-amber-400 w-full h-full rounded-full flex items-center justify-center border border-amber-500 shadow-inner">
-                    {getInitials(effectiveName, effectivePhone, effectiveEmail)}
-                  </span>
-                )
-              ) : (
-                <User className="w-5 h-5 text-slate-600" />
-              )}
-            </button>
           </div>
         </div>
       </div>
-    </div>
 
-      {/* Row 2: Fixed Liquid Glass Search Bar + Right-side All Filters Button (Visible strictly on Electrical, Construction & Wiring, NOT on Home) */}
-      <div className="border-t border-amber-200/35 bg-[#fffdf6]/95 px-3 sm:px-6 py-1.5 sm:py-2.5 [transform:translateZ(0)]">
+      {/* Row 2: Unified Seamless Liquid Glass Search Bar + Right-side All Filters Button */}
+      <div
+        className={`relative z-10 bg-transparent px-3 sm:px-6 transition-[padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] [transform:translateZ(0)] ${
+          isRow1Collapsed ? 'py-2 sm:py-2.5' : 'pt-1 pb-2 sm:pt-1.5 sm:pb-2.5'
+        }`}
+      >
         <div className="max-w-3xl mx-auto w-full flex items-center gap-2 sm:gap-3">
           {/* Back Button beside search bar when viewing product details - only arrow and nothing */}
           {isProductDetailPage && (
@@ -422,7 +435,7 @@ export const Header = React.memo(({
             </button>
           )}
 
-          {/* Reduced Search Bar with Sculpted Depth Effect */}
+          {/* Liquid Glass Depth Search Bar */}
           <form
             ref={searchDropdownRef}
             onSubmit={handleSearchSubmit}
@@ -431,9 +444,9 @@ export const Header = React.memo(({
             toolname="search_smartrun_catalog"
             tooldescription="Search SmartRun Kolkata express catalog for electrical wires, switches, MCBs, construction materials, or licensed electricians."
           >
-            <div className="relative flex items-center w-full rounded-full bg-gradient-to-b from-[#f3efe5] to-[#fbf9f3] hover:from-[#efeae0] hover:to-[#fcfaf5] focus-within:from-white focus-within:to-white border border-stone-300/80 focus-within:border-[#00875a]/55 focus-within:ring-2 focus-within:ring-[#00875a]/15 shadow-[inset_0_2px_5px_rgba(15,23,42,0.09),inset_0_1px_1.5px_rgba(15,23,42,0.06),0_1px_0_rgba(255,255,255,0.95),0_2px_6px_rgba(120,53,15,0.06)] focus-within:shadow-[0_6px_18px_-2px_rgba(0,135,90,0.16),0_2px_6px_rgba(15,23,42,0.07),inset_0_1px_2px_rgba(15,23,42,0.03)] transition-[background-color,border-color,box-shadow] duration-200 ease-out">
+            <div className="relative flex items-center w-full rounded-full overflow-hidden bg-gradient-to-b from-white/80 via-[#f5efe2]/65 to-white/90 hover:from-white/90 hover:via-[#f7f2e7]/75 hover:to-white/95 focus-within:from-white/95 focus-within:via-white/90 focus-within:to-[#faf7ef]/95 backdrop-blur-xl backdrop-saturate-[190%] border border-white/90 ring-1 ring-amber-900/[0.09] focus-within:border-white focus-within:ring-2 focus-within:ring-[#00875a]/30 shadow-[inset_0_2.5px_7px_rgba(120,53,15,0.13),inset_0_1px_2px_rgba(15,23,42,0.08),inset_0_-3px_6px_rgba(255,255,255,0.98),0_5px_16px_-3px_rgba(120,53,15,0.12),0_2px_5px_rgba(15,23,42,0.06)] hover:shadow-[inset_0_2px_6px_rgba(120,53,15,0.11),inset_0_-3px_7px_rgba(255,255,255,1),0_7px_18px_-3px_rgba(120,53,15,0.14),0_2px_6px_rgba(15,23,42,0.07)] focus-within:shadow-[inset_0_1.5px_4px_rgba(15,23,42,0.06),inset_0_-3px_8px_rgba(255,255,255,1),0_10px_26px_-4px_rgba(0,135,90,0.20),0_4px_10px_rgba(120,53,15,0.09)] before:pointer-events-none before:absolute before:inset-x-3 before:top-[1px] before:h-[48%] before:rounded-full before:bg-gradient-to-b before:from-white/90 before:via-white/35 before:to-transparent after:pointer-events-none after:absolute after:inset-x-5 after:bottom-[1px] after:h-[2px] after:rounded-full after:bg-gradient-to-r after:from-transparent after:via-white/95 after:to-transparent transition-[background-color,border-color,box-shadow] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)]">
               {/* Google-style Magnifying Glass Icon */}
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-[#00875a] pointer-events-none transition-colors">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 z-[1] text-stone-400 group-focus-within:text-[#00875a] pointer-events-none transition-colors">
                 <Search className="w-4 h-4 sm:w-4.5 sm:h-4.5" strokeWidth={2.2} />
               </div>
 
@@ -461,7 +474,7 @@ export const Header = React.memo(({
                     ? 'Search technician, skill (e.g. Solar, Switchgear)...'
                     : 'Search products, cement, TMT, cables, switches, brands...'
                 }
-                className="w-full bg-transparent text-slate-900 placeholder:text-slate-400 text-xs sm:text-sm pl-9 sm:pl-10 pr-9 sm:pr-10 py-1.5 sm:py-2 rounded-full focus:outline-none [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                className="relative z-[1] w-full bg-transparent text-slate-900 placeholder:text-stone-400 text-xs sm:text-sm pl-9 sm:pl-10 pr-9 sm:pr-10 py-1.5 sm:py-2 rounded-full focus:outline-none [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
               />
 
               {Boolean(searchQuery && searchQuery.length > 0) && (
