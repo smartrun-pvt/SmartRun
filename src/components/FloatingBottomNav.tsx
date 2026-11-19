@@ -71,8 +71,8 @@ export const FloatingBottomNav = React.memo(({
       style={{ bottom: 'calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 0.55rem)' }}
       className="fixed left-1/2 -translate-x-1/2 z-40 w-[93vw] max-w-[390px] sm:max-w-[430px] [transform:translateZ(0)] [backface-visibility:hidden]"
     >
-      {/* Transparent glassmorphism floating navbar container */}
-      <div className="flex items-center justify-between gap-1 sm:gap-1.5 px-3 py-2 sm:py-2.5 rounded-full bg-white/55 backdrop-blur-lg backdrop-saturate-[160%] border border-white/60 shadow-[0_12px_32px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.03] transition-shadow duration-200">
+      {/* Transparent blue liquid glass floating navbar container */}
+      <div className="relative flex items-center justify-between gap-1 sm:gap-1.5 px-3 py-2 sm:py-2.5 rounded-full bg-gradient-to-b from-[#e0f0ff]/75 via-[#cce5ff]/62 to-[#b3d8ff]/72 backdrop-blur-xl backdrop-saturate-[200%] border border-white/85 ring-1 ring-blue-400/40 shadow-[inset_0_2px_4px_rgba(255,255,255,0.95),inset_0_-3px_8px_rgba(37,99,235,0.22),inset_0_0_14px_rgba(147,197,253,0.35),0_14px_34px_-4px_rgba(30,64,175,0.22),0_4px_12px_rgba(59,130,246,0.14)] before:pointer-events-none before:absolute before:inset-x-4 before:top-[2px] before:h-[42%] before:rounded-full before:bg-gradient-to-b before:from-white/70 before:via-white/20 before:to-transparent transition-shadow duration-200">
         {/* 1. Home Button */}
         <button
           id="floating-nav-home"
