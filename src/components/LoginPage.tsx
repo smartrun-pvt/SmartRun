@@ -36,7 +36,8 @@ import { sendWelcomeEmail } from '../services/welcomeEmailService';
 import {
   sendFirebasePhoneOtp,
   verifyFirebaseOtpAndBridgeToSupabase,
-  formatToE164Phone
+  formatToE164Phone,
+  resetRecaptchaVerifier
 } from '../services/firebaseAuthService';
 import { updateGAConsent } from '../utils/analytics';
 import { PersonalInfoPage } from './PersonalInfoPage';
@@ -47,6 +48,7 @@ import {
   stopNativeSmsOtpAutofill,
   subscribeNativeSmsOtpAutofill
 } from '../utils/otpAutofill';
+import { shouldArmNativeSmsConsent } from '../utils/firebaseAuthDomain';
 
 interface LoginPageProps {
   onAuthSuccess: (phone: string, name: string, email?: string, userObj?: any, options?: { isNewRegistration?: boolean }) => void;
@@ -233,15 +235,38 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
     };
   }, []);
 
-  const isListeningForSmsOtp =
+  const isCapacitorNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
+
+  // Browser WebOTP (Chrome on Android/Desktop web only - never run inside Capacitor WebView where https://localhost conflicts with Google Autofill)
+  const isListeningForWebOtp =
+    !isCapacitorNative &&
     authStep === 'primary' &&
     isPhoneInput(identifier) &&
     otpAttemptId > 0 &&
     (isWaitingOtp || (otpSent && showSecondField));
 
+  // Native Android Google Play Services SMS User Consent (only arm AFTER OTP is sent & any verification overlay has returned to MainActivity)
+  const isListeningForNativeSmsConsent =
+    isCapacitorNative &&
+    shouldArmNativeSmsConsent({
+      authStep,
+      isPhone: isPhoneInput(identifier),
+      otpSent,
+      showSecondField,
+      otpAttemptId
+    });
+
+  // Always clean up any invisible/hidden reCAPTCHA DOM & native SMS listener on unmount
+  useEffect(() => {
+    return () => {
+      resetRecaptchaVerifier();
+      stopNativeSmsOtpAutofill();
+    };
+  }, []);
+
   // Google & Cross-Device WebOTP API integration (Android Phones, Tablets, Chromebooks, & Laptop Chrome)
   useEffect(() => {
-    if (!isListeningForSmsOtp) return;
+    if (!isListeningForWebOtp) return;
     if (typeof window === 'undefined' || !('OTPCredential' in window) || !navigator.credentials?.get) return;
 
     const ac = new AbortController();
@@ -279,11 +304,11 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
         ac.abort();
       } catch {}
     };
-  }, [isListeningForSmsOtp, otpAttemptId]);
+  }, [isListeningForWebOtp, otpAttemptId]);
 
   // Native Android Google Play Services SMS User Consent Autofill (Uber-style system "Allow" OTP popup)
   useEffect(() => {
-    if (!isListeningForSmsOtp) return;
+    if (!isListeningForNativeSmsConsent) return;
 
     startNativeSmsOtpAutofill();
 
@@ -300,11 +325,11 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
       unsubscribe();
       stopNativeSmsOtpAutofill();
     };
-  }, [isListeningForSmsOtp, otpAttemptId]);
+  }, [isListeningForNativeSmsConsent, otpAttemptId]);
 
-  // WebAuthn Passkey Conditional Autofill (zero UI intrusion - pops up in browser autofill dropdown)
+  // WebAuthn Passkey Conditional Autofill (web browsers only; skipped in Capacitor WebView where origin is https://localhost)
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || Capacitor.isNativePlatform()) return;
     let isCancelled = false;
 
     async function initPasskeyAutofill() {
@@ -548,6 +573,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
 
     hasCompletedPhoneAuthRef.current = true;
     stopNativeSmsOtpAutofill();
+    resetRecaptchaVerifier();
 
     let existingProfile: any = null;
     try {
@@ -1395,7 +1421,11 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
                   )}
                   <input
                     type={isPhone ? 'tel' : 'text'}
-                    autoComplete={isPhone ? 'tel webauthn' : 'username webauthn'}
+                    autoComplete={
+                      isPhone
+                        ? (isNativeApp ? 'tel' : 'tel webauthn')
+                        : (isNativeApp ? 'username' : 'username webauthn')
+                    }
                     placeholder="10-digit mobile number or email"
                     value={identifier}
                     onFocus={(e) => {
@@ -1501,6 +1531,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
                         type="button"
                         onClick={() => {
                           stopNativeSmsOtpAutofill();
+                          resetRecaptchaVerifier();
                           setOtpSent(false);
                           setIsWaitingOtp(false);
                           setShowSecondField(false);

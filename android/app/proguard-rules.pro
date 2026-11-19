@@ -38,9 +38,18 @@
 -keep class com.capacitorjs.plugins.pushnotifications.** { *; }
 -dontwarn com.capacitorjs.plugins.pushnotifications.**
 
-# Google Play Services SMS User Consent API (OTP Autofill)
+# Google Play Services SMS User Consent API (OTP Autofill) & Parcelable Status
+-keep class in.smartrun.app.MainActivity$* { *; }
 -keep class com.google.android.gms.auth.api.phone.** { *; }
+-keep class com.google.android.gms.common.api.** { *; }
+-keep class com.google.android.gms.tasks.** { *; }
 -dontwarn com.google.android.gms.auth.api.phone.**
+
+# Silent Phone Verification (Play Integrity, reCAPTCHA Enterprise, Firebase Auth)
+-keep class com.google.android.play.core.integrity.** { *; }
+-keep class com.google.android.recaptcha.** { *; }
+-keep class com.google.firebase.auth.** { *; }
+-keep class io.capawesome.capacitorjs.plugins.firebase.authentication.** { *; }
 
 # Strip verbose/debug Android logs in release builds
 -assumenosideeffects class android.util.Log {

@@ -3,6 +3,7 @@ package in.smartrun.app;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -22,6 +23,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
+import androidx.lifecycle.Lifecycle;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
 import com.google.android.gms.auth.api.phone.SmsRetriever;
@@ -38,6 +40,8 @@ public class MainActivity extends BridgeActivity {
     private volatile int latestRightDp = 0;
     private volatile boolean hasMeasuredInsets = false;
     private boolean isSmsConsentReceiverRegistered = false;
+    private Intent pendingConsentIntent = null;
+    private boolean isLaunchingSmsConsent = false;
 
     private static final Pattern OTP_HASH_PATTERN = Pattern.compile("#(\\d{6})\\b");
     private static final Pattern OTP_KEYWORD_PATTERN =
@@ -51,47 +55,51 @@ public class MainActivity extends BridgeActivity {
 
     private final ActivityResultLauncher<Intent> smsConsentLauncher =
         registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            isLaunchingSmsConsent = false;
+            pendingConsentIntent = null;
             unregisterSmsConsentReceiver();
-            if (result != null && result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
-                String message = result.getData().getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE);
-                if (message != null && !message.isEmpty()) {
-                    dispatchSmsOtpToWebView(message);
+            try {
+                if (result != null && result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                    String message = result.getData().getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE);
+                    if (message != null && !message.isEmpty()) {
+                        dispatchSmsOtpToWebView(message);
+                    }
                 }
-            }
+            } catch (Throwable ignored) {}
         });
 
     private final BroadcastReceiver smsConsentReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (intent == null || !SmsRetriever.SMS_RETRIEVED_ACTION.equals(intent.getAction())) {
-                return;
-            }
-            Bundle extras = intent.getExtras();
-            if (extras == null) {
-                return;
-            }
-            Status smsRetrieverStatus = getStatusFromExtras(extras);
-            if (smsRetrieverStatus == null) {
-                return;
-            }
-            switch (smsRetrieverStatus.getStatusCode()) {
-                case CommonStatusCodes.SUCCESS:
-                    Intent consentIntent = getConsentIntentFromExtras(extras);
-                    if (consentIntent != null) {
-                        try {
-                            smsConsentLauncher.launch(consentIntent);
-                        } catch (ActivityNotFoundException | IllegalStateException ignored) {
+            try {
+                if (intent == null || !SmsRetriever.SMS_RETRIEVED_ACTION.equals(intent.getAction())) {
+                    return;
+                }
+                Bundle extras = intent.getExtras();
+                if (extras == null) {
+                    return;
+                }
+                Status smsRetrieverStatus = getStatusFromExtras(extras);
+                if (smsRetrieverStatus == null) {
+                    return;
+                }
+                switch (smsRetrieverStatus.getStatusCode()) {
+                    case CommonStatusCodes.SUCCESS:
+                        Intent consentIntent = getConsentIntentFromExtras(extras);
+                        if (consentIntent != null) {
+                            launchConsentIntentSafely(consentIntent);
+                        } else {
                             unregisterSmsConsentReceiver();
                         }
-                    } else {
+                        break;
+                    case CommonStatusCodes.TIMEOUT:
                         unregisterSmsConsentReceiver();
-                    }
-                    break;
-                case CommonStatusCodes.TIMEOUT:
-                    unregisterSmsConsentReceiver();
-                    break;
-                default:
-                    break;
+                        break;
+                    default:
+                        break;
+                }
+            } catch (Throwable ignored) {
+                unregisterSmsConsentReceiver();
             }
         }
     };
@@ -142,18 +150,57 @@ public class MainActivity extends BridgeActivity {
 
     @SuppressWarnings("deprecation")
     private Status getStatusFromExtras(Bundle extras) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return extras.getParcelable(SmsRetriever.EXTRA_STATUS, Status.class);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                return extras.getParcelable(SmsRetriever.EXTRA_STATUS, Status.class);
+            }
+            return extras.getParcelable(SmsRetriever.EXTRA_STATUS);
+        } catch (Throwable ignored) {
+            return null;
         }
-        return extras.getParcelable(SmsRetriever.EXTRA_STATUS);
     }
 
     @SuppressWarnings("deprecation")
     private Intent getConsentIntentFromExtras(Bundle extras) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return extras.getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT, Intent.class);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                return extras.getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT, Intent.class);
+            }
+            return extras.getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT);
+        } catch (Throwable ignored) {
+            return null;
         }
-        return extras.getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT);
+    }
+
+    private void launchConsentIntentSafely(Intent consentIntent) {
+        if (consentIntent == null || isFinishing() || isDestroyed() || isLaunchingSmsConsent) {
+            return;
+        }
+        try {
+            ComponentName resolved = consentIntent.resolveActivity(getPackageManager());
+            if (resolved == null || !"com.google.android.gms".equals(resolved.getPackageName())) {
+                unregisterSmsConsentReceiver();
+                return;
+            }
+            // Strip FLAG_ACTIVITY_NEW_TASK so startActivityForResult delivers the SMS result back cleanly
+            consentIntent.setFlags(consentIntent.getFlags() & ~Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            // On Android 14/15, never launch SMS consent while MainActivity is paused behind a Chrome Custom Tab / RecaptchaActivity
+            if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                isLaunchingSmsConsent = true;
+                smsConsentLauncher.launch(consentIntent);
+            } else {
+                pendingConsentIntent = consentIntent;
+            }
+        } catch (ActivityNotFoundException | SecurityException | IllegalStateException ignored) {
+            isLaunchingSmsConsent = false;
+            pendingConsentIntent = null;
+            unregisterSmsConsentReceiver();
+        } catch (Throwable ignored) {
+            isLaunchingSmsConsent = false;
+            pendingConsentIntent = null;
+            unregisterSmsConsentReceiver();
+        }
     }
 
     private void startSmsUserConsentListener() {
@@ -175,18 +222,21 @@ public class MainActivity extends BridgeActivity {
             // Passing null listens for the next one-time OTP SMS from any sender (Firebase, Fast2SMS, etc.)
             // and opens Google Play Services' native one-tap consent bottom sheet (no READ_SMS permission).
             SmsRetriever.getClient(this).startSmsUserConsent(null);
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             unregisterSmsConsentReceiver();
         }
     }
 
     private void unregisterSmsConsentReceiver() {
+        pendingConsentIntent = null;
+        isLaunchingSmsConsent = false;
         if (!isSmsConsentReceiverRegistered) {
             return;
         }
         try {
             unregisterReceiver(smsConsentReceiver);
         } catch (IllegalArgumentException ignored) {
+        } catch (Throwable ignored) {
         } finally {
             isSmsConsentReceiverRegistered = false;
         }
@@ -432,6 +482,17 @@ public class MainActivity extends BridgeActivity {
         super.onResume();
         syncFromRootWindowInsets();
         ViewCompat.requestApplyInsets(getWindow().getDecorView());
+
+        if (pendingConsentIntent != null && !isLaunchingSmsConsent) {
+            final Intent toLaunch = pendingConsentIntent;
+            pendingConsentIntent = null;
+            View decorView = getWindow() != null ? getWindow().getDecorView() : null;
+            if (decorView != null) {
+                decorView.post(() -> launchConsentIntentSafely(toLaunch));
+            } else {
+                launchConsentIntentSafely(toLaunch);
+            }
+        }
     }
 
     @Override

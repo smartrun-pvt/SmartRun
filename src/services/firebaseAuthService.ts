@@ -23,24 +23,18 @@ import firebaseConfig from '../../firebase-applet-config.json';
 import { apiUrl } from '../lib/apiBase';
 import { Capacitor } from '@capacitor/core';
 import { sanitizeCustomerName } from '../utils/nameHelper';
+import { resolveFirebaseAuthDomainForEnv } from '../utils/firebaseAuthDomain';
 
 export { sanitizeCustomerName };
 
 function resolveFirebaseAuthDomain(): string {
   const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : ((process as any)?.env || {});
-  const configuredDomain = String(env.VITE_FIREBASE_AUTH_DOMAIN || '').trim();
-  if (configuredDomain) {
-    return configuredDomain;
-  }
-
-  if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
-    const host = (window.location.hostname || '').toLowerCase();
-    if (host === 'smartrun.in' || host === 'www.smartrun.in') {
-      return host;
-    }
-  }
-
-  return firebaseConfig.authDomain;
+  return resolveFirebaseAuthDomainForEnv({
+    configuredDomain: String(env.VITE_FIREBASE_AUTH_DOMAIN || '').trim(),
+    isNativePlatform: Capacitor.isNativePlatform(),
+    windowHostname: typeof window !== 'undefined' ? window.location.hostname : '',
+    fallbackAuthDomain: firebaseConfig.authDomain,
+  });
 }
 
 const resolvedFirebaseConfig = {
@@ -231,6 +225,21 @@ export function resetRecaptchaVerifier(): void {
     try {
       const badges = document.querySelectorAll('.grecaptcha-badge');
       badges.forEach((b) => b.remove());
+      const container = document.getElementById('recaptcha-container');
+      if (container) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+      }
+      // Hide any lingering invisible reCAPTCHA challenge wrapper overlays after login completes
+      const recaptchaFrames = document.querySelectorAll('iframe[src*="recaptcha"], iframe[title*="recaptcha" i]');
+      recaptchaFrames.forEach((frame) => {
+        const wrapper = frame.closest('div[style*="z-index"]') as HTMLElement | null;
+        if (wrapper && wrapper.parentElement === document.body) {
+          wrapper.style.display = 'none';
+          wrapper.style.visibility = 'hidden';
+          wrapper.style.pointerEvents = 'none';
+        }
+      });
     } catch {}
   }
 }
@@ -593,6 +602,7 @@ export async function verifyFirebaseOtpAndBridgeToSupabase(
       const userCredential = await activeConfirmationResult.confirm(cleanCode);
       firebaseUser = userCredential.user;
       activeConfirmationResult = null;
+      resetRecaptchaVerifier();
       console.log('[Firebase Phone Auth] Successfully verified OTP! Firebase UID:', firebaseUser.uid);
     } catch (err: any) {
       console.error('[Firebase Phone Auth] OTP verification failed:', err);
@@ -709,6 +719,7 @@ export async function verifyPhoneOtpOnly(
     try {
       await activeConfirmationResult.confirm(cleanCode);
       activeConfirmationResult = null;
+      resetRecaptchaVerifier();
       console.log('[Firebase Phone Auth] Phone number updated and verified successfully.');
       return { success: true, formattedPhone };
     } catch (err: any) {
