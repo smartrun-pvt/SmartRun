@@ -4358,9 +4358,6 @@ export async function syncAllProductsToSupabase(
       .from('products')
       .upsert(rows, { onConflict: 'id' });
 
-    // Also run targeted update for Dalda pipe
-    await updateOrMigrateDaldaPipeInSupabase();
-
     if (error) {
       console.warn('Supabase products upsert notice:', error.message);
       return { success: false, count: 0, error: error.message };
@@ -4371,94 +4368,6 @@ export async function syncAllProductsToSupabase(
     const msg = err instanceof Error ? err.message : String(err);
     console.warn('Error syncing products to Supabase:', msg);
     return { success: false, count: 0, error: msg };
-  }
-}
-
-/**
- * Dedicated database migration function that updates any 'Dada pipe' row in Supabase
- * to '3/4" Dalda PVC Conduit Pipe' and replaces its old photo with https://i.imgur.com/G9LIx1R.jpeg
- */
-export async function updateOrMigrateDaldaPipeInSupabase(): Promise<{ success: boolean; updatedCount: number }> {
-  try {
-    const newImage = 'https://i.imgur.com/G9LIx1R.jpeg';
-    const newName = '3/4" Dalda PVC Conduit Pipe (10 Ft Length, Heavy Duty)';
-    const newSpecs = {
-      Size: '3/4 Inch (20mm)',
-      Brand: 'Dalda',
-      Length: '10 Feet (3 Metres)',
-      Material: 'Heavy Virgin Rigid PVC',
-      Standard: 'IS 9537 Part 3',
-      'Available Colors': 'Ivory/White, Black, Grey, Blue, Red, Yellow',
-      Application: 'Concealed RCC Slab Casting & Wall Chasing Wiring'
-    };
-
-    // 1. Search for any existing products in Supabase matching "dada" (case-insensitive)
-    const { data: dadaProducts } = await supabase
-      .from('products')
-      .select('id, name')
-      .ilike('name', '%dada%');
-
-    let updatedCount = 0;
-
-    if (dadaProducts && dadaProducts.length > 0) {
-      // Batch update all matching product records in a single query (fixes N+1 sequential loop)
-      const matchedIds = dadaProducts.map((p) => p.id);
-      const { error: batchUpdateErr } = await supabase
-        .from('products')
-        .update({
-          name: newName,
-          brand: 'Dalda',
-          image: newImage,
-          image_urls: [newImage],
-          sub_category: 'Pipes',
-          subcategory: 'Pipes',
-          specs: newSpecs,
-          specifications: newSpecs,
-          updated_at: new Date().toISOString()
-        })
-        .in('id', matchedIds);
-
-      if (!batchUpdateErr) {
-        updatedCount = matchedIds.length;
-      }
-    }
-
-    // 2. Also ensure standard 'p-dalda-pipe-3-4' exists in Supabase
-    await supabase.from('products').upsert({
-      id: 'p-dalda-pipe-3-4',
-      name: newName,
-      brand: 'Dalda',
-      category: 'electrical',
-      sub_category: 'Pipes',
-      subcategory: 'Pipes',
-      price: 65,
-      mrp: 80,
-      original_price: 80,
-      discount_percent: 19,
-      discount_percentage: 19,
-      unit: '1 Piece (10ft)',
-      rating_avg: 4.9,
-      rating: 4.9,
-      rating_count: 118,
-      reviews_count: 118,
-      delivery_minutes: 30,
-      image: newImage,
-      image_urls: [newImage],
-      in_stock: true,
-      stock_quantity: 350,
-      stock_count: 350,
-      tags: ['pipe', 'dalda', 'pvc', 'conduit', '3/4 pipe', 'dalda pipe', 'electrical'],
-      is_best_seller: true,
-      specs: newSpecs,
-      specifications: newSpecs,
-      description: 'High-durability 3/4" Dalda rigid PVC conduit pipe with high impact strength, shock protection, and flame-retardant formulation for residential and commercial building electrical conduit routing.',
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'id' });
-
-    return { success: true, updatedCount };
-  } catch (err) {
-    console.warn('Notice updating Dalda pipe in Supabase:', err);
-    return { success: false, updatedCount: 0 };
   }
 }
 

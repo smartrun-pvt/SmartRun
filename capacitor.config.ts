@@ -4,6 +4,9 @@ const config: CapacitorConfig = {
   appId: 'in.smartrun.app',
   appName: 'SmartRun',
   webDir: 'dist',
+  android: {
+    webContentsDebuggingEnabled: false,
+  },
   server: {
     androidScheme: 'https',
     cleartext: false,

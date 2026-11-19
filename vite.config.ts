@@ -56,7 +56,12 @@ export default defineConfig(({ command }) => {
         ignored: ['**/ios/**', '**/android/**', '**/dist/**'],
       },
     },
+    esbuild: {
+      drop: ['debugger'],
+      pure: ['console.debug'],
+    },
     build: {
+      sourcemap: false,
       rollupOptions: {
         output: {
           manualChunks(id) {

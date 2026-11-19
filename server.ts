@@ -29,7 +29,6 @@ import {
   where as firestoreWhere,
   getDocs as firestoreGetDocs
 } from "firebase/firestore";
-import { INITIAL_PRODUCTS } from "./src/data/products";
 import { DEMO_TECHNICIANS } from "./src/data/demoTechnicians";
 import {
   generateDynamicSitemap,
@@ -51,6 +50,7 @@ const __dirnameResolved = typeof __dirname !== "undefined" ? __dirname : path.di
 // =========================================================================
 let serverFirebaseApp: any = null;
 let serverFirestore: any = null;
+let serverFirebaseProjectId: string = "";
 
 try {
   const possiblePaths = [
@@ -62,6 +62,7 @@ try {
 
   if (firebaseConfigPath) {
     const configData = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf-8"));
+    serverFirebaseProjectId = String(configData.projectId || "").trim();
     serverFirebaseApp = !getFirebaseApps().length ? initFirebaseApp(configData) : getFirebaseApp();
     if (configData.firestoreDatabaseId) {
       serverFirestore = getServerFirestore(serverFirebaseApp, configData.firestoreDatabaseId);
@@ -1719,9 +1720,9 @@ async function getCachedCatalog(forceRefresh = false): Promise<{ products: any[]
     }
   }
 
-  // Fallback to offline catalog if Supabase returns 0 items
-  if (!productsList || productsList.length === 0) {
-    productsList = INITIAL_PRODUCTS;
+  // Never inject hardcoded product data if database is empty or unreachable
+  if (!Array.isArray(productsList)) {
+    productsList = [];
   }
 
   const hash = crypto
@@ -2608,18 +2609,67 @@ async function startServer() {
   });
 
   // =========================================================================
+  // FIREBASE CUSTOM AUTH DOMAIN REVERSE PROXY (/__/auth/* & /__/firebase/*)
+  // Enables https://www.smartrun.in & https://smartrun.in as first-party authDomain
+  // =========================================================================
+  app.all(["/__/auth/*", "/__/firebase/*"], async (req, res) => {
+    const projectId = serverFirebaseProjectId || process.env.FIREBASE_PROJECT_ID || "";
+    if (!projectId) {
+      return res.status(503).send("Firebase Auth proxy unavailable.");
+    }
+    try {
+      const targetUrl = `https://${projectId}.firebaseapp.com${req.originalUrl}`;
+      const forwardHeaders: Record<string, string> = {};
+      for (const [k, v] of Object.entries(req.headers)) {
+        const key = k.toLowerCase();
+        if (
+          key === "host" ||
+          key === "connection" ||
+          key === "content-length" ||
+          key === "accept-encoding"
+        ) {
+          continue;
+        }
+        if (typeof v === "string") {
+          forwardHeaders[key] = v;
+        } else if (Array.isArray(v)) {
+          forwardHeaders[key] = v.join(", ");
+        }
+      }
+
+      const hasBody = req.method !== "GET" && req.method !== "HEAD";
+      const upstreamRes = await fetch(targetUrl, {
+        method: req.method,
+        headers: forwardHeaders,
+        body: hasBody && req.body && Object.keys(req.body).length > 0 ? JSON.stringify(req.body) : undefined,
+        redirect: "manual",
+      });
+
+      res.status(upstreamRes.status);
+      upstreamRes.headers.forEach((value, key) => {
+        const lower = key.toLowerCase();
+        if (lower === "content-encoding" || lower === "transfer-encoding" || lower === "content-length") {
+          return;
+        }
+        res.setHeader(key, value);
+      });
+      const buf = Buffer.from(await upstreamRes.arrayBuffer());
+      return res.send(buf);
+    } catch (proxyErr: any) {
+      console.warn("[Firebase Auth Proxy Error]:", proxyErr?.message || proxyErr);
+      return res.status(502).send("Unable to reach Firebase Authentication handler.");
+    }
+  });
+
+  // =========================================================================
   // GOOGLE MAPS PLATFORM PROXY ENDPOINTS (PRIMARY)
   // =========================================================================
 
-  // Helper to resolve active Google Maps API key from environment variables (e.g. Cloud Run, production, or AI Studio secrets)
+  // Helper to resolve active Google Maps API key strictly from environment variables
   const getActiveGoogleMapsApiKey = (): string => {
-    // Custom user key provided via AI Studio UI with active Google Cloud billing
-    const customConfiguredKey = "AIzaSyC8tFbIuHfKbFcKn0hx26_nsKgR8tyorIw";
     const envKey = (
-      customConfiguredKey ||
       process.env.GOOGLE_MAPS_API_KEY ||
       process.env.VITE_GOOGLE_MAPS_API_KEY ||
-      process.env.OGLE_MAPS_API_KEY ||
       process.env.MAPS_API_KEY ||
       process.env.GOOGLE_API_KEY ||
       ""
@@ -7855,7 +7905,7 @@ Knowledge Base & Service Details:
     process.env.SESSION_SECRET ||
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.JWT_SECRET ||
-    "smartrun_kasba_server_auth_secret_secure_key_2026";
+    crypto.randomBytes(32).toString("hex");
 
   interface ServerAuthSession {
     uid: string;
@@ -8135,7 +8185,7 @@ Knowledge Base & Service Details:
       const expiresAt = Date.now() + 10 * 60 * 1000;
 
       // Cryptographic HMAC token valid across serverless cold starts
-      const secret = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "smartrun-phone-auth-secret").slice(0, 32);
+      const secret = (process.env.SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || SERVER_AUTH_SECRET).slice(0, 32);
       const signature = crypto
         .createHmac("sha256", secret)
         .update(`${cleanPhone}:${generatedOtp}:${expiresAt}`)
@@ -8202,8 +8252,7 @@ Knowledge Base & Service Details:
       }
 
       const secrets = [
-        (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "smartrun-phone-auth-secret").slice(0, 32),
-        "smartrun-phone-auth-secret"
+        (process.env.SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || SERVER_AUTH_SECRET).slice(0, 32),
       ].filter(Boolean);
       let isCodeValid = false;
 

@@ -1,12 +1,22 @@
 package in.smartrun.app;
 
+import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -14,6 +24,12 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
+import com.google.android.gms.auth.api.phone.SmsRetriever;
+import com.google.android.gms.common.api.CommonStatusCodes;
+import com.google.android.gms.common.api.Status;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.json.JSONObject;
 
 public class MainActivity extends BridgeActivity {
     private volatile int latestTopDp = 0;
@@ -21,6 +37,64 @@ public class MainActivity extends BridgeActivity {
     private volatile int latestLeftDp = 0;
     private volatile int latestRightDp = 0;
     private volatile boolean hasMeasuredInsets = false;
+    private boolean isSmsConsentReceiverRegistered = false;
+
+    private static final Pattern OTP_HASH_PATTERN = Pattern.compile("#(\\d{6})\\b");
+    private static final Pattern OTP_KEYWORD_PATTERN =
+        Pattern.compile("\\b(?:otp|code|pin|passcode)\\s*(?:is|:|-)?\\s*(\\d{6})\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern OTP_GOOGLE_PATTERN =
+        Pattern.compile("\\bG-(\\d{6})\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern OTP_ISOLATED_PATTERN =
+        Pattern.compile("(?:^|[^\\d])(\\d{6})(?:[^\\d]|$)");
+    private static final Pattern OTP_SPLIT_PATTERN =
+        Pattern.compile("(?:^|[^\\d])(\\d{3})[\\s-](\\d{3})(?:[^\\d]|$)");
+
+    private final ActivityResultLauncher<Intent> smsConsentLauncher =
+        registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            unregisterSmsConsentReceiver();
+            if (result != null && result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                String message = result.getData().getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE);
+                if (message != null && !message.isEmpty()) {
+                    dispatchSmsOtpToWebView(message);
+                }
+            }
+        });
+
+    private final BroadcastReceiver smsConsentReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null || !SmsRetriever.SMS_RETRIEVED_ACTION.equals(intent.getAction())) {
+                return;
+            }
+            Bundle extras = intent.getExtras();
+            if (extras == null) {
+                return;
+            }
+            Status smsRetrieverStatus = getStatusFromExtras(extras);
+            if (smsRetrieverStatus == null) {
+                return;
+            }
+            switch (smsRetrieverStatus.getStatusCode()) {
+                case CommonStatusCodes.SUCCESS:
+                    Intent consentIntent = getConsentIntentFromExtras(extras);
+                    if (consentIntent != null) {
+                        try {
+                            smsConsentLauncher.launch(consentIntent);
+                        } catch (ActivityNotFoundException | IllegalStateException ignored) {
+                            unregisterSmsConsentReceiver();
+                        }
+                    } else {
+                        unregisterSmsConsentReceiver();
+                    }
+                    break;
+                case CommonStatusCodes.TIMEOUT:
+                    unregisterSmsConsentReceiver();
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
 
     public class SmartRunInsetsBridge {
         @JavascriptInterface
@@ -47,6 +121,120 @@ public class MainActivity extends BridgeActivity {
         public boolean isReady() {
             return hasMeasuredInsets;
         }
+    }
+
+    public class SmartRunOtpBridge {
+        @JavascriptInterface
+        public void startListening() {
+            runOnUiThread(MainActivity.this::startSmsUserConsentListener);
+        }
+
+        @JavascriptInterface
+        public void stopListening() {
+            runOnUiThread(MainActivity.this::unregisterSmsConsentReceiver);
+        }
+
+        @JavascriptInterface
+        public boolean isSupported() {
+            return true;
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private Status getStatusFromExtras(Bundle extras) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return extras.getParcelable(SmsRetriever.EXTRA_STATUS, Status.class);
+        }
+        return extras.getParcelable(SmsRetriever.EXTRA_STATUS);
+    }
+
+    @SuppressWarnings("deprecation")
+    private Intent getConsentIntentFromExtras(Bundle extras) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return extras.getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT, Intent.class);
+        }
+        return extras.getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT);
+    }
+
+    private void startSmsUserConsentListener() {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
+        unregisterSmsConsentReceiver();
+        try {
+            IntentFilter intentFilter = new IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION);
+            ContextCompat.registerReceiver(
+                this,
+                smsConsentReceiver,
+                intentFilter,
+                SmsRetriever.SEND_PERMISSION,
+                null,
+                ContextCompat.RECEIVER_EXPORTED
+            );
+            isSmsConsentReceiverRegistered = true;
+            // Passing null listens for the next one-time OTP SMS from any sender (Firebase, Fast2SMS, etc.)
+            // and opens Google Play Services' native one-tap consent bottom sheet (no READ_SMS permission).
+            SmsRetriever.getClient(this).startSmsUserConsent(null);
+        } catch (Exception ignored) {
+            unregisterSmsConsentReceiver();
+        }
+    }
+
+    private void unregisterSmsConsentReceiver() {
+        if (!isSmsConsentReceiverRegistered) {
+            return;
+        }
+        try {
+            unregisterReceiver(smsConsentReceiver);
+        } catch (IllegalArgumentException ignored) {
+        } finally {
+            isSmsConsentReceiverRegistered = false;
+        }
+    }
+
+    private String extractSixDigitOtp(String rawMessage) {
+        if (rawMessage == null) return "";
+        String text = rawMessage.trim();
+        if (text.isEmpty()) return "";
+
+        Matcher hashMatcher = OTP_HASH_PATTERN.matcher(text);
+        if (hashMatcher.find()) return hashMatcher.group(1);
+
+        Matcher keywordMatcher = OTP_KEYWORD_PATTERN.matcher(text);
+        if (keywordMatcher.find()) return keywordMatcher.group(1);
+
+        Matcher googleMatcher = OTP_GOOGLE_PATTERN.matcher(text);
+        if (googleMatcher.find()) return googleMatcher.group(1);
+
+        Matcher isolatedMatcher = OTP_ISOLATED_PATTERN.matcher(text);
+        if (isolatedMatcher.find()) return isolatedMatcher.group(1);
+
+        Matcher splitMatcher = OTP_SPLIT_PATTERN.matcher(text);
+        if (splitMatcher.find()) return splitMatcher.group(1) + splitMatcher.group(2);
+
+        return "";
+    }
+
+    private void dispatchSmsOtpToWebView(String rawMessage) {
+        if (isFinishing() || isDestroyed() || getBridge() == null || getBridge().getWebView() == null) {
+            return;
+        }
+        final String otpCode = extractSixDigitOtp(rawMessage);
+        getBridge().getWebView().post(() -> {
+            if (isFinishing() || isDestroyed() || getBridge() == null || getBridge().getWebView() == null) {
+                return;
+            }
+            try {
+                JSONObject payload = new JSONObject();
+                payload.put("code", otpCode);
+                payload.put("rawMessage", rawMessage);
+                String js =
+                    "window.dispatchEvent(new CustomEvent('smartrun:sms-otp', { detail: " +
+                    payload.toString() +
+                    " }));";
+                getBridge().getWebView().evaluateJavascript(js, null);
+            } catch (Exception ignored) {}
+        });
     }
 
     @Override
@@ -125,6 +313,10 @@ public class MainActivity extends BridgeActivity {
 
         super.onCreate(savedInstanceState);
 
+        // Enforce WebView debugging strictly OFF in release builds (Play Console security compliance)
+        boolean isDebuggableApp = (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        WebView.setWebContentsDebuggingEnabled(isDebuggableApp);
+
         // Hide any native Android ActionBar or Toolbar so web app navbar is unobstructed
         if (getSupportActionBar() != null) {
             getSupportActionBar().hide();
@@ -144,6 +336,7 @@ public class MainActivity extends BridgeActivity {
         if (getBridge() != null && getBridge().getWebView() != null) {
             WebView webView = getBridge().getWebView();
             webView.addJavascriptInterface(new SmartRunInsetsBridge(), "SmartRunInsets");
+            webView.addJavascriptInterface(new SmartRunOtpBridge(), "SmartRunOtp");
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 webView.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
             }
@@ -247,5 +440,11 @@ public class MainActivity extends BridgeActivity {
         if (hasFocus) {
             syncFromRootWindowInsets();
         }
+    }
+
+    @Override
+    public void onDestroy() {
+        unregisterSmsConsentReceiver();
+        super.onDestroy();
     }
 }

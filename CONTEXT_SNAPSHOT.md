@@ -36,8 +36,12 @@
 - **Phase 9 SEO Rich Results & Google Merchant Center (GMC) 100% Parity**:
   - Added `normalizeProductForSeo`, `normalizeAbsoluteHttpsUrl`, `resolveGoogleProductCategory`, and `generateGoogleMerchantFeed` in `src/utils/seoHelper.ts` with `color_variants` `<g:item_group_id>` expansion, `<g:sale_price>`, `<g:product_highlight>`, `<g:product_detail>`, `<g:shipping_weight>`, live `getServerFeePolicy()` delivery rate sync, and strict `data:`/`blob:` URL stripping.
   - Wired OpenGraph `product:*` commerce meta tags + `ItemList` rich snippets across `server.ts` SSR handlers, `SEOHead.tsx`, `ElectricalListingPage.tsx`, `ConstructionPage.tsx`, and `TechniciansPage.tsx`; synced `?color=` variant URLs in `ProductDetailPage.tsx` and SSR handlers; exposed sitemap/RSS `<link>` discovery in `index.html` and allowed GMC feed endpoints in `public/robots.txt`.
+- **Phase 10 Play Store Release Hardening, Custom Firebase Auth Domain Proxy & Zero Hardcoded Keys/Products (`BUG-SEC-001`)**:
+  - Added `/__/auth/*` & `/__/firebase/*` reverse proxy in `server.ts`, dynamic `smartrun.in` `authDomain` resolution in `firebaseAuthService.ts`, and blocked native Android from falling through to Web SDK `localhost` reCAPTCHA.
+  - Purged `server.cjs` and `server.cjs.map` from `android/app/src/main/assets/public/`, added Gradle `ignoreAssetsPattern` exclusion + explicit `debuggable false` / `jniDebuggable false` / `ndk.debugSymbolLevel 'FULL'`, `allowBackup="false"`, `webContentsDebuggingEnabled: false`, `MainActivity` `FLAG_DEBUGGABLE` WebView guard, R8 `Log.d`/`Log.v` stripping, and Vite `sourcemap: false` + `drop: ['debugger']`.
+  - Removed hardcoded Google Maps API key, hardcoded HMAC signing secrets, `src/data/products.ts` (50 KB hardcoded products), and `updateOrMigrateDaldaPipeInSupabase`; `SitemapPage.tsx` and `server.ts` load live catalog data exclusively from Supabase.
 
 ## Immediate Next Build Step
-- Rebuild & sync web assets (`npm run build && npx cap sync android`), submit `https://www.smartrun.in/sitemap.xml` to Google Search Console and `https://www.smartrun.in/api/feeds/google-merchant.xml` to Google Merchant Center Next, and deploy updated Cloud Run bundle.
+- In Firebase Console (`gen-lang-client-0708778333`), set **Public-facing name** to `SmartRun`, register Play App Signing SHA-1 & SHA-256 on `in.smartrun.app`, enable Play Integrity API, configure `GOOGLE_MAPS_API_KEY` & `SESSION_SECRET` in Cloud Run env vars, then build a signed `release` `.aab` in Android Studio (`Build > Generate Signed Bundle / APK > Android App Bundle > release`) and deploy Cloud Run.
 
 

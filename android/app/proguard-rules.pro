@@ -38,6 +38,16 @@
 -keep class com.capacitorjs.plugins.pushnotifications.** { *; }
 -dontwarn com.capacitorjs.plugins.pushnotifications.**
 
+# Google Play Services SMS User Consent API (OTP Autofill)
+-keep class com.google.android.gms.auth.api.phone.** { *; }
+-dontwarn com.google.android.gms.auth.api.phone.**
+
+# Strip verbose/debug Android logs in release builds
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+}
+
 # Suppress R8 missing class warnings across all third-party libraries & plugins
 -dontwarn **
 -ignorewarnings

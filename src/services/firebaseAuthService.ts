@@ -26,8 +26,30 @@ import { sanitizeCustomerName } from '../utils/nameHelper';
 
 export { sanitizeCustomerName };
 
+function resolveFirebaseAuthDomain(): string {
+  const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : ((process as any)?.env || {});
+  const configuredDomain = String(env.VITE_FIREBASE_AUTH_DOMAIN || '').trim();
+  if (configuredDomain) {
+    return configuredDomain;
+  }
+
+  if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
+    const host = (window.location.hostname || '').toLowerCase();
+    if (host === 'smartrun.in' || host === 'www.smartrun.in') {
+      return host;
+    }
+  }
+
+  return firebaseConfig.authDomain;
+}
+
+const resolvedFirebaseConfig = {
+  ...firebaseConfig,
+  authDomain: resolveFirebaseAuthDomain(),
+};
+
 // Initialize Firebase App singleton
-export const firebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+export const firebaseApp = !getApps().length ? initializeApp(resolvedFirebaseConfig) : getApp();
 export const firebaseAuth = getAuth(firebaseApp);
 
 // Global reference to active ConfirmationResult for multi-step verification
@@ -99,7 +121,7 @@ export function formatFirebasePhoneError(err: any): FirebaseDiagnostic {
     return {
       code: 'auth/unauthorized-domain',
       userMessage: isLocal
-        ? `Firebase Web reCAPTCHA does not authorize "${currentHost}". On Android app, native verification is used; on web, please test via https://www.smartrun.in or use test OTP 123456.`
+        ? `Firebase Web reCAPTCHA does not authorize "${currentHost}". On Android, native Play Integrity verification is used; on web, please sign in via https://www.smartrun.in.`
         : `Firebase Error: Hostname match not found for "${currentHost}".`,
       technicalCause: `The current domain "${currentHost}" is not added in Firebase Authorized Domains.`,
       resolution: `Go to Firebase Console -> Authentication -> Settings tab -> Authorized domains, and click "Add domain" to add "${currentHost}".`
@@ -153,7 +175,7 @@ export function formatFirebasePhoneError(err: any): FirebaseDiagnostic {
         code,
         userMessage: 'Firebase Error (auth/too-many-requests): Temporarily blocked due to too many requests.',
         technicalCause: 'Firebase anti-abuse rate limit was triggered for this device or number.',
-        resolution: 'Wait a few minutes, or configure a Test Phone Number (e.g. +91 8777400280 with OTP 123456) in Firebase Console.'
+        resolution: 'Wait a few minutes before retrying, or verify your Play Integrity and SHA-256 app signing configuration in Firebase Console.'
       };
 
     case 'auth/invalid-phone-number':
@@ -433,10 +455,25 @@ export async function sendFirebasePhoneOtp(
       if (nativeResult.success) {
         return nativeResult;
       }
-      console.warn('[Native Firebase Phone Auth] Native dispatch did not complete, falling back...');
+      // Do NOT fall through to Web SDK signInWithPhoneNumber on Capacitor's https://localhost origin,
+      // which triggers unauthorized-domain / default firebaseapp.com web reCAPTCHA failures.
+      return {
+        success: false,
+        formattedPhone,
+        error:
+          nativeResult.error ||
+          'Unable to complete native phone verification on this Android build. Please verify SHA-1/SHA-256 and Play Integrity in Firebase Console.',
+      };
     } catch (pluginErr: any) {
       console.warn('[Native Firebase Phone Auth] Native plugin unavailable or error:', pluginErr);
       clearNativePhoneListeners();
+      return {
+        success: false,
+        formattedPhone,
+        error:
+          pluginErr?.message ||
+          'Native Firebase Phone Auth is unavailable in this build. Please reinstall from Google Play or rebuild the signed APK.',
+      };
     }
   }
 

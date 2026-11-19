@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -23,15 +23,36 @@ import {
 } from 'lucide-react';
 import { SEOHead } from './SEOHead';
 import { Footer } from './Footer';
-import { INITIAL_PRODUCTS } from '../data/products';
+import { fetchProductsFromSupabase } from '../services/supabaseService';
+import { Product } from '../types';
+import { isElectricalProduct, isConstructionProduct } from '../utils/categoryHelper';
 import { trackPlayStoreClick } from '../utils/analytics';
 
 export const SitemapPage: React.FC = () => {
   const navigate = useNavigate();
   const [filterQuery, setFilterQuery] = useState('');
+  const [liveProducts, setLiveProducts] = useState<Product[]>([]);
 
-  const electricalProducts = INITIAL_PRODUCTS.filter(p => p.category === 'electrical').slice(0, 10);
-  const constructionProducts = INITIAL_PRODUCTS.filter(p => p.category === 'construction').slice(0, 10);
+  useEffect(() => {
+    let active = true;
+    fetchProductsFromSupabase()
+      .then((items) => {
+        if (active && Array.isArray(items)) {
+          setLiveProducts(items);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const electricalProducts = liveProducts
+    .filter((p) => isElectricalProduct(p) && !isConstructionProduct(p))
+    .slice(0, 10);
+  const constructionProducts = liveProducts
+    .filter((p) => isConstructionProduct(p))
+    .slice(0, 10);
 
   const mainSections = [
     {

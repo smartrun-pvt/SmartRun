@@ -41,6 +41,12 @@ import {
 import { updateGAConsent } from '../utils/analytics';
 import { PersonalInfoPage } from './PersonalInfoPage';
 import { setServerAuthToken } from '../services/serverAuthService';
+import {
+  extractOtpDigits,
+  startNativeSmsOtpAutofill,
+  stopNativeSmsOtpAutofill,
+  subscribeNativeSmsOtpAutofill
+} from '../utils/otpAutofill';
 
 interface LoginPageProps {
   onAuthSuccess: (phone: string, name: string, email?: string, userObj?: any, options?: { isNewRegistration?: boolean }) => void;
@@ -67,41 +73,6 @@ const isPhoneInput = (input: string): boolean => {
   if (trimmed.includes('@')) return false;
   const digits = trimmed.replace(/[^0-9]/g, '');
   return digits.length >= 7;
-};
-
-// Helper: Safely extract a 6-digit OTP from raw autofill, WebOTP, or full pasted SMS text
-// Avoids grabbing the leading 6 digits of a 10-digit mobile number if full SMS is pasted.
-const extractOtpDigits = (raw: string): string => {
-  const text = String(raw || '').trim();
-  if (!text) return '';
-
-  // Pure digit input (normal typing / standard autofill)
-  if (/^\d+$/.test(text)) {
-    return text.slice(0, 6);
-  }
-
-  // Prioritize explicit WebOTP/SMS markers (e.g. "#482910", "code is 482910", "OTP: 482910", "G-482910")
-  const explicitOtp =
-    text.match(/#(\d{6})\b/) ||
-    text.match(/\b(?:otp|code|pin|passcode)\s*(?:is|:|-)?\s*(\d{6})\b/i) ||
-    text.match(/\bG-(\d{6})\b/i);
-  if (explicitOtp && explicitOtp[1]) {
-    return explicitOtp[1];
-  }
-
-  // Isolated 6-digit token (e.g. "482910 is your verification code", skips 10-digit phone numbers)
-  const isolatedSix = text.match(/(?:^|[^\d])(\d{6})(?:[^\d]|$)/);
-  if (isolatedSix && isolatedSix[1]) {
-    return isolatedSix[1];
-  }
-
-  // Spaced or hyphenated 3+3 format (e.g. "482 910" or "482-910")
-  const splitSix = text.match(/(?:^|[^\d])(\d{3})[\s-](\d{3})(?:[^\d]|$)/);
-  if (splitSix && splitSix[1] && splitSix[2]) {
-    return `${splitSix[1]}${splitSix[2]}`;
-  }
-
-  return text.replace(/\D/g, '').slice(0, 6);
 };
 
 // Helper: Check and persist terms agreement across sessions (defaults to YES tick)
@@ -201,9 +172,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
   const secondInputRef = useRef<HTMLInputElement>(null);
   const isVerifyingOtpRef = useRef(false);
   const hasCompletedPhoneAuthRef = useRef(false);
-  const lastAutoPastedOtpRef = useRef('');
   const latestVerifyPhoneOtpRef = useRef<(overrideOtp?: string) => Promise<void>>(async () => {});
-  const supportsClipboardRead = typeof navigator !== 'undefined' && Boolean(navigator.clipboard?.readText);
 
   // Auto-focus second field when revealed (with animation-frame sync for Safari/Android Autofill bars)
   useEffect(() => {
@@ -264,11 +233,15 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
     };
   }, []);
 
+  const isListeningForSmsOtp =
+    authStep === 'primary' &&
+    isPhoneInput(identifier) &&
+    otpAttemptId > 0 &&
+    (isWaitingOtp || (otpSent && showSecondField));
+
   // Google & Cross-Device WebOTP API integration (Android Phones, Tablets, Chromebooks, & Laptop Chrome)
   useEffect(() => {
-    if (authStep !== 'primary') return;
-    if (!isPhoneInput(identifier)) return;
-    if (!otpAttemptId || (!isWaitingOtp && !(otpSent && showSecondField))) return;
+    if (!isListeningForSmsOtp) return;
     if (typeof window === 'undefined' || !('OTPCredential' in window) || !navigator.credentials?.get) return;
 
     const ac = new AbortController();
@@ -287,6 +260,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
             setShowSecondField(true);
             setOtpSent(true);
             setOtpCode(codeDigits);
+            setError(null);
             latestVerifyPhoneOtpRef.current(codeDigits);
           }
         })
@@ -305,55 +279,28 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
         ac.abort();
       } catch {}
     };
-  }, [authStep, otpAttemptId, isWaitingOtp, otpSent, showSecondField, identifier]);
+  }, [isListeningForSmsOtp, otpAttemptId]);
 
-  // Silent Clipboard OTP Auto-Detect on Tab Focus (for Tablet/Laptop Google Messages Web, Phone Link & iCloud Clipboard)
-  // Only triggers when 'clipboard-read' permission is already granted so no unsolicited permission popup occurs.
+  // Native Android Google Play Services SMS User Consent Autofill (Uber-style system "Allow" OTP popup)
   useEffect(() => {
-    if (authStep !== 'primary' || !otpSent || !showSecondField || !isPhoneInput(identifier)) return;
-    if (typeof window === 'undefined' || !navigator.clipboard?.readText) return;
+    if (!isListeningForSmsOtp) return;
 
-    let isDisposed = false;
+    startNativeSmsOtpAutofill();
 
-    const checkClipboardSilently = async () => {
-      if (isDisposed || hasCompletedPhoneAuthRef.current || isVerifyingOtpRef.current) return;
-      if (otpCode.length > 0) return;
-
-      try {
-        const permApi = (navigator as any)?.permissions;
-        if (!permApi?.query) return;
-        const perm = await permApi.query({ name: 'clipboard-read' });
-        if (perm?.state !== 'granted' || isDisposed) return;
-
-        const text = await navigator.clipboard.readText();
-        if (isDisposed || !text) return;
-
-        const extracted = extractOtpDigits(text);
-        if (extracted.length === 6 && extracted !== lastAutoPastedOtpRef.current) {
-          lastAutoPastedOtpRef.current = extracted;
-          setOtpCode(extracted);
-          latestVerifyPhoneOtpRef.current(extracted);
-        }
-      } catch {
-        // Silently ignore clipboard/permission errors
-      }
-    };
-
-    const handleVisibilityOrFocus = () => {
-      if (document.visibilityState === 'visible') {
-        checkClipboardSilently();
-      }
-    };
-
-    window.addEventListener('focus', handleVisibilityOrFocus);
-    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    const unsubscribe = subscribeNativeSmsOtpAutofill((codeDigits) => {
+      if (hasCompletedPhoneAuthRef.current || isVerifyingOtpRef.current) return;
+      setShowSecondField(true);
+      setOtpSent(true);
+      setOtpCode(codeDigits);
+      setError(null);
+      latestVerifyPhoneOtpRef.current(codeDigits);
+    });
 
     return () => {
-      isDisposed = true;
-      window.removeEventListener('focus', handleVisibilityOrFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      unsubscribe();
+      stopNativeSmsOtpAutofill();
     };
-  }, [authStep, otpSent, showSecondField, identifier, otpCode]);
+  }, [isListeningForSmsOtp, otpAttemptId]);
 
   // WebAuthn Passkey Conditional Autofill (zero UI intrusion - pops up in browser autofill dropdown)
   useEffect(() => {
@@ -600,6 +547,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
     }
 
     hasCompletedPhoneAuthRef.current = true;
+    stopNativeSmsOtpAutofill();
 
     let existingProfile: any = null;
     try {
@@ -661,7 +609,6 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
 
     hasCompletedPhoneAuthRef.current = false;
     isVerifyingOtpRef.current = false;
-    lastAutoPastedOtpRef.current = '';
     setIsLoading(true);
     setIsWaitingOtp(true);
     setOtpAttemptId((prev) => prev + 1);
@@ -689,6 +636,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
 
       if (!res.success) {
         setIsWaitingOtp(false);
+        stopNativeSmsOtpAutofill();
         setError(res.error || 'Failed to send OTP to mobile number. Please try again.');
       } else if (res.autoVerified) {
         const phone = res.formattedPhone || formatToE164Phone(clean10);
@@ -705,6 +653,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
       }
     } catch (err: unknown) {
       setIsWaitingOtp(false);
+      stopNativeSmsOtpAutofill();
       const msg = err instanceof Error ? err.message : 'Failed to send OTP.';
       setError(msg);
     } finally {
@@ -741,28 +690,6 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
   };
 
   latestVerifyPhoneOtpRef.current = handleVerifyPhoneOtp;
-
-  // --- 3B. ONE-TAP CLIPBOARD PASTE FOR LAPTOP / TABLET / PHONE ---
-  const handlePasteOtpFromClipboard = async () => {
-    if (isVerifyingOtpRef.current || hasCompletedPhoneAuthRef.current) return;
-    if (typeof navigator === 'undefined' || !navigator.clipboard?.readText) return;
-    resetMessages();
-    try {
-      const rawText = await navigator.clipboard.readText();
-      const digits = extractOtpDigits(rawText);
-      if (digits.length === 6) {
-        lastAutoPastedOtpRef.current = digits;
-        setOtpCode(digits);
-        await handleVerifyPhoneOtp(digits);
-      } else if (digits.length > 0) {
-        setOtpCode(digits);
-      } else {
-        setError('No 6-digit OTP found in clipboard. Please type it manually.');
-      }
-    } catch {
-      setError('Clipboard access was denied. Please paste (Ctrl+V / Cmd+V) or type your OTP.');
-    }
-  };
 
   // --- 4. SAVE NEW USER PROFILE (PHONE ONBOARDING NEXT PAGE) ---
   const handleSavePhoneOnboarding = async (e: React.FormEvent) => {
@@ -1562,27 +1489,18 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
                         className="w-full bg-transparent py-2 text-sm font-semibold tracking-widest text-slate-900 placeholder:text-slate-400 focus:outline-none"
                         required={showSecondField && isPhone}
                       />
-                      {otpCode.length > 0 ? (
+                      {otpCode.length > 0 && (
                         <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0 select-none">
                           {otpCode.length}/6
                         </span>
-                      ) : supportsClipboardRead ? (
-                        <button
-                          type="button"
-                          onClick={handlePasteOtpFromClipboard}
-                          disabled={isLoading}
-                          className="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 px-2 py-0.5 rounded-full shrink-0 transition-colors cursor-pointer disabled:opacity-50"
-                          title="Paste OTP from clipboard"
-                        >
-                          Paste
-                        </button>
-                      ) : null}
+                      )}
                     </div>
 
                     <div className="flex justify-between items-center pt-2">
                       <button
                         type="button"
                         onClick={() => {
+                          stopNativeSmsOtpAutofill();
                           setOtpSent(false);
                           setIsWaitingOtp(false);
                           setShowSecondField(false);
