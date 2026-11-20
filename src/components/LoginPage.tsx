@@ -38,7 +38,9 @@ import {
   verifyFirebaseOtpAndBridgeToSupabase,
   formatToE164Phone,
   resetRecaptchaVerifier,
-  prewarmRecaptchaVerifier
+  prewarmRecaptchaVerifier,
+  getPendingPhoneOtpSession,
+  clearPendingPhoneOtpSession
 } from '../services/firebaseAuthService';
 import { updateGAConsent } from '../utils/analytics';
 import { PersonalInfoPage } from './PersonalInfoPage';
@@ -141,6 +143,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
   const [otpCode, setOtpCode] = useState('');
   const [otpCooldown, setOtpCooldown] = useState(0);
   const [sentToPhone, setSentToPhone] = useState('');
+  const [otpProvider, setOtpProvider] = useState<'firebase' | 'fast2sms' | null>(null);
   const [showSecondField, setShowSecondField] = useState(false);
 
   // Onboarding for New User via Phone OTP
@@ -307,9 +310,11 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
         ev.preventDefault();
         cancelScheduledAutoVerify();
         stopNativeSmsOtpAutofill();
+        clearPendingPhoneOtpSession();
         resetRecaptchaVerifier();
         setOtpSent(false);
         setIsWaitingOtp(false);
+        setOtpProvider(null);
         setShowSecondField(false);
         setOtpCode('');
         setPassword('');
@@ -364,11 +369,53 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
     };
   }, [isListeningForWebOtp, otpAttemptId]);
 
+  // Restore pending OTP verification session if Android recreated WebView or user returned
+  // from Firebase RecaptchaActivity / Chrome Custom Tab with an already-dispatched OTP SMS.
+  useEffect(() => {
+    const restorePendingSession = () => {
+      if (authStep !== 'primary' || hasCompletedPhoneAuthRef.current) return;
+      const pending = getPendingPhoneOtpSession();
+      if (!pending || !pending.phone) return;
+      const clean10 = pending.phone.replace(/\D/g, '').slice(-10);
+      if (clean10.length !== 10) return;
+
+      setIdentifier((prev) => (prev.trim() ? prev : clean10));
+      setSentToPhone(pending.phone);
+      setOtpProvider(pending.provider);
+      setOtpSent(true);
+      setShowSecondField(true);
+      setIsWaitingOtp(false);
+      setIsLoading(false);
+      setOtpAttemptId((prev) => (prev > 0 ? prev : 1));
+    };
+
+    restorePendingSession();
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        restorePendingSession();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', restorePendingSession);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', restorePendingSession);
+    };
+  }, [authStep]);
+
   // Native Android Google Play Services SMS User Consent Autofill (Uber-style system "Allow" OTP popup)
+  // Delay arming slightly when using Firebase provider so it never collides with RecaptchaActivity closing
+  // or Firebase's built-in Play Services auto-retrieval.
   useEffect(() => {
     if (!isListeningForNativeSmsConsent) return;
 
-    startNativeSmsOtpAutofill();
+    const armDelayMs = otpProvider === 'firebase' ? 1200 : 150;
+    const armTimer = setTimeout(() => {
+      if (!hasCompletedPhoneAuthRef.current && !isVerifyingOtpRef.current) {
+        startNativeSmsOtpAutofill();
+      }
+    }, armDelayMs);
 
     const unsubscribe = subscribeNativeSmsOtpAutofill((codeDigits) => {
       if (hasCompletedPhoneAuthRef.current || isVerifyingOtpRef.current) return;
@@ -380,10 +427,11 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
     });
 
     return () => {
+      clearTimeout(armTimer);
       unsubscribe();
       stopNativeSmsOtpAutofill();
     };
-  }, [isListeningForNativeSmsConsent, otpAttemptId]);
+  }, [isListeningForNativeSmsConsent, otpAttemptId, otpProvider]);
 
   // WebAuthn Passkey Conditional Autofill (web browsers only; skipped in Capacitor WebView where origin is https://localhost)
   useEffect(() => {
@@ -734,10 +782,12 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
       } else if (res.autoVerified) {
         const phone = res.formattedPhone || formatToE164Phone(clean10);
         setSentToPhone(phone);
+        setOtpProvider(res.provider || 'firebase');
         setOtpCooldown(60);
       } else {
         const phone = res.formattedPhone || formatToE164Phone(clean10);
         setSentToPhone(phone);
+        setOtpProvider(res.provider || 'firebase');
         setOtpSent(true);
         setShowSecondField(true);
         setOtpCooldown(60); // 1 minute gap to resend OTP
@@ -1610,9 +1660,11 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
                         onClick={() => {
                           cancelScheduledAutoVerify();
                           stopNativeSmsOtpAutofill();
+                          clearPendingPhoneOtpSession();
                           resetRecaptchaVerifier();
                           setOtpSent(false);
                           setIsWaitingOtp(false);
+                          setOtpProvider(null);
                           setShowSecondField(false);
                           setOtpCode('');
                           resetMessages();

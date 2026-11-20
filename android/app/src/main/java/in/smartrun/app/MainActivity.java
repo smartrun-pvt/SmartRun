@@ -143,6 +143,12 @@ public class MainActivity extends BridgeActivity {
     }
 
     public class SmartRunOtpBridge {
+        private static final String PREFS_NAME = "smartrun_phone_auth";
+        private static final String KEY_VERIFICATION_ID = "verification_id";
+        private static final String KEY_PHONE_NUMBER = "phone_number";
+        private static final String KEY_TIMESTAMP = "timestamp";
+        private static final long MAX_AGE_MS = 10L * 60L * 1000L; // 10 minutes
+
         @JavascriptInterface
         public void startListening() {
             runOnUiThread(MainActivity.this::startSmsUserConsentListener);
@@ -159,6 +165,43 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public boolean isSupported() {
             return true;
+        }
+
+        @JavascriptInterface
+        @NonNull
+        public String getPendingVerification() {
+            try {
+                android.content.SharedPreferences prefs =
+                    getApplicationContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                String verificationId = prefs.getString(KEY_VERIFICATION_ID, null);
+                String phoneNumber = prefs.getString(KEY_PHONE_NUMBER, null);
+                long timestamp = prefs.getLong(KEY_TIMESTAMP, 0L);
+                if (verificationId == null || verificationId.isEmpty() || timestamp <= 0L) {
+                    return "";
+                }
+                if (System.currentTimeMillis() - timestamp > MAX_AGE_MS) {
+                    prefs.edit().clear().apply();
+                    return "";
+                }
+                JSONObject json = new JSONObject();
+                json.put("verificationId", verificationId);
+                json.put("phone", phoneNumber != null ? phoneNumber : "");
+                json.put("timestamp", timestamp);
+                return json.toString();
+            } catch (Throwable ignored) {
+                return "";
+            }
+        }
+
+        @JavascriptInterface
+        public void clearPendingVerification() {
+            try {
+                getApplicationContext()
+                    .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .edit()
+                    .clear()
+                    .apply();
+            } catch (Throwable ignored) {}
         }
     }
 

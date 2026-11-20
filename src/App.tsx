@@ -1092,7 +1092,15 @@ export default function App() {
     // Listen for app resumption from background (e.g. user returning from Chrome Custom Tab or reopening app)
     const stateListenerPromise = CapApp.addListener('appStateChange', (state) => {
       if (state.isActive) {
-        Browser.close().catch(() => {});
+        try {
+          if (
+            localStorage.getItem('smartrun_oauth_target') ||
+            sessionStorage.getItem('smartrun_oauth_target') ||
+            localStorage.getItem('giriraj_pending_native_oauth')
+          ) {
+            Browser.close().catch(() => {});
+          }
+        } catch {}
         supabase.auth.getSession().then(({ data }) => {
           if (data?.session) {
             try {
@@ -1199,9 +1207,17 @@ export default function App() {
     if (currentPath === '/login' || currentPath === '/auth') {
       if (!isAuthenticated && Capacitor.isNativePlatform()) {
         const lastFocusTs = Number((window as any).__SMARTRUN_LAST_RESUME_TS__ || 0);
-        if (lastFocusTs && Date.now() - lastFocusTs < 2000) {
+        if (lastFocusTs && Date.now() - lastFocusTs < 3500) {
           return;
         }
+        try {
+          if (
+            localStorage.getItem('smartrun_pending_phone_otp_v1') ||
+            (window as any).SmartRunOtp?.getPendingVerification?.()
+          ) {
+            return;
+          }
+        } catch {}
         const activeTag = document.activeElement?.tagName;
         if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
           try { (document.activeElement as HTMLElement).blur(); } catch {}

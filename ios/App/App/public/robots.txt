@@ -1,6 +1,68 @@
-# Robots.txt for SmartRun
+# Robots.txt for SmartRun (Smart Run)
 # Official Production Domain: https://www.smartrun.in
 
+# Priority Search Engine & AI Discovery Crawlers (Public Pages Allowed)
+User-agent: Googlebot
+User-agent: Googlebot-Image
+User-agent: Googlebot-Mobile
+User-agent: Google-Extended
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: GPTBot
+User-agent: PerplexityBot
+User-agent: ClaudeBot
+User-agent: Applebot
+User-agent: Applebot-Extended
+User-agent: Bingbot
+User-agent: AhrefsBot
+User-agent: SemrushBot
+Allow: /
+Allow: /electrical
+Allow: /electrical/*
+Allow: /construction
+Allow: /construction/*
+Allow: /product/*
+Allow: /technicians
+Allow: /technicians/*
+Allow: /about
+Allow: /app
+Allow: /delivery-areas
+Allow: /faqs
+Allow: /how-to-use
+Allow: /contact
+Allow: /shipping
+Allow: /return
+Allow: /refund-policy
+Allow: /privacy
+Allow: /terms
+Allow: /sitemap
+Allow: /sitemap.xml
+Allow: /rss.xml
+Allow: /feed.xml
+Allow: /llms.txt
+Allow: /.well-known/ard.json
+Allow: /api/products
+Allow: /api/products/*
+Allow: /api/ai/openapi.json
+Allow: /api/feeds/google-merchant.xml
+Allow: /feeds/google-merchant.xml
+Allow: /google-merchant.xml
+Disallow: /login
+Disallow: /cart
+Disallow: /profile
+Disallow: /orders
+Disallow: /live-order
+Disallow: /live-order/*
+Disallow: /reset-password
+Disallow: /delete
+Disallow: /account-deletion
+Disallow: /personal-info
+Disallow: /auth
+Disallow: /api/auth/*
+Disallow: /api/orders/*
+Disallow: /api/user-profile
+
+# General Crawlers
 User-agent: *
 Allow: /
 Allow: /electrical
@@ -10,27 +72,39 @@ Allow: /construction/*
 Allow: /product/*
 Allow: /technicians
 Allow: /technicians/*
-Allow: /sitemap
 Allow: /about
+Allow: /app
+Allow: /delivery-areas
 Allow: /faqs
+Allow: /how-to-use
+Allow: /contact
+Allow: /shipping
+Allow: /return
 Allow: /refund-policy
-Allow: /shipping-policy
 Allow: /privacy
 Allow: /terms
-Allow: /account-deletion
-Allow: /login
-
-# Disallow private user sessions and transactional paths from crawling
+Allow: /sitemap
+Allow: /llms.txt
+Allow: /.well-known/ard.json
+Allow: /api/feeds/google-merchant.xml
+Allow: /feeds/google-merchant.xml
+Allow: /google-merchant.xml
+Disallow: /login
 Disallow: /cart
 Disallow: /profile
 Disallow: /orders
 Disallow: /live-order
 Disallow: /live-order/*
 Disallow: /reset-password
-Disallow: /api/*
+Disallow: /delete
+Disallow: /account-deletion
+Disallow: /personal-info
+Disallow: /auth
+Disallow: /api/auth/*
+Disallow: /api/orders/*
+Disallow: /api/user-profile
 
-# Crawl Delay
-Crawl-delay: 1
-
-# XML Sitemap
+# XML Sitemaps, Agentic Discovery & Syndication Feeds
 Sitemap: https://www.smartrun.in/sitemap.xml
+Sitemap: https://www.smartrun.in/rss.xml
+Agentmap: https://www.smartrun.in/.well-known/ard.json

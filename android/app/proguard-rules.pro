@@ -41,15 +41,25 @@
 # Google Play Services SMS User Consent API (OTP Autofill) & Parcelable Status
 -keep class in.smartrun.app.MainActivity$* { *; }
 -keep class com.google.android.gms.auth.api.phone.** { *; }
+-keep class com.google.android.gms.internal.auth-api-phone.** { *; }
 -keep class com.google.android.gms.common.api.** { *; }
+-keep class com.google.android.gms.common.internal.safeparcel.** { *; }
 -keep class com.google.android.gms.tasks.** { *; }
 -dontwarn com.google.android.gms.auth.api.phone.**
 
-# Silent Phone Verification (Play Integrity, reCAPTCHA Enterprise, Firebase Auth)
+# Silent Phone Verification, RecaptchaActivity, SafeParcelables & Firebase Auth (signed release APK safety)
 -keep class com.google.android.play.core.integrity.** { *; }
 -keep class com.google.android.recaptcha.** { *; }
 -keep class com.google.firebase.auth.** { *; }
+-keep class com.google.firebase.auth.PhoneAuthProvider$* { *; }
+-keep class com.google.firebase.FirebaseException { *; }
+-keep class com.google.firebase.FirebaseApiNotAvailableException { *; }
+-keep class com.google.android.gms.internal.firebase-auth-api.** { *; }
+-keep class androidx.browser.customtabs.** { *; }
 -keep class io.capawesome.capacitorjs.plugins.firebase.authentication.** { *; }
+-keepclassmembers class * implements android.os.Parcelable {
+    public static final ** CREATOR;
+}
 
 # Strip verbose/debug Android logs in release builds
 -assumenosideeffects class android.util.Log {

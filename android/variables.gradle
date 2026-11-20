@@ -14,4 +14,7 @@ ext {
     androidxEspressoCoreVersion = '3.6.1'
     androidxBrowserVersion = '1.8.0'
     cordovaAndroidVersion = '10.1.1'
+    // Align @capacitor-firebase/authentication firebase-auth version with firebase-bom:33.10.0 (23.2.0)
+    // to prevent BOM v33 vs firebase-auth v24.0.1 (BOM v34) runtime crashes during Phone Auth / RecaptchaActivity.
+    firebaseAuthVersion = '23.2.0'
 }

@@ -2,7 +2,91 @@
 <html lang="en" prefix="og: https://ogp.me/ns#">
   <head>
     <script>
+      // Mark JS-enabled browsers synchronously before first paint so the non-JS crawler shell (#ssr-seo-shell) stays hidden from users
+      document.documentElement.classList.add('smartrun-js');
       // Gracefully silence benign [vite] websocket connection errors in AI Studio iframe/sandboxed environments
+      (function() {
+        const origWarn = console.warn;
+        const origError = console.error;
+        const origDebug = console.debug;
+        const origInfo = console.info;
+        const isBenignViteMsg = function(msg) {
+          if (!msg) return false;
+          const str = String(msg);
+          return (
+            str.includes('[vite] connecting...') ||
+            str.includes('[vite] failed to connect to websocket') ||
+            str.includes('WebSocket closed') ||
+            str.includes('WebSocket is closed') ||
+            str.includes('failed to connect to websocket') ||
+            str.includes('vite:ws') ||
+            str.includes('BillingNotEnabledMapError') ||
+            str.includes('billing-not-enabled-map-error')
+          );
+        };
+        console.warn = function(...args) {
+          if (args.some(isBenignViteMsg)) return;
+          origWarn.apply(console, args);
+        };
+        console.error = function(...args) {
+          if (args.some(isBenignViteMsg)) {
+            window.dispatchEvent(new CustomEvent('google_maps_billing_failure'));
+            return;
+          }
+          origError.apply(console, args);
+        };
+        console.debug = function(...args) {
+          if (args.some(isBenignViteMsg)) return;
+          origDebug.apply(console, args);
+        };
+        console.info = function(...args) {
+          if (args.some(isBenignViteMsg)) return;
+          origInfo.apply(console, args);
+        };
+      })();
+
+      // Suppress Google Maps alert modal and notify application components
+      window.gm_authFailure = function() {
+        console.warn('[GoogleMaps] Authentication or Billing notice triggered. Switching to resilient delivery map.');
+        window.dispatchEvent(new CustomEvent('google_maps_billing_failure'));
+      };
+
+      // Neutralize Vite's internal HMR WebSocket in preview iframe where HMR is disabled
+      if (typeof window !== 'undefined' && window.WebSocket) {
+        const RealWebSocket = window.WebSocket;
+        function MockWebSocket(url, protocols) {
+          if (typeof url === 'string' && (url.includes('/@vite/client') || url.includes('vite') || url.includes(':3000'))) {
+            this.readyState = 1; // OPEN
+            this.CONNECTING = 0;
+            this.OPEN = 1;
+            this.CLOSING = 2;
+            this.CLOSED = 3;
+            this.url = url;
+            this.close = function() {};
+            this.send = function() {};
+            this.addEventListener = function(event, callback) {
+              if (event === 'open' && typeof callback === 'function') {
+                setTimeout(callback, 0);
+              }
+            };
+            this.removeEventListener = function() {};
+            this.dispatchEvent = function() { return false; };
+            this.onopen = null;
+            this.onclose = null;
+            this.onerror = null;
+            this.onmessage = null;
+            return;
+          }
+          return new RealWebSocket(url, protocols);
+        }
+        MockWebSocket.CONNECTING = 0;
+        MockWebSocket.OPEN = 1;
+        MockWebSocket.CLOSING = 2;
+        MockWebSocket.CLOSED = 3;
+        MockWebSocket.prototype = RealWebSocket.prototype;
+        window.WebSocket = MockWebSocket;
+      }
+
       window.addEventListener('unhandledrejection', function(event) {
         if (
           event &&
@@ -11,7 +95,8 @@
             String(event.reason).includes('WebSocket closed') ||
             String(event.reason?.message || '').includes('WebSocket closed') ||
             String(event.reason).includes('failed to connect to websocket') ||
-            String(event.reason?.message || '').includes('failed to connect to websocket')
+            String(event.reason?.message || '').includes('failed to connect to websocket') ||
+            String(event.reason?.stack || '').includes('@vite/client')
           )
         ) {
           event.preventDefault();
@@ -22,24 +107,56 @@
           event &&
           (
             String(event.message || '').includes('WebSocket closed') ||
-            String(event.message || '').includes('failed to connect to websocket')
+            String(event.message || '').includes('failed to connect to websocket') ||
+            String(event.filename || '').includes('@vite/client') ||
+            String(event.message || '').includes('BillingNotEnabledMapError') ||
+            String(event.message || '').includes('billing-not-enabled-map-error')
           )
         ) {
           event.preventDefault();
         }
       });
+
+      // Immediate cache & service worker cleanup for dev/preview so stale service workers never hijack requests
+      if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+        const h = window.location.hostname || '';
+        if (h.includes('ais-dev') || h.includes('ais-pre') || h.includes('run.app') || h.includes('localhost') || h.includes('127.0.0.1')) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            for (var i = 0; i < regs.length; i++) {
+              regs[i].unregister().catch(function() {});
+            }
+          }).catch(function() {});
+        }
+      }
     </script>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-E3TVJRTKRP"></script>
+    <!-- Google tag (gtag.js) with Consent Mode (Deferred network load after first paint) -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+
+      // Default consent state: Check saved user consent from localStorage
+      var savedConsent = 'granted';
+      try {
+        if (localStorage.getItem('smartrun_consent_granted') === 'false' || localStorage.getItem('smartrun_terms_agreed') === 'false') {
+          savedConsent = 'denied';
+        }
+      } catch (e) {}
+
+      gtag('consent', 'default', {
+        'analytics_storage': savedConsent,
+        'ad_storage': savedConsent,
+        'ad_user_data': savedConsent,
+        'ad_personalization': savedConsent,
+        'functionality_storage': 'granted',
+        'security_storage': 'granted'
+      });
+
       gtag('js', new Date());
 
       gtag('config', 'G-E3TVJRTKRP', {
         send_page_view: true
       });
-      
+
       // Global helper for quick-commerce tracking events
       window.trackSmartRunEvent = function(eventName, params) {
         if (typeof window.gtag === 'function') {
@@ -47,52 +164,119 @@
         }
       };
       window.trackGirirajEvent = window.trackSmartRunEvent;
+
+      // Load external gtag.js script after window load (with fallback timeout) to prioritize FCP/LCP
+      (function() {
+        var gtagLoaded = false;
+        function loadGtagScript() {
+          if (gtagLoaded) return;
+          gtagLoaded = true;
+          var s = document.createElement('script');
+          s.async = true;
+          s.src = 'https://www.googletagmanager.com/gtag/js?id=G-E3TVJRTKRP';
+          document.head.appendChild(s);
+        }
+        if (document.readyState === 'complete') {
+          setTimeout(loadGtagScript, 50);
+        } else {
+          window.addEventListener('load', function() { setTimeout(loadGtagScript, 50); }, { once: true });
+          setTimeout(loadGtagScript, 3500);
+        }
+      })();
     </script>
 
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     
     <!-- Primary SEO Meta Tags -->
-    <title>SmartRun | Electrical Goods, Construction Supplies &amp; Wiring Services Kolkata</title>
-    <meta name="title" content="SmartRun | Electrical Goods, Construction Supplies &amp; Wiring Services Kolkata" />
-    <meta name="description" content="SmartRun: Kolkata's premier depot &amp; e-commerce store for genuine electrical goods, modular switches, Polycab wires, UltraTech cement, Tata Tiscon TMT rebars, and licensed house wiring contractors with 60-minute express delivery." />
-    <meta name="keywords" content="SmartRun, smartrun, smartrun kolkata, smartrun electricals, electrical shop near me, buy electrical goods online Kolkata, house wiring contractor, electrical wiring services, modular switches, Polycab wire, Havells cables, Finolex wire, Schneider MCB, distribution board, LED lighting, construction materials Kolkata, cement delivery, UltraTech cement, ACC cement, TMT steel bars, Tata Tiscon rebars, waterproofing chemicals, real estate electrification, licensed electrician Kolkata, emergency electrician 60 mins, Kasba electrical shop, wholesale electrical market Kolkata, B2B building materials procurement, direct factory depot Kolkata" />
+    <title>SmartRun (Smart Run): Electrical &amp; Construction App Kolkata</title>
+    <meta name="title" content="SmartRun (Smart Run): Electrical &amp; Construction App Kolkata" />
+    <meta name="description" content="Order Polycab wires, Schneider MCBs, UltraTech cement &amp; licensed electricians in Kolkata on SmartRun (Smart Run) with 60-min express delivery." />
+    <meta name="keywords" content="SmartRun, Smart Run, SmartRun Kolkata, SmartRun India, construction materials delivery Kolkata, electrical materials delivery Kolkata, building supplies online, electrical supplies online, Polycab wire, Havells cables, Finolex wire, Schneider MCB, Anchor Roma switches, UltraTech cement, Tata Tiscon TMT rebars, licensed electrician Kolkata, in.smartrun.app" />
     
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
     <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
-    <meta name="author" content="SmartRun" />
+    <meta name="author" content="SmartRun Materials Pvt. Ltd." />
     <meta name="language" content="English, Bengali, Hindi" />
     <meta name="revisit-after" content="1 days" />
     <meta name="rating" content="General" />
     <meta name="distribution" content="Global" />
     
-    <!-- Geographic SEO Tags for Kolkata & West Bengal -->
+    <!-- Geographic SEO & Dublin Core Tags for Kolkata & West Bengal -->
     <meta name="geo.region" content="IN-WB" />
-    <meta name="geo.placename" content="Kolkata, Kasba, Gariahat, Salt Lake, New Town, West Bengal" />
+    <meta name="geo.placename" content="Kolkata, Kasba, Gariahat, Salt Lake, New Town, West Bengal, India" />
     <meta name="geo.position" content="22.5145;88.3882" />
     <meta name="ICBM" content="22.5145, 88.3882" />
+    <meta name="geo.country" content="IN" />
+    <meta name="geo.a1" content="IN-WB" />
+    <meta name="geo.a2" content="Kolkata" />
+    <meta name="geo.postal" content="700150" />
+    <meta name="DC.title" content="SmartRun (Smart Run) - Kolkata Online Delivery App" />
+    <meta name="DC.creator" content="SmartRun Materials Pvt. Ltd." />
+    <meta name="DC.coverage" content="Kolkata, West Bengal, India" />
+    <meta name="DC.subject" content="Electrical Goods, Construction Products, House Wiring, 60-Minute Express Delivery Kolkata" />
+    <meta name="DC.description" content="Express online delivery platform in Kolkata for genuine electrical products, Polycab wires, Schneider MCB, UltraTech cement, and licensed electricians." />
+    <meta name="DC.language" content="en-IN, bn-IN, hi-IN" />
 
-    <!-- OpenGraph / Facebook / WhatsApp SEO -->
+    <!-- International & Regional Canonical Hreflang Alternates -->
+    <link rel="alternate" hreflang="en-IN" href="https://www.smartrun.in/" />
+    <link rel="alternate" hreflang="bn-IN" href="https://www.smartrun.in/" />
+    <link rel="alternate" hreflang="hi-IN" href="https://www.smartrun.in/" />
+    <link rel="alternate" hreflang="x-default" href="https://www.smartrun.in/" />
+
+    <!-- Google App Indexing, Authoritative Native App Deep Link & Agentic Discovery Links -->
+    <link rel="alternate" href="android-app://in.smartrun.app/smartrun/home" />
+    <link rel="ard" href="/.well-known/ard.json" />
+    <link rel="alternate" type="text/markdown" title="SmartRun LLMs Context" href="/llms.txt" />
+    <link rel="alternate" type="application/rss+xml" title="SmartRun Product Feed" href="https://www.smartrun.in/rss.xml" />
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="https://www.smartrun.in/sitemap.xml" />
+    <link rel="author" href="https://www.smartrun.in/about" />
+    <link rel="publisher" href="https://play.google.com/store/apps/details?id=in.smartrun.app" />
+
+    <!-- OpenGraph / Facebook / WhatsApp SEO with Multi-Aspect Ratio Images (16:9, 1:1, 4:3 for Google Discover & Search) -->
     <meta property="og:site_name" content="SmartRun" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.smartrun.in/" />
-    <meta property="og:title" content="SmartRun | Electrical Goods, Construction Supplies &amp; Wiring Services" />
-    <meta property="og:description" content="Shop branded electrical goods, wires, modular switches, cement, TMT steel, and book certified electrician wiring services in Kolkata with SmartRun." />
+    <meta property="og:title" content="SmartRun (Smart Run): Electrical &amp; Construction App Kolkata" />
+    <meta property="og:description" content="Order Polycab wires, Schneider MCBs, UltraTech cement &amp; licensed electricians in Kolkata on SmartRun (Smart Run) with 60-min express delivery." />
+    <!-- 16:9 Aspect Ratio (1200x630) for Google Discover Large Cards & Desktop Snippets -->
     <meta property="og:image" content="https://www.smartrun.in/SmartRun.png" />
     <meta property="og:image:secure_url" content="https://www.smartrun.in/SmartRun.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:image:type" content="image/png" />
-    <meta property="og:image:alt" content="SmartRun Logo - Electrical, Construction &amp; Wiring Platform" />
+    <meta property="og:image:alt" content="SmartRun (Smart Run): Electrical &amp; Construction App Kolkata" />
+    <!-- 1:1 Aspect Ratio (512x512) for Mobile Search Carousel, WhatsApp & Google Shopping -->
+    <meta property="og:image" content="https://www.smartrun.in/icons/icon-512.png" />
+    <meta property="og:image:secure_url" content="https://www.smartrun.in/icons/icon-512.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:type" content="image/png" />
+    <!-- 4:3 Aspect Ratio (800x600) for Tablet Previews & Search Snippets -->
+    <meta property="og:image" content="https://www.smartrun.in/smartrun.jpeg" />
+    <meta property="og:image:secure_url" content="https://www.smartrun.in/smartrun.jpeg" />
+    <meta property="og:image:width" content="800" />
+    <meta property="og:image:height" content="600" />
+    <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:locale" content="en_IN" />
     <link rel="canonical" href="https://www.smartrun.in/" />
 
-    <!-- Twitter Card SEO -->
+    <!-- Google Play Store App Links & Smart App Banner (Browser-to-App handoff & Play Store ASO) -->
+    <meta name="google-play-app" content="app-id=in.smartrun.app" />
+    <meta property="al:android:url" content="smartrun://home" />
+    <meta property="al:android:app_name" content="SmartRun" />
+    <meta property="al:android:package" content="in.smartrun.app" />
+    <meta property="al:web:url" content="https://www.smartrun.in/" />
+    <meta property="al:web:should_fallback" content="true" />
+
+    <!-- Twitter Card SEO (Multi-Aspect Ratio summary_large_image) -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="SmartRun - Electrical Goods &amp; Construction Supplies Kolkata" />
-    <meta name="twitter:description" content="Wholesale &amp; retail electrical supplies, wires, switches, cement, TMT rebars, and licensed real estate wiring in Kolkata with SmartRun." />
+    <meta name="twitter:title" content="SmartRun (Smart Run): Electrical &amp; Construction App Kolkata" />
+    <meta name="twitter:description" content="Order Polycab wires, Schneider MCBs, UltraTech cement &amp; licensed electricians in Kolkata on SmartRun (Smart Run) with 60-min express delivery." />
     <meta name="twitter:image" content="https://www.smartrun.in/SmartRun.png" />
 
     <!-- Comprehensive JSON-LD Structured Data Schema Graph (Google Site Name & Logo compliant) -->
-    <script type="application/ld+json">
+    <script type="application/ld+json" id="server-prerender-schema">
     {
       "@context": "https://schema.org",
       "@graph": [
@@ -101,9 +285,9 @@
           "@id": "https://www.smartrun.in/#website",
           "url": "https://www.smartrun.in/",
           "name": "SmartRun",
-          "alternateName": ["SmartRun", "Smartrun", "Smartrun Kolkata", "SmartRun Central Depot"],
+          "alternateName": ["Smart Run", "SmartRun", "Smart Run App", "SmartRun App", "Smart Run Kolkata", "SmartRun Kolkata", "SmartRun Central Depot", "SmartRun materials pvt. ltd"],
           "sameAs": ["https://www.smartrun.in"],
-          "description": "Kolkata's trusted SmartRun electrical goods, electronics, construction materials, and real estate wiring service platform.",
+          "description": "Kolkata's trusted SmartRun (Smart Run) electrical goods, electronics, construction materials, and real estate wiring service platform operated by SmartRun materials pvt. ltd.",
           "inLanguage": "en-IN",
           "potentialAction": {
             "@type": "SearchAction",
@@ -114,19 +298,25 @@
         {
           "@type": ["Organization", "ElectricalSupplyStore", "HardwareStore", "LocalBusiness"],
           "@id": "https://www.smartrun.in/#store",
-          "name": "SmartRun",
-          "alternateName": ["SmartRun Central Depot", "Smartrun Central Depot", "SmartRun Express Depot"],
+          "name": "SmartRUN",
+          "legalName": "SmartRun Materials Pvt. Ltd.",
+          "alternateName": ["Smart Run", "SmartRUN India", "SmartRUN Kolkata", "SmartRun Materials Pvt. Ltd.", "SmartRun Central Depot"],
           "url": "https://www.smartrun.in/",
-          "sameAs": ["https://www.smartrun.in"],
+          "sameAs": [
+            "https://play.google.com/store/apps/details?id=in.smartrun.app",
+            "https://wa.me/918777400280"
+          ],
+          "hasMap": "https://maps.google.com/?q=22.5145,88.3882",
+          "geoRadius": "35000",
           "image": "https://www.smartrun.in/SmartRun.png",
           "logo": "https://www.smartrun.in/SmartRun.png",
-          "description": "Top-rated SmartRun electrical supplies, house wiring cables, modular switchgear, construction materials, UltraTech cement, Tata Tiscon TMT rebars, and real estate wiring contractors in Kolkata.",
+          "description": "SmartRun (Smart Run) provides genuine electrical supplies, house wiring cables, modular switchgear, construction materials, UltraTech cement, Tata Tiscon TMT rebars, and licensed electrical contractors in Kolkata and Howrah.",
           "telephone": "+91-8777400280",
           "email": "team@smartrun.in",
           "priceRange": "₹₹",
           "currenciesAccepted": "INR",
           "paymentAccepted": "Cash, UPI, Credit Card, Debit Card, Net Banking",
-          "keywords": "smartrun, smartRun, electrical goods, construction materials, cement delivery, tmt steel, house wiring, kolkata depot",
+          "keywords": "smart run, smartrun, Smart Run, SmartRun, SmartRun Materials Pvt Ltd, electrical goods, construction materials, cement delivery, tmt steel, house wiring, kolkata depot",
           "address": {
             "@type": "PostalAddress",
             "streetAddress": "Kheyadah Village, Bhagabanpur",
@@ -134,6 +324,25 @@
             "addressRegion": "West Bengal",
             "postalCode": "700150",
             "addressCountry": "IN"
+          },
+          "location": {
+            "@type": ["Place", "HardwareStore"],
+            "@id": "https://www.smartrun.in/#depot-kasba",
+            "name": "SmartRun Kasba Central Depot",
+            "telephone": "+91-8777400280",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Kasba Industrial Estate Phase 1",
+              "addressLocality": "Kolkata",
+              "addressRegion": "West Bengal",
+              "postalCode": "700107",
+              "addressCountry": "IN"
+            },
+            "geo": {
+              "@type": "GeoCoordinates",
+              "latitude": 22.5145,
+              "longitude": 88.3934
+            }
           },
           "geo": {
             "@type": "GeoCoordinates",
@@ -159,13 +368,6 @@
               "closes": "21:00"
             }
           ],
-          "aggregateRating": {
-            "@type": "AggregateRating",
-            "ratingValue": "4.9",
-            "reviewCount": "1280",
-            "bestRating": "5",
-            "worstRating": "1"
-          },
           "hasOfferCatalog": {
             "@type": "OfferCatalog",
             "name": "Electrical, Electronics & Construction Catalog",
@@ -198,9 +400,7 @@
           "@id": "https://www.smartrun.in/#wiring-service",
           "name": "Real Estate & Residential Electrical Wiring Services",
           "provider": {
-            "@type": "LocalBusiness",
-            "name": "SmartRun",
-            "url": "https://www.smartrun.in"
+            "@id": "https://www.smartrun.in/#store"
           },
           "serviceType": "Electrical Contractor & House Wiring",
           "description": "Licensed and certified electrical wiring contractors for residential flats, high-rise real estate buildings, commercial complexes, and renovation electrification in Kolkata with 60-min emergency technician availability.",
@@ -217,13 +417,49 @@
               { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Earthing & Surge Protection Installation" } }
             ]
           }
+        },
+        {
+          "@type": ["SoftwareApplication", "MobileApplication"],
+          "@id": "https://www.smartrun.in/#android-app",
+          "name": "SmartRUN: Materials Delivery",
+          "alternateName": ["Smart Run", "SmartRun", "Smart Run App", "SmartRun App", "Smart Run Kolkata", "SmartRun materials pvt. ltd"],
+          "operatingSystem": "ANDROID",
+          "applicationCategory": "ShoppingApplication",
+          "applicationSubCategory": "Quick Commerce, Electrical Supplies & Construction Depot",
+          "downloadUrl": "https://play.google.com/store/apps/details?id=in.smartrun.app",
+          "installUrl": "https://play.google.com/store/apps/details?id=in.smartrun.app",
+          "sameAs": ["https://play.google.com/store/apps/details?id=in.smartrun.app"],
+          "author": {
+            "@type": "Organization",
+            "name": "SmartRun materials pvt. ltd",
+            "url": "https://www.smartrun.in"
+          },
+          "publisher": {
+            "@type": "Organization",
+            "name": "SmartRun materials pvt. ltd",
+            "url": "https://www.smartrun.in"
+          },
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "INR"
+          },
+          "featureList": [
+            "60-minute express doorstep delivery of electrical components across Kolkata",
+            "Polycab, Havells, Finolex wires with cut-to-length custom order and color swatches",
+            "Schneider Electric MCBs, distribution boards, and Anchor Roma modular switches",
+            "UltraTech Super Cement and Tata Tiscon TMT 550D steel rebars direct site delivery",
+            "Licensed and background-verified electrical contractors for flat wiring & emergency repairs",
+            "Real-time delivery partner live GPS tracking on interactive Google map",
+            "Seamless Fast2SMS OTP mobile authentication and instant Razorpay UPI checkout"
+          ],
+          "description": "SmartRun (also searched as Smart Run, official Android package: in.smartrun.app, operated by SmartRun materials pvt. ltd) is Kolkata's premier 60-minute express electrical goods, house wiring cables, modular switchgear, construction materials depot, and certified electrician service app. Optimized for Google Play Store search for 'Smart Run' and 'SmartRun' for quick commerce electrical supplies, genuine Polycab copper cables, Schneider switchgear, and licensed house wiring contractors in Kolkata, West Bengal."
         }
       ]
     }
     </script>
 
-    <!-- Leaflet CSS for Map Rendering -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Leaflet CSS is bundled locally from npm in src/main.tsx -->
 
     <!-- PWA & Mobile Web App Capabilities -->
     <link rel="manifest" href="/manifest.json" />
@@ -245,13 +481,13 @@
     <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
 
-    <!-- Google Fonts -->
+    <!-- Google Fonts (Optimized for First Contentful Paint & Performance) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Libre+Bodoni:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800;900&display=swap" rel="stylesheet">
-
-    <!-- Razorpay Checkout Gateway SDK -->
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Lora:wght@400;600&family=Playfair+Display:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800;900&display=swap" media="print" onload="this.media='all'">
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Lora:wght@400;600&family=Playfair+Display:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800;900&display=swap">
+    </noscript>
 
     <!-- Global Scrollbar Removal: Hide scrollbar universally everywhere across the app -->
     <style>
@@ -276,12 +512,81 @@
         display: none !important;
         background: transparent !important;
       }
+      @keyframes smartrun-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(0.96); }
+      }
+      @keyframes smartrun-dot {
+        0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+        40% { transform: scale(1); opacity: 1; }
+      }
+      /* Keep non-JS crawler SEO shell completely hidden in JS-enabled browsers while preserving full DOM for search/AI bots */
+      html.smartrun-js #ssr-seo-shell {
+        display: none !important;
+      }
     </style>
-    <script type="module" crossorigin src="/assets/index-D18x43Jl.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BfLHcbyt.css">
+    <script type="module" crossorigin src="/assets/index-CqS5L2MV.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-iW-3v-w_.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-firebase-CObhfcs1.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-router-CBg6cNGP.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-icons-CQ-SByqI.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-supabase-BnGCNdwk.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-motion-BZLHkYWI.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-C2hpUtOp.css">
   </head>
   <body class="bg-white text-slate-900 font-sans antialiased selection:bg-yellow-400 selection:text-black">
-    <div id="root"></div>
+    <div id="root">
+      <!-- Instant Branded Preloader: Pure white background, zero box behind logo -->
+      <div id="initial-smartrun-loader" style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #ffffff; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; padding: 24px;">
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 16px; background: transparent !important; background-color: transparent !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; animation: smartrun-pulse 2s ease-in-out infinite;">
+          <img src="/SmartRun.png" alt="SmartRun" width="64" height="64" style="width: 64px; height: 64px; object-fit: contain; background: transparent !important; background-color: transparent !important; border: none !important; box-shadow: none !important; mix-blend-mode: multiply;" />
+        </div>
+        <div style="font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">SmartRun</div>
+        <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-top: 4px; letter-spacing: 0.2px;">Kolkata's Express Electrical &amp; Construction Hub</div>
+        <div style="margin-top: 24px; display: flex; gap: 8px; align-items: center;">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background-color: #f59e0b; animation: smartrun-dot 1.4s infinite ease-in-out both; animation-delay: -0.32s;"></div>
+          <div style="width: 8px; height: 8px; border-radius: 50%; background-color: #f59e0b; animation: smartrun-dot 1.4s infinite ease-in-out both; animation-delay: -0.16s;"></div>
+          <div style="width: 8px; height: 8px; border-radius: 50%; background-color: #f59e0b; animation: smartrun-dot 1.4s infinite ease-in-out both;"></div>
+        </div>
+      </div>
+      <!-- SSR_SEO_SHELL_SLOT -->
+    </div>
+    <script>
+      // Recovery Watchdog: Keep the branded loader visible until React mounts (never expose #ssr-seo-shell).
+      // If module loading stalls (e.g., transient Vite dep re-optimization or network drop), recover once automatically.
+      (function() {
+        var RELOAD_KEY = 'smartrun_boot_retry_ts';
+        function triggerSafeRecovery() {
+          if (window.__SMARTRUN_APP_MOUNTED__) return;
+          try {
+            var lastTry = Number(sessionStorage.getItem(RELOAD_KEY) || 0);
+            if (!lastTry || Date.now() - lastTry > 20000) {
+              sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+              window.location.reload();
+              return;
+            }
+          } catch (e) {}
+          var loader = document.getElementById('initial-smartrun-loader');
+          if (loader && !document.getElementById('smartrun-boot-retry-btn')) {
+            var btn = document.createElement('button');
+            btn.id = 'smartrun-boot-retry-btn';
+            btn.type = 'button';
+            btn.textContent = 'Tap to Reload SmartRun';
+            btn.style.cssText = 'margin-top:20px;padding:10px 20px;border-radius:12px;border:none;background:#f59e0b;color:#0f172a;font-weight:800;font-size:13px;cursor:pointer;';
+            btn.onclick = function() { window.location.reload(); };
+            loader.appendChild(btn);
+          }
+        }
+        window.__SMARTRUN_TRIGGER_BOOT_RECOVERY__ = triggerSafeRecovery;
+        setTimeout(function() {
+          if (!window.__SMARTRUN_APP_MOUNTED__) {
+            triggerSafeRecovery();
+          }
+        }, 8000);
+      })();
+    </script>
+    <!-- Container for Firebase Phone Auth reCAPTCHA verification -->
+    <div id="recaptcha-container"></div>
   </body>
 </html>
 

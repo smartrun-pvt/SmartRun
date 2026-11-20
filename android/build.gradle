@@ -77,6 +77,17 @@ tasks.register('patchCapacitorBridgeNullSafety') {
     }
 }
 
+tasks.register('patchCapacitorPhoneAuthPersistence') {
+    doLast {
+        def scriptFile = file('../scripts/patch-capacitor-android.mjs')
+        if (!scriptFile.exists()) return
+        try {
+            def proc = ['node', scriptFile.absolutePath].execute(null, file('..'))
+            proc.waitFor()
+        } catch (Throwable ignored) {}
+    }
+}
+
 gradle.projectsEvaluated {
     def capAndroid = rootProject.findProject(':capacitor-android')
     if (capAndroid != null) {
@@ -84,5 +95,12 @@ gradle.projectsEvaluated {
             dependsOn rootProject.tasks.named('patchCapacitorBridgeNullSafety')
         }
     }
+    def capFirebaseAuth = rootProject.findProject(':capacitor-firebase-authentication')
+    if (capFirebaseAuth != null) {
+        capFirebaseAuth.tasks.matching { it.name == 'preBuild' }.configureEach {
+            dependsOn rootProject.tasks.named('patchCapacitorPhoneAuthPersistence')
+        }
+    }
 }
+
 

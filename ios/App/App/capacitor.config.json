@@ -2,9 +2,12 @@
 	"appId": "in.smartrun.app",
 	"appName": "SmartRun",
 	"webDir": "dist",
+	"android": {
+		"webContentsDebuggingEnabled": false
+	},
 	"server": {
 		"androidScheme": "https",
-		"cleartext": true,
+		"cleartext": false,
 		"allowNavigation": [
 			"smartrun.in",
 			"www.smartrun.in",
@@ -28,7 +31,8 @@
 		"FirebaseAuthentication": {
 			"skipNativeAuth": false,
 			"providers": [
-				"google.com"
+				"google.com",
+				"phone"
 			]
 		},
 		"PushNotifications": {
@@ -47,8 +51,12 @@
 			"showSpinner": false
 		},
 		"StatusBar": {
-			"style": "DARK",
-			"backgroundColor": "#F9C017"
+			"overlaysWebView": true,
+			"style": "LIGHT",
+			"backgroundColor": "#00000000"
+		},
+		"SystemBars": {
+			"insetsHandling": "disable"
 		}
 	},
 	"packageClassList": [

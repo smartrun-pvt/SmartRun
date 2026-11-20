@@ -147,4 +147,240 @@ function patchBridgeJava() {
   console.log('[patch-capacitor-android] Successfully patched Bridge.java with null-safe WebView version matching.');
 }
 
+const phoneHandlerPath = path.join(
+  projectRoot,
+  'node_modules',
+  '@capacitor-firebase',
+  'authentication',
+  'android',
+  'src',
+  'main',
+  'java',
+  'io',
+  'capawesome',
+  'capacitorjs',
+  'plugins',
+  'firebase',
+  'authentication',
+  'handlers',
+  'PhoneAuthProviderHandler.java'
+);
+
+const PHONE_PATCH_MARKER = '// [SmartRun PhoneAuth Persistence & Crash-Safety Patch]';
+
+function patchPhoneAuthProviderHandler() {
+  if (!fs.existsSync(phoneHandlerPath)) {
+    console.log('[patch-capacitor-android] PhoneAuthProviderHandler.java not found (skipping).');
+    return;
+  }
+
+  const content = fs.readFileSync(phoneHandlerPath, 'utf8');
+  if (content.includes(PHONE_PATCH_MARKER)) {
+    console.log('[patch-capacitor-android] PhoneAuthProviderHandler.java already patched.');
+    return;
+  }
+
+  const patchedFile = `package io.capawesome.capacitorjs.plugins.firebase.authentication.handlers;
+
+${PHONE_PATCH_MARKER}
+import android.app.Activity;
+import android.content.Context;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import com.google.firebase.FirebaseException;
+import com.google.firebase.auth.PhoneAuthCredential;
+import com.google.firebase.auth.PhoneAuthOptions;
+import com.google.firebase.auth.PhoneAuthProvider;
+import io.capawesome.capacitorjs.plugins.firebase.authentication.FirebaseAuthentication;
+import io.capawesome.capacitorjs.plugins.firebase.authentication.FirebaseAuthenticationPlugin;
+import io.capawesome.capacitorjs.plugins.firebase.authentication.classes.ConfirmVerificationCodeOptions;
+import io.capawesome.capacitorjs.plugins.firebase.authentication.classes.LinkWithPhoneNumberOptions;
+import io.capawesome.capacitorjs.plugins.firebase.authentication.classes.PhoneVerificationCompletedEvent;
+import io.capawesome.capacitorjs.plugins.firebase.authentication.classes.SignInOptions;
+import io.capawesome.capacitorjs.plugins.firebase.authentication.classes.SignInResult;
+import io.capawesome.capacitorjs.plugins.firebase.authentication.classes.SignInWithPhoneNumberOptions;
+import io.capawesome.capacitorjs.plugins.firebase.authentication.interfaces.NonEmptyResultCallback;
+import java.util.concurrent.TimeUnit;
+
+public class PhoneAuthProviderHandler {
+
+    private static final String PREFS_NAME = "smartrun_phone_auth";
+    private static final String KEY_VERIFICATION_ID = "verification_id";
+    private static final String KEY_PHONE_NUMBER = "phone_number";
+    private static final String KEY_TIMESTAMP = "timestamp";
+
+    private FirebaseAuthentication pluginImplementation;
+
+    @Nullable
+    private PhoneAuthProvider.ForceResendingToken forceResendingToken;
+
+    private boolean signInOnConfirm = true;
+    private boolean skipNativeAuthOnConfirm = false;
+
+    public PhoneAuthProviderHandler(FirebaseAuthentication pluginImplementation) {
+        this.pluginImplementation = pluginImplementation;
+    }
+
+    private void persistPendingVerification(@Nullable String verificationId, @Nullable String phoneNumber) {
+        try {
+            if (verificationId == null || verificationId.isEmpty()) return;
+            Context ctx = pluginImplementation.getPlugin().getContext();
+            if (ctx == null) return;
+            ctx.getApplicationContext()
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY_VERIFICATION_ID, verificationId)
+                .putString(KEY_PHONE_NUMBER, phoneNumber != null ? phoneNumber : "")
+                .putLong(KEY_TIMESTAMP, System.currentTimeMillis())
+                .apply();
+        } catch (Throwable ignored) {}
+    }
+
+    private void clearPendingVerification() {
+        try {
+            Context ctx = pluginImplementation.getPlugin().getContext();
+            if (ctx == null) return;
+            ctx.getApplicationContext()
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .apply();
+        } catch (Throwable ignored) {}
+    }
+
+    public void signIn(@NonNull final SignInWithPhoneNumberOptions options) throws Exception {
+        signInOnConfirm = true;
+        skipNativeAuthOnConfirm = options.getSkipNativeAuth();
+        verifyPhoneNumber(options, false);
+    }
+
+    public void link(@NonNull final LinkWithPhoneNumberOptions options) throws Exception {
+        signInOnConfirm = false;
+        skipNativeAuthOnConfirm = options.getSkipNativeAuth();
+        verifyPhoneNumber(options, true);
+    }
+
+    public void confirmVerificationCode(@NonNull ConfirmVerificationCodeOptions options, @NonNull NonEmptyResultCallback callback) {
+        try {
+            PhoneAuthCredential credential = PhoneAuthProvider.getCredential(options.getVerificationId(), options.getVerificationCode());
+            NonEmptyResultCallback wrappedCallback = new NonEmptyResultCallback<SignInResult>() {
+                @Override
+                public void success(SignInResult result) {
+                    clearPendingVerification();
+                    callback.success(result);
+                }
+
+                @Override
+                public void error(Exception exception) {
+                    callback.error(exception);
+                }
+            };
+            if (signInOnConfirm) {
+                pluginImplementation.signInWithCredential(new SignInOptions(skipNativeAuthOnConfirm), credential, wrappedCallback);
+            } else {
+                pluginImplementation.linkWithCredential(credential, wrappedCallback);
+            }
+        } catch (Exception ex) {
+            callback.error(ex);
+        } catch (Throwable t) {
+            callback.error(new Exception(t.getMessage() != null ? t.getMessage() : "Failed to verify OTP code.", t));
+        }
+    }
+
+    private void verifyPhoneNumber(@NonNull SignInWithPhoneNumberOptions options, boolean isLink) throws Exception {
+        Activity activity = pluginImplementation.getPlugin().getActivity();
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            throw new Exception("App activity is not ready for phone verification. Please try again.");
+        }
+        PhoneAuthOptions.Builder builder = PhoneAuthOptions.newBuilder(pluginImplementation.getFirebaseAuthInstance())
+            .setPhoneNumber(options.getPhoneNumber())
+            .setTimeout(options.getTimeout(), TimeUnit.SECONDS)
+            .setActivity(activity)
+            .setCallbacks(createCallbacks(options, isLink));
+        if (options.getResendCode()) {
+            if (forceResendingToken == null) {
+                throw new Exception(FirebaseAuthenticationPlugin.ERROR_PHONE_RESEND_TOKEN_MISSING);
+            }
+            builder.setForceResendingToken(forceResendingToken);
+        }
+        PhoneAuthOptions phoneAuthOptions = builder.build();
+        PhoneAuthProvider.verifyPhoneNumber(phoneAuthOptions);
+    }
+
+    private PhoneAuthProvider.OnVerificationStateChangedCallbacks createCallbacks(
+        @NonNull final SignInWithPhoneNumberOptions options,
+        boolean isLink
+    ) {
+        return new PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+            @Override
+            public void onVerificationCompleted(PhoneAuthCredential credential) {
+                if (credential == null) return;
+                try {
+                    NonEmptyResultCallback callback = new NonEmptyResultCallback<SignInResult>() {
+                        @Override
+                        public void success(SignInResult result) {
+                            try {
+                                clearPendingVerification();
+                                if (result == null) return;
+                                PhoneVerificationCompletedEvent event = new PhoneVerificationCompletedEvent(
+                                    result.getUser(),
+                                    result.getCredential(),
+                                    result.getAdditionalUserInfo(),
+                                    credential.getSmsCode()
+                                );
+                                pluginImplementation.handlePhoneVerificationCompleted(event);
+                            } catch (Throwable ignored) {}
+                        }
+
+                        @Override
+                        public void error(Exception exception) {
+                            try {
+                                pluginImplementation.handlePhoneVerificationFailed(
+                                    exception != null ? exception : new Exception("Phone verification failed.")
+                                );
+                            } catch (Throwable ignored) {}
+                        }
+                    };
+                    if (isLink) {
+                        pluginImplementation.linkWithCredential(credential, callback);
+                    } else {
+                        pluginImplementation.signInWithCredential(options, credential, callback);
+                    }
+                } catch (Throwable t) {
+                    try {
+                        pluginImplementation.handlePhoneVerificationFailed(
+                            new Exception(t.getMessage() != null ? t.getMessage() : "Phone verification failed.", t)
+                        );
+                    } catch (Throwable ignored) {}
+                }
+            }
+
+            @Override
+            public void onVerificationFailed(FirebaseException exception) {
+                try {
+                    pluginImplementation.handlePhoneVerificationFailed(
+                        exception != null ? exception : new Exception("Phone verification failed.")
+                    );
+                } catch (Throwable ignored) {}
+            }
+
+            @Override
+            public void onCodeSent(@NonNull String verificationId, @NonNull PhoneAuthProvider.ForceResendingToken token) {
+                try {
+                    forceResendingToken = token;
+                    persistPendingVerification(verificationId, options.getPhoneNumber());
+                    pluginImplementation.handlePhoneCodeSent(verificationId);
+                } catch (Throwable ignored) {}
+            }
+        };
+    }
+}
+`;
+
+  fs.writeFileSync(phoneHandlerPath, patchedFile, 'utf8');
+  console.log('[patch-capacitor-android] Successfully patched PhoneAuthProviderHandler.java with SharedPreferences persistence and crash guards.');
+}
+
 patchBridgeJava();
+patchPhoneAuthProviderHandler();
+

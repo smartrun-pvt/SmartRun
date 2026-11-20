@@ -4,6 +4,14 @@ export interface SmartRunOtpBridge {
   startListening?: () => void;
   stopListening?: () => void;
   isSupported?: () => boolean;
+  getPendingVerification?: () => string;
+  clearPendingVerification?: () => void;
+}
+
+export interface NativePendingPhoneVerification {
+  verificationId: string;
+  phone: string;
+  timestamp: number;
 }
 
 export interface NativeSmsOtpEventDetail {
@@ -16,6 +24,40 @@ declare global {
     SmartRunOtp?: SmartRunOtpBridge;
   }
 }
+
+export const getNativePendingPhoneVerification = (
+  win: Window | undefined = typeof window !== 'undefined' ? window : undefined
+): NativePendingPhoneVerification | null => {
+  try {
+    const raw = win?.SmartRunOtp?.getPendingVerification?.();
+    if (!raw || typeof raw !== 'string') return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.verificationId !== 'string' || !parsed.verificationId.trim()) {
+      return null;
+    }
+    const ts = Number(parsed.timestamp || 0);
+    if (!ts || Date.now() - ts > 10 * 60 * 1000) {
+      return null;
+    }
+    return {
+      verificationId: parsed.verificationId.trim(),
+      phone: typeof parsed.phone === 'string' ? parsed.phone.trim() : '',
+      timestamp: ts,
+    };
+  } catch {
+    return null;
+  }
+};
+
+export const clearNativePendingPhoneVerification = (
+  win: Window | undefined = typeof window !== 'undefined' ? window : undefined
+): void => {
+  try {
+    win?.SmartRunOtp?.clearPendingVerification?.();
+  } catch {
+    // Ignore bridge teardown errors
+  }
+};
 
 /**
  * Extracts up to 6 OTP digits from user input, OS autofill, WebOTP, or pasted SMS text.

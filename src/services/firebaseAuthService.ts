@@ -24,6 +24,10 @@ import { apiUrl } from '../lib/apiBase';
 import { Capacitor } from '@capacitor/core';
 import { sanitizeCustomerName } from '../utils/nameHelper';
 import { resolveFirebaseAuthDomainForEnv } from '../utils/firebaseAuthDomain';
+import {
+  getNativePendingPhoneVerification,
+  clearNativePendingPhoneVerification
+} from '../utils/otpAutofill';
 
 export { sanitizeCustomerName };
 
@@ -88,6 +92,85 @@ function clearNativePhoneListeners(): void {
   activeNativeCompletedSub = null;
   activeNativeCodeSentSub = null;
   activeNativeFailedSub = null;
+}
+
+const PENDING_PHONE_OTP_STORAGE_KEY = 'smartrun_pending_phone_otp_v1';
+const PENDING_PHONE_OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+export interface PendingPhoneOtpSession {
+  phone: string; // E.164 (+91XXXXXXXXXX)
+  provider: 'firebase' | 'fast2sms';
+  verificationId?: string;
+  backendToken?: string;
+  createdAt: number;
+}
+
+export function savePendingPhoneOtpSession(session: PendingPhoneOtpSession): void {
+  try {
+    if (typeof window === 'undefined' || !session?.phone) return;
+    localStorage.setItem(PENDING_PHONE_OTP_STORAGE_KEY, JSON.stringify(session));
+  } catch {}
+}
+
+export function clearPendingPhoneOtpSession(): void {
+  activeNativeVerificationId = null;
+  activeBackendOtpToken = null;
+  activeBackendOtpPhone = null;
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(PENDING_PHONE_OTP_STORAGE_KEY);
+    }
+  } catch {}
+  clearNativePendingPhoneVerification();
+}
+
+export function getPendingPhoneOtpSession(): PendingPhoneOtpSession | null {
+  // 1. Check native Android SharedPreferences first (survives WebView / Activity destruction during RecaptchaActivity)
+  const nativePending = getNativePendingPhoneVerification();
+  if (nativePending?.verificationId) {
+    const formatted = nativePending.phone ? formatToE164Phone(nativePending.phone) : '';
+    const session: PendingPhoneOtpSession = {
+      phone: formatted,
+      provider: 'firebase',
+      verificationId: nativePending.verificationId,
+      createdAt: nativePending.timestamp
+    };
+    activeNativeVerificationId = nativePending.verificationId;
+    if (formatted) {
+      lastSentPhoneNumber = formatted;
+    }
+    return session;
+  }
+
+  // 2. Fallback to localStorage (survives page reload / WebView refresh for both Firebase and Fast2SMS)
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = localStorage.getItem(PENDING_PHONE_OTP_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PendingPhoneOtpSession;
+    if (!parsed || !parsed.phone || !parsed.createdAt) {
+      localStorage.removeItem(PENDING_PHONE_OTP_STORAGE_KEY);
+      return null;
+    }
+    if (Date.now() - Number(parsed.createdAt) > PENDING_PHONE_OTP_TTL_MS) {
+      localStorage.removeItem(PENDING_PHONE_OTP_STORAGE_KEY);
+      return null;
+    }
+    if (parsed.provider === 'firebase' && parsed.verificationId) {
+      activeNativeVerificationId = parsed.verificationId;
+      lastSentPhoneNumber = formatToE164Phone(parsed.phone);
+      return parsed;
+    }
+    if (parsed.provider === 'fast2sms' && parsed.backendToken) {
+      activeBackendOtpToken = parsed.backendToken;
+      activeBackendOtpPhone = parsed.phone.replace(/\D/g, '').slice(-10);
+      lastSentPhoneNumber = formatToE164Phone(parsed.phone);
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -365,9 +448,7 @@ export async function sendFirebasePhoneOtp(
   const formattedPhone = formatToE164Phone(digits);
   lastSentPhoneNumber = formattedPhone;
   activeConfirmationResult = null;
-  activeNativeVerificationId = null;
-  activeBackendOtpToken = null;
-  activeBackendOtpPhone = null;
+  clearPendingPhoneOtpSession();
   clearNativePhoneListeners();
 
   // 0. FAST PAN-INDIA DLT SMS GATEWAY FIRST (Fast2SMS Dev API on server)
@@ -389,6 +470,12 @@ export async function sendFirebasePhoneOtp(
       if (fastResp.ok && fastData?.success && fastData?.delivered && fastData?.token) {
         activeBackendOtpToken = fastData.token;
         activeBackendOtpPhone = digits;
+        savePendingPhoneOtpSession({
+          phone: formattedPhone,
+          provider: 'fast2sms',
+          backendToken: fastData.token,
+          createdAt: Date.now()
+        });
         console.log(`[Phone Auth] Fast pan-India DLT SMS dispatched via ${fastData.provider || 'fast2sms'} for ${formattedPhone}`);
         return {
           success: true,
@@ -491,9 +578,17 @@ export async function sendFirebasePhoneOtp(
         }, 120000);
 
         activeNativeCodeSentSub = await FirebaseAuthentication.addListener('phoneCodeSent', (event) => {
+          if (event?.verificationId) {
+            activeNativeVerificationId = event.verificationId;
+            savePendingPhoneOtpSession({
+              phone: formattedPhone,
+              provider: 'firebase',
+              verificationId: event.verificationId,
+              createdAt: Date.now()
+            });
+          }
           if (!hasResolved) {
             hasResolved = true;
-            activeNativeVerificationId = event.verificationId;
             console.log('[Native Firebase Phone Auth] phoneCodeSent event received, verificationId:', event.verificationId);
             cleanupWaiters();
             resolve({
@@ -519,7 +614,7 @@ export async function sendFirebasePhoneOtp(
           }
         });
 
-        // 35s safety watchdog timeout
+        // 120s safety watchdog timeout (gives users ample time to complete visual reCAPTCHA in Chrome Custom Tab on mobile networks)
         timeoutId = setTimeout(() => {
           if (!hasResolved) {
             hasResolved = true;
@@ -531,10 +626,10 @@ export async function sendFirebasePhoneOtp(
               error: 'Timed out waiting for SMS dispatch. Please check your mobile signal and try again.'
             });
           }
-        }, 35000);
+        }, 120000);
 
         try {
-          await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber: formattedPhone });
+          await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber: formattedPhone, timeout: 120 });
         } catch (nativeErr: any) {
           if (!hasResolved) {
             hasResolved = true;
@@ -660,6 +755,11 @@ export async function verifyFirebaseOtpAndBridgeToSupabase(
     };
   }
 
+  // Hydrate persisted verificationId / backendToken if WebView restarted after RecaptchaActivity
+  if (!activeNativeVerificationId && !activeConfirmationResult && !activeBackendOtpToken) {
+    getPendingPhoneOtpSession();
+  }
+
   const verifiedPhoneNumber = phoneOverride ? formatToE164Phone(phoneOverride) : lastSentPhoneNumber;
   if (!verifiedPhoneNumber) {
     return {
@@ -678,7 +778,7 @@ export async function verifyFirebaseOtpAndBridgeToSupabase(
         verificationId: activeNativeVerificationId,
         verificationCode: cleanCode
       });
-      activeNativeVerificationId = null;
+      clearPendingPhoneOtpSession();
       clearNativePhoneListeners();
       console.log('[Native Firebase Phone Auth] Successfully verified OTP! Native User UID:', signInResult.user?.uid);
       firebaseUser = signInResult.user as any;
@@ -694,6 +794,7 @@ export async function verifyFirebaseOtpAndBridgeToSupabase(
       const userCredential = await activeConfirmationResult.confirm(cleanCode);
       firebaseUser = userCredential.user;
       activeConfirmationResult = null;
+      clearPendingPhoneOtpSession();
       resetRecaptchaVerifier();
       console.log('[Firebase Phone Auth] Successfully verified OTP! Firebase UID:', firebaseUser.uid);
     } catch (err: any) {
@@ -728,8 +829,7 @@ export async function verifyFirebaseOtpAndBridgeToSupabase(
           error: verifyData.error || 'Invalid or expired OTP code.'
         };
       }
-      activeBackendOtpToken = null;
-      activeBackendOtpPhone = null;
+      clearPendingPhoneOtpSession();
       console.log('[Firebase Phone Auth] Successfully verified via server OTP session.');
     } catch (err: any) {
       console.error('[Firebase Phone Auth] Backend OTP verification error:', err);

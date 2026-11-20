@@ -6,7 +6,9 @@ import {
   isNativeSmsAutofillSupported,
   startNativeSmsOtpAutofill,
   stopNativeSmsOtpAutofill,
-  subscribeNativeSmsOtpAutofill
+  subscribeNativeSmsOtpAutofill,
+  getNativePendingPhoneVerification,
+  clearNativePendingPhoneVerification
 } from './otpAutofill';
 
 describe('otpAutofill utilities', () => {
@@ -108,6 +110,57 @@ describe('otpAutofill utilities', () => {
 
       unsubscribe();
       expect(listeners.has(SMARTRUN_SMS_OTP_EVENT)).toBe(false);
+    });
+
+    it('hydrates and clears native SharedPreferences pending Firebase verificationId across restarts', () => {
+      const clearPendingVerification = vi.fn();
+      const now = Date.now();
+      const validWin = {
+        SmartRunOtp: {
+          getPendingVerification: () =>
+            JSON.stringify({
+              verificationId: 'verif-abc-123',
+              phone: '+919876543210',
+              timestamp: now - 30_000
+            }),
+          clearPendingVerification
+        }
+      } as unknown as Window;
+
+      expect(getNativePendingPhoneVerification(validWin)).toEqual({
+        verificationId: 'verif-abc-123',
+        phone: '+919876543210',
+        timestamp: now - 30_000
+      });
+
+      // Expired (>10 min) verificationId must be ignored
+      const expiredWin = {
+        SmartRunOtp: {
+          getPendingVerification: () =>
+            JSON.stringify({
+              verificationId: 'verif-old',
+              phone: '+919876543210',
+              timestamp: now - 15 * 60 * 1000
+            })
+        }
+      } as unknown as Window;
+      expect(getNativePendingPhoneVerification(expiredWin)).toBeNull();
+
+      // Malformed JSON should safely return null
+      const brokenWin = {
+        SmartRunOtp: {
+          getPendingVerification: () => '{bad json'
+        }
+      } as unknown as Window;
+      expect(getNativePendingPhoneVerification(brokenWin)).toBeNull();
+
+      clearNativePendingPhoneVerification(validWin);
+      expect(clearPendingVerification).toHaveBeenCalledTimes(1);
+
+      // Extract OTP cleanly from Firebase fallback SMS format
+      expect(
+        extractOtpFromSmsMessage('231710 is your verification code for gen-lang-client-0708778333.firebaseapp.com.')
+      ).toBe('231710');
     });
   });
 });
