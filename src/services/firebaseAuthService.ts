@@ -46,9 +46,22 @@ const resolvedFirebaseConfig = {
 export const firebaseApp = !getApps().length ? initializeApp(resolvedFirebaseConfig) : getApp();
 export const firebaseAuth = getAuth(firebaseApp);
 
+// Lazy fallback Firebase Auth bound to default project authDomain in case custom domain
+// (smartrun.in / www.smartrun.in) is temporarily blocked by Firebase Authorized Domains.
+let fallbackFirebaseAuth: ReturnType<typeof getAuth> | null = null;
+function getFallbackFirebaseAuth(): ReturnType<typeof getAuth> {
+  if (fallbackFirebaseAuth) return fallbackFirebaseAuth;
+  const fallbackName = 'smartrun-firebase-fallback';
+  const existing = getApps().find((a) => a.name === fallbackName);
+  const app = existing || initializeApp(firebaseConfig, fallbackName);
+  fallbackFirebaseAuth = getAuth(app);
+  return fallbackFirebaseAuth;
+}
+
 // Global reference to active ConfirmationResult for multi-step verification
 let activeConfirmationResult: ConfirmationResult | null = null;
 let activeRecaptchaVerifier: RecaptchaVerifier | null = null;
+let activeRecaptchaAuthInstance: ReturnType<typeof getAuth> | null = null;
 let lastSentPhoneNumber: string | null = null;
 let activeBackendOtpToken: string | null = null;
 let activeBackendOtpPhone: string | null = null;
@@ -215,10 +228,12 @@ export function resetRecaptchaVerifier(): void {
     if (activeRecaptchaVerifier) {
       activeRecaptchaVerifier.clear();
       activeRecaptchaVerifier = null;
+      activeRecaptchaAuthInstance = null;
     }
   } catch (err) {
     console.debug('[Firebase Auth] Error clearing recaptcha verifier:', err);
     activeRecaptchaVerifier = null;
+    activeRecaptchaAuthInstance = null;
   }
 
   if (typeof window !== 'undefined') {
@@ -245,14 +260,18 @@ export function resetRecaptchaVerifier(): void {
 }
 
 /**
- * Prepares the RecaptchaVerifier on the specified container (invisible by default)
+ * Prepares the RecaptchaVerifier on the specified container (invisible by default).
+ * Always restores container visibility after previous resets so web OTP retries never stall.
  */
-export function getOrCreateRecaptchaVerifier(containerId = 'recaptcha-container'): RecaptchaVerifier {
+export function getOrCreateRecaptchaVerifier(
+  containerId = 'recaptcha-container',
+  authInstance: ReturnType<typeof getAuth> = firebaseAuth
+): RecaptchaVerifier {
   if (typeof window === 'undefined') {
     throw new Error('RecaptchaVerifier requires a browser window environment.');
   }
 
-  // Ensure container element exists in DOM
+  // Ensure container element exists in DOM and is NOT left hidden from a prior reset
   let containerEl = document.getElementById(containerId);
   if (!containerEl) {
     containerEl = document.createElement('div');
@@ -263,12 +282,24 @@ export function getOrCreateRecaptchaVerifier(containerId = 'recaptcha-container'
     containerEl.style.zIndex = '9999';
     document.body.appendChild(containerEl);
   }
+  containerEl.style.display = 'block';
+  containerEl.style.visibility = 'visible';
 
-  if (activeRecaptchaVerifier) {
+  if (activeRecaptchaVerifier && activeRecaptchaAuthInstance === authInstance) {
     return activeRecaptchaVerifier;
   }
 
-  activeRecaptchaVerifier = new RecaptchaVerifier(firebaseAuth, containerEl, {
+  if (activeRecaptchaVerifier) {
+    try {
+      activeRecaptchaVerifier.clear();
+    } catch {}
+    activeRecaptchaVerifier = null;
+    activeRecaptchaAuthInstance = null;
+    containerEl.innerHTML = '';
+  }
+
+  activeRecaptchaAuthInstance = authInstance;
+  activeRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerEl, {
     size: 'invisible',
     callback: () => {
       console.log('[Firebase Auth] Invisible reCAPTCHA verification passed');
@@ -282,10 +313,23 @@ export function getOrCreateRecaptchaVerifier(containerId = 'recaptcha-container'
   return activeRecaptchaVerifier;
 }
 
+/**
+ * Pre-warms invisible reCAPTCHA on Web browsers while the user types their mobile number,
+ * shaving 2-5 seconds off OTP send latency on mobile networks. No-op on native APK.
+ */
+export function prewarmRecaptchaVerifier(containerId = 'recaptcha-container'): void {
+  if (typeof window === 'undefined' || Capacitor.isNativePlatform()) return;
+  try {
+    if (activeRecaptchaVerifier) return;
+    const verifier = getOrCreateRecaptchaVerifier(containerId, firebaseAuth);
+    verifier.render().catch(() => {});
+  } catch {}
+}
+
 export interface SendFirebaseOtpResult {
   success: boolean;
   formattedPhone?: string;
-  provider?: 'firebase';
+  provider?: 'fast2sms' | 'firebase';
   autoVerified?: boolean;
   error?: string;
   isBillingRequired?: boolean;
@@ -326,7 +370,52 @@ export async function sendFirebasePhoneOtp(
   activeBackendOtpPhone = null;
   clearNativePhoneListeners();
 
-  // 1. Native Android & iOS Capacitor Platform Phone Auth
+  // 0. FAST PAN-INDIA DLT SMS GATEWAY FIRST (Fast2SMS Dev API on server)
+  // When FAST2SMS_API_KEY is configured on production server:
+  // - Delivers real TRAI DLT Indian OTP SMS in 2-5 seconds across ALL 22 circles (including outside Kolkata & DND)
+  // - Zero Chrome Custom Tab / reCAPTCHA page and zero *.firebaseapp.com SMS domain on Android APK & Web!
+  // If not configured or rejected, server returns fallbackToFirebase: true and we seamlessly continue to Firebase.
+  try {
+    const controller = new AbortController();
+    const fastTimer = setTimeout(() => controller.abort(), 9000);
+    try {
+      const fastResp = await fetch(apiUrl('/api/auth/send-phone-otp'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: digits, preferFastSms: true }),
+        signal: controller.signal
+      });
+      const fastData = await fastResp.json().catch(() => null);
+      if (fastResp.ok && fastData?.success && fastData?.delivered && fastData?.token) {
+        activeBackendOtpToken = fastData.token;
+        activeBackendOtpPhone = digits;
+        console.log(`[Phone Auth] Fast pan-India DLT SMS dispatched via ${fastData.provider || 'fast2sms'} for ${formattedPhone}`);
+        return {
+          success: true,
+          formattedPhone,
+          provider: 'fast2sms',
+          message: `OTP verification code sent to ${formattedPhone}. Enter the 6-digit code below.`
+        };
+      }
+      if (fastResp.status === 429 && fastData?.error && !fastData?.fallbackToFirebase) {
+        return {
+          success: false,
+          formattedPhone,
+          isRateLimited: true,
+          error: fastData.error
+        };
+      }
+      if (fastData?.error && !fastData?.smsNotConfigured) {
+        console.warn('[Phone Auth] Fast SMS gateway fell back to Firebase:', fastData.error);
+      }
+    } finally {
+      clearTimeout(fastTimer);
+    }
+  } catch (fastErr) {
+    console.debug('[Phone Auth] Fast SMS route unavailable, continuing with Firebase Phone Auth:', fastErr);
+  }
+
+  // 1. Native Android & iOS Capacitor Platform Phone Auth (Firebase Native SDK + Play Integrity)
   if (Capacitor.isNativePlatform()) {
     try {
       console.log(`[Native Firebase Phone Auth] Initiating native verification for ${formattedPhone}...`);
@@ -435,7 +524,7 @@ export async function sendFirebasePhoneOtp(
           if (!hasResolved) {
             hasResolved = true;
             cleanupWaiters();
-            console.warn('[Native Firebase Phone Auth] Timed out waiting for phoneCodeSent event, falling back...');
+            console.warn('[Native Firebase Phone Auth] Timed out waiting for phoneCodeSent event...');
             resolve({
               success: false,
               formattedPhone,
@@ -486,50 +575,53 @@ export async function sendFirebasePhoneOtp(
     }
   }
 
-  // 2. Web Firebase Phone Auth SDK (Direct Google Firebase SMS Dispatch via reCAPTCHA)
-  try {
-    const appVerifier = getOrCreateRecaptchaVerifier(containerId);
+  // 2. Web Firebase Phone Auth SDK (Direct Google Firebase SMS Dispatch via invisible reCAPTCHA)
+  const attemptWebFirebaseSend = async (authInstance: ReturnType<typeof getAuth>) => {
+    const appVerifier = getOrCreateRecaptchaVerifier(containerId, authInstance);
     console.log(`[Firebase Phone Auth] Requesting Web SDK OTP dispatch for ${formattedPhone}...`);
-    const confirmationResult = await signInWithPhoneNumber(firebaseAuth, formattedPhone, appVerifier);
+    const confirmationResult = await signInWithPhoneNumber(authInstance, formattedPhone, appVerifier);
     activeConfirmationResult = confirmationResult;
-
     return {
-      success: true,
+      success: true as const,
       formattedPhone,
-      provider: 'firebase',
+      provider: 'firebase' as const,
       message: `Firebase OTP code sent to ${formattedPhone}. Enter the 6-digit code below.`
     };
+  };
+
+  try {
+    return await attemptWebFirebaseSend(firebaseAuth);
   } catch (webErr: any) {
-    console.warn('[Firebase Phone Auth] Web SDK notice, attempting server-side fallback:', webErr);
+    console.warn('[Firebase Phone Auth] Web SDK primary attempt failed:', webErr);
     resetRecaptchaVerifier();
 
-    // 3. Fallback: Server-Authoritative Phone Auth
-    try {
-      console.log(`[Phone Auth] Requesting server-side fallback OTP for ${formattedPhone}...`);
-      const resp = await fetch(apiUrl('/api/auth/send-phone-otp'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: digits })
-      });
-      const serverData = await resp.json().catch(() => null);
-      if (serverData && serverData.success) {
-        activeBackendOtpToken = serverData.token || null;
-        activeBackendOtpPhone = digits;
-        return {
-          success: true,
-          formattedPhone,
-          provider: 'firebase',
-          message: `OTP verification code dispatched to ${formattedPhone}. Enter the 6-digit code below.`
-        };
-      } else if (serverData?.error) {
+    // If custom authDomain (smartrun.in / www.smartrun.in) failed due to domain/reCAPTCHA config,
+    // automatically retry once with default Firebase authDomain so website users still receive their OTP.
+    const errCode = String(webErr?.code || '');
+    const errMsg = String(webErr?.message || '').toLowerCase();
+    const isDomainOrCaptchaErr =
+      errCode === 'auth/unauthorized-domain' ||
+      errCode === 'auth/captcha-check-failed' ||
+      errCode === 'auth/invalid-app-credential' ||
+      errCode === 'auth/internal-error' ||
+      errMsg.includes('hostname match not found') ||
+      errMsg.includes('recaptcha');
+
+    if (isDomainOrCaptchaErr && resolvedFirebaseConfig.authDomain !== firebaseConfig.authDomain) {
+      try {
+        console.log('[Firebase Phone Auth] Retrying Web SDK OTP with fallback Firebase authDomain...');
+        return await attemptWebFirebaseSend(getFallbackFirebaseAuth());
+      } catch (retryErr: any) {
+        console.warn('[Firebase Phone Auth] Fallback authDomain retry also failed:', retryErr);
+        resetRecaptchaVerifier();
+        const retryDiag = formatFirebasePhoneError(retryErr);
         return {
           success: false,
           formattedPhone,
-          error: serverData.error
+          error: retryDiag.userMessage || retryErr?.message || 'Failed to dispatch OTP verification code.',
+          diagnostic: retryDiag
         };
       }
-    } catch (serverErr) {
-      console.warn('[Phone Auth] Server-side fallback also encountered an issue:', serverErr);
     }
 
     const diagnostic = formatFirebasePhoneError(webErr);

@@ -2618,7 +2618,8 @@ async function startServer() {
       return res.status(503).send("Firebase Auth proxy unavailable.");
     }
     try {
-      const targetUrl = `https://${projectId}.firebaseapp.com${req.originalUrl}`;
+      const upstreamOrigin = `https://${projectId}.firebaseapp.com`;
+      const targetUrl = `${upstreamOrigin}${req.originalUrl}`;
       const forwardHeaders: Record<string, string> = {};
       for (const [k, v] of Object.entries(req.headers)) {
         const key = k.toLowerCase();
@@ -2636,19 +2637,47 @@ async function startServer() {
           forwardHeaders[key] = v.join(", ");
         }
       }
+      const reqHost = req.get("host");
+      if (reqHost) {
+        forwardHeaders["x-forwarded-host"] = reqHost;
+        forwardHeaders["x-forwarded-proto"] = req.protocol || "https";
+      }
 
       const hasBody = req.method !== "GET" && req.method !== "HEAD";
+      let upstreamBody: string | undefined;
+      if (hasBody && req.body) {
+        const contentType = String(req.headers["content-type"] || "").toLowerCase();
+        if (typeof req.body === "string") {
+          upstreamBody = req.body;
+        } else if (contentType.includes("application/x-www-form-urlencoded")) {
+          const params = new URLSearchParams();
+          for (const [bk, bv] of Object.entries(req.body)) {
+            if (bv !== undefined && bv !== null) {
+              params.append(bk, String(bv));
+            }
+          }
+          upstreamBody = params.toString();
+        } else if (Object.keys(req.body).length > 0) {
+          upstreamBody = JSON.stringify(req.body);
+        }
+      }
+
       const upstreamRes = await fetch(targetUrl, {
         method: req.method,
         headers: forwardHeaders,
-        body: hasBody && req.body && Object.keys(req.body).length > 0 ? JSON.stringify(req.body) : undefined,
+        body: upstreamBody,
         redirect: "manual",
       });
 
       res.status(upstreamRes.status);
+      const publicOrigin = reqHost ? `https://${reqHost}` : "";
       upstreamRes.headers.forEach((value, key) => {
         const lower = key.toLowerCase();
         if (lower === "content-encoding" || lower === "transfer-encoding" || lower === "content-length") {
+          return;
+        }
+        if (lower === "location" && publicOrigin && value.startsWith(upstreamOrigin)) {
+          res.setHeader(key, `${publicOrigin}${value.slice(upstreamOrigin.length)}`);
           return;
         }
         res.setHeader(key, value);
@@ -8152,8 +8181,11 @@ Knowledge Base & Service Details:
   });
 
   /**
-   * Backend Phone OTP Dispatch Endpoint
-   * Runs phone authentication and logs verification in Firebase on backend server
+   * Fast Pan-India DLT SMS OTP Dispatch Endpoint (Fast2SMS Dev API bulkV2)
+   * Dispatches real transactional OTP SMS in 2-5 seconds across ALL 22 Indian telecom circles
+   * (including DND and non-Kolkata circles) without Firebase reCAPTCHA or *.firebaseapp.com SMS domain.
+   * If FAST2SMS_API_KEY is not configured or delivery fails, returns fallbackToFirebase: true
+   * and NEVER fabricates a fake success response.
    * POST /api/auth/send-phone-otp
    * Request Body: { phone: "9876543210" }
    */
@@ -8161,10 +8193,20 @@ Knowledge Base & Service Details:
     try {
       const rawPhone = (req.body && req.body.phone) || req.query?.phone || "";
       const cleanPhone = String(rawPhone || "").replace(/\D/g, "").slice(-10);
-      if (cleanPhone.length !== 10) {
+      if (cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
         return res.status(400).json({
           success: false,
-          error: "Please enter a valid 10-digit mobile number."
+          error: "Please enter a valid 10-digit Indian mobile number."
+        });
+      }
+
+      const fast2smsApiKey = String(process.env.FAST2SMS_API_KEY || "").trim();
+      if (!fast2smsApiKey) {
+        return res.status(503).json({
+          success: false,
+          fallbackToFirebase: true,
+          smsNotConfigured: true,
+          error: "Fast pan-India SMS gateway (FAST2SMS_API_KEY) is not configured on the server."
         });
       }
 
@@ -8178,11 +8220,79 @@ Knowledge Base & Service Details:
           error: `Please wait ${remainingSec} seconds before requesting another verification code.`
         });
       }
-      phoneLastSmsSentTime.set(cleanPhone, now);
 
       // Generate secure 6-digit OTP
-      const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      const generatedOtp = crypto.randomInt(100000, 1000000).toString();
       const expiresAt = Date.now() + 10 * 60 * 1000;
+
+      // Helper to dispatch via Fast2SMS Dev API v2 with strict timeout
+      const dispatchFast2Sms = async (payload: Record<string, string>) => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+        try {
+          const upstream = await fetch("https://www.fast2sms.com/dev/bulkV2", {
+            method: "POST",
+            headers: {
+              authorization: fast2smsApiKey,
+              "Content-Type": "application/json",
+              accept: "application/json",
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          });
+          const data = await upstream.json().catch(() => ({}));
+          return { httpStatus: upstream.status, data };
+        } finally {
+          clearTimeout(timer);
+        }
+      };
+
+      // Primary route: Fast2SMS dedicated pre-approved DLT 'otp' route (pan-India, DND-safe, 2-5s delivery)
+      let smsResponse = await dispatchFast2Sms({
+        route: "otp",
+        variables_values: generatedOtp,
+        numbers: cleanPhone,
+        flash: "0",
+      });
+      let usedRoute: "otp" | "q" = "otp";
+
+      const primaryStatusCode = Number(smsResponse.data?.status_code || smsResponse.httpStatus || 0);
+      const primaryOk = smsResponse.data?.return === true;
+
+      // Secondary fallback: Quick SMS 'q' route ONLY if primary failed for a non-auth/non-IP-block reason
+      if (!primaryOk && primaryStatusCode !== 414 && primaryStatusCode !== 411 && primaryStatusCode !== 412) {
+        const webOtpMessage = `${generatedOtp} is your SmartRun verification code. Valid for 10 minutes.\n\n@smartrun.in #${generatedOtp}`;
+        const quickRes = await dispatchFast2Sms({
+          route: "q",
+          message: webOtpMessage,
+          language: "english",
+          numbers: cleanPhone,
+          flash: "0",
+        });
+        if (quickRes.data?.return === true) {
+          smsResponse = quickRes;
+          usedRoute = "q";
+        }
+      }
+
+      if (smsResponse.data?.return !== true) {
+        const statusCode = Number(smsResponse.data?.status_code || smsResponse.httpStatus || 502);
+        const providerMsg = Array.isArray(smsResponse.data?.message)
+          ? smsResponse.data.message.join(" ")
+          : String(smsResponse.data?.message || "SMS gateway rejected request.");
+        console.warn(`[Fast2SMS OTP] Delivery failed (code=${statusCode}): ${providerMsg}`);
+        return res.status(502).json({
+          success: false,
+          fallbackToFirebase: true,
+          errorCode: statusCode,
+          error:
+            statusCode === 414
+              ? "Fast2SMS Dev API blocked server IP (414). Whitelist server IP or disable IP whitelist in Fast2SMS Security settings."
+              : providerMsg,
+        });
+      }
+
+      phoneLastSmsSentTime.set(cleanPhone, now);
 
       // Cryptographic HMAC token valid across serverless cold starts
       const secret = (process.env.SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || SERVER_AUTH_SECRET).slice(0, 32);
@@ -8199,35 +8309,38 @@ Knowledge Base & Service Details:
         phone: cleanPhone
       });
 
-      // Log verification intent to Firebase Firestore on backend
+      // Log verification dispatch to Firebase Firestore on backend (non-blocking)
       if (serverFirestore) {
-        try {
-          const verificationRef = firestoreDoc(serverFirestore, "phone_otps", cleanPhone);
-          await firestoreSetDoc(verificationRef, {
-            phone: `+91${cleanPhone}`,
-            created_at: new Date().toISOString(),
-            status: "pending",
-            provider: "firebase"
-          }, { merge: true });
-        } catch (logErr) {
-          console.debug("[Firebase Backend] OTP log notice:", logErr);
-        }
+        const verificationRef = firestoreDoc(serverFirestore, "phone_otps", cleanPhone);
+        firestoreSetDoc(verificationRef, {
+          phone: `+91${cleanPhone}`,
+          created_at: new Date().toISOString(),
+          status: "sent",
+          provider: `fast2sms_${usedRoute}`
+        }, { merge: true }).catch(() => {});
       }
 
-      console.log(`[Firebase Phone Auth] Prepared OTP session for +91 ${cleanPhone.slice(0, 4)}****`);
+      console.log(`[Fast2SMS OTP] Dispatched pan-India SMS (${usedRoute}) to +91 ${cleanPhone.slice(0, 4)}****`);
 
       return res.json({
         success: true,
+        delivered: true,
         phone: cleanPhone,
         formattedPhone: `+91${cleanPhone}`,
         token,
-        provider: "firebase",
-        message: `OTP session ready for +91 ${cleanPhone}. Please verify via Firebase Auth.`
+        provider: "fast2sms",
+        route: usedRoute,
+        message: `OTP sent to +91 ${cleanPhone}.`
       });
     } catch (err: any) {
-      return res.status(500).json({
+      const isTimeout = err?.name === "AbortError";
+      console.warn("[Fast2SMS OTP] Exception:", err?.message || err);
+      return res.status(502).json({
         success: false,
-        error: err?.message || "Failed to dispatch verification code."
+        fallbackToFirebase: true,
+        error: isTimeout
+          ? "SMS gateway timed out. Switching to backup OTP delivery."
+          : err?.message || "Failed to dispatch SMS verification code."
       });
     }
   });
@@ -9788,12 +9901,18 @@ Knowledge Base & Service Details:
     return res.json({ success: true, message: "Passkey removed." });
   });
 
-  // Phone Auth Gateway Status Endpoint (Firebase Backend)
+  // Phone Auth Gateway Status Endpoint (Fast2SMS Pan-India DLT + Firebase Fallback)
   app.get("/api/sms/providers-status", (req, res) => {
+    const fast2smsConfigured = Boolean(String(process.env.FAST2SMS_API_KEY || "").trim());
     return res.json({
-      gateway: "firebase_backend",
+      gateway: fast2smsConfigured ? "fast2sms_primary_firebase_fallback" : "firebase_only",
+      fast2sms: {
+        configured: fast2smsConfigured,
+        primaryRoute: "otp",
+        panIndiaDlt: true
+      },
       firebase: {
-        type: "server_authoritative_firebase_auth",
+        type: "firebase_phone_auth",
         status: "active",
         firestore: Boolean(serverFirestore)
       }

@@ -1194,9 +1194,19 @@ export default function App() {
       return;
     }
 
-    // 4. Login Page: Return to previous browsing page or exit app if unauthenticated
+    // 4. Login Page: Return to previous browsing page; never exit immediately after returning
+    // from an Android Autofill sheet, SMS consent dialog, or Firebase captcha overlay.
     if (currentPath === '/login' || currentPath === '/auth') {
       if (!isAuthenticated && Capacitor.isNativePlatform()) {
+        const lastFocusTs = Number((window as any).__SMARTRUN_LAST_RESUME_TS__ || 0);
+        if (lastFocusTs && Date.now() - lastFocusTs < 2000) {
+          return;
+        }
+        const activeTag = document.activeElement?.tagName;
+        if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
+          try { (document.activeElement as HTMLElement).blur(); } catch {}
+          return;
+        }
         CapApp.exitApp();
         return;
       }

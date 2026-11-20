@@ -37,7 +37,8 @@ import {
   sendFirebasePhoneOtp,
   verifyFirebaseOtpAndBridgeToSupabase,
   formatToE164Phone,
-  resetRecaptchaVerifier
+  resetRecaptchaVerifier,
+  prewarmRecaptchaVerifier
 } from '../services/firebaseAuthService';
 import { updateGAConsent } from '../utils/analytics';
 import { PersonalInfoPage } from './PersonalInfoPage';
@@ -256,13 +257,70 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
       otpAttemptId
     });
 
-  // Always clean up any invisible/hidden reCAPTCHA DOM & native SMS listener on unmount
+  const autoVerifyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelScheduledAutoVerify = () => {
+    if (autoVerifyTimerRef.current) {
+      clearTimeout(autoVerifyTimerRef.current);
+      autoVerifyTimerRef.current = null;
+    }
+  };
+
+  // Defer OTP auto-verification slightly after Autofill/Paste/SMS fill so Android WebView's
+  // AutofillManager.commit() and IME finish cleanly before React verifies & unmounts LoginPage.
+  const scheduleAutoVerifyOtp = (codeDigits: string) => {
+    cancelScheduledAutoVerify();
+    if (codeDigits.length !== 6 || hasCompletedPhoneAuthRef.current || isVerifyingOtpRef.current) {
+      return;
+    }
+    autoVerifyTimerRef.current = setTimeout(() => {
+      autoVerifyTimerRef.current = null;
+      if (hasCompletedPhoneAuthRef.current || isVerifyingOtpRef.current) return;
+      try {
+        secondInputRef.current?.blur();
+      } catch {}
+      latestVerifyPhoneOtpRef.current(codeDigits);
+    }, 180);
+  };
+
+  // Always clean up any invisible/hidden reCAPTCHA DOM, auto-verify timer & native SMS listener on unmount
   useEffect(() => {
     return () => {
+      cancelScheduledAutoVerify();
       resetRecaptchaVerifier();
       stopNativeSmsOtpAutofill();
     };
   }, []);
+
+  // Intercept Android hardware back while OTP entry, loading, or onboarding is active
+  // so pressing Back returns cleanly to phone entry instead of calling CapApp.exitApp().
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleHardwareBack = (ev: Event) => {
+      if (authStep !== 'primary') {
+        ev.preventDefault();
+        setAuthStep('primary');
+        resetMessages();
+        return;
+      }
+      if (showSecondField || otpSent || isLoading) {
+        ev.preventDefault();
+        cancelScheduledAutoVerify();
+        stopNativeSmsOtpAutofill();
+        resetRecaptchaVerifier();
+        setOtpSent(false);
+        setIsWaitingOtp(false);
+        setShowSecondField(false);
+        setOtpCode('');
+        setPassword('');
+        setIsLoading(false);
+        isVerifyingOtpRef.current = false;
+        resetMessages();
+      }
+    };
+    window.addEventListener('smartrun:hardware-back', handleHardwareBack);
+    return () => window.removeEventListener('smartrun:hardware-back', handleHardwareBack);
+  }, [authStep, showSecondField, otpSent, isLoading]);
 
   // Google & Cross-Device WebOTP API integration (Android Phones, Tablets, Chromebooks, & Laptop Chrome)
   useEffect(() => {
@@ -286,7 +344,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
             setOtpSent(true);
             setOtpCode(codeDigits);
             setError(null);
-            latestVerifyPhoneOtpRef.current(codeDigits);
+            scheduleAutoVerifyOtp(codeDigits);
           }
         })
         .catch((err: any) => {
@@ -318,7 +376,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
       setOtpSent(true);
       setOtpCode(codeDigits);
       setError(null);
-      latestVerifyPhoneOtpRef.current(codeDigits);
+      scheduleAutoVerifyOtp(codeDigits);
     });
 
     return () => {
@@ -572,8 +630,17 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
     }
 
     hasCompletedPhoneAuthRef.current = true;
+    cancelScheduledAutoVerify();
     stopNativeSmsOtpAutofill();
     resetRecaptchaVerifier();
+
+    // Blur focused OTP/phone input cleanly before triggering navigation/unmount so Android
+    // WebView's AutofillSession & soft keyboard close gracefully without crashing MainActivity.
+    try {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    } catch {}
 
     let existingProfile: any = null;
     try {
@@ -606,8 +673,8 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
       const finalEmail = (existingProfile?.email && !existingProfile.email.includes('@girirajpower.internal'))
         ? existingProfile.email
         : (result.profile?.email && !result.profile.email.includes('@girirajpower.internal') ? result.profile.email : '');
+      // onAuthSuccess in App.tsx performs flushSync + single authoritative navigate(targetRedirect, { replace: true })
       onAuthSuccess(`+91${clean10}`, finalName, finalEmail, result.user);
-      navigate(getPostAuthRedirect(), { replace: true });
     } else {
       setOnboardingPhone(clean10);
       setOnboardingName('');
@@ -689,6 +756,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
 
   // --- 3. VERIFY PHONE OTP & DETECT IF NEW OR EXISTING USER ---
   const handleVerifyPhoneOtp = async (overrideOtp?: string) => {
+    cancelScheduledAutoVerify();
     if (isVerifyingOtpRef.current || hasCompletedPhoneAuthRef.current) return;
 
     resetMessages();
@@ -700,6 +768,10 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
       setError('Please enter the complete 6-digit verification code.');
       return;
     }
+
+    try {
+      secondInputRef.current?.blur();
+    } catch {}
 
     isVerifyingOtpRef.current = true;
     setIsLoading(true);
@@ -1446,10 +1518,14 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
                         if (digits.length === 11 && digits.startsWith('0')) {
                           val = digits.slice(1);
                         }
+                        if (!isCapacitorNative && digits.length >= 6) {
+                          prewarmRecaptchaVerifier('recaptcha-container');
+                        }
                       }
                       setIdentifier(val);
                       resetMessages();
                       if (otpSent && !isPhoneInput(val)) {
+                        cancelScheduledAutoVerify();
                         setOtpSent(false);
                         setShowSecondField(false);
                       }
@@ -1505,7 +1581,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
                           setOtpCode(digits);
                           if (error) setError(null);
                           if (digits.length === 6) {
-                            handleVerifyPhoneOtp(digits);
+                            scheduleAutoVerifyOtp(digits);
                           }
                         }}
                         onChange={(e) => {
@@ -1513,7 +1589,9 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
                           setOtpCode(digits);
                           if (error) setError(null);
                           if (digits.length === 6) {
-                            handleVerifyPhoneOtp(digits);
+                            scheduleAutoVerifyOtp(digits);
+                          } else {
+                            cancelScheduledAutoVerify();
                           }
                         }}
                         className="w-full bg-transparent py-2 text-sm font-semibold tracking-widest text-slate-900 placeholder:text-slate-400 focus:outline-none"
@@ -1530,6 +1608,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
                       <button
                         type="button"
                         onClick={() => {
+                          cancelScheduledAutoVerify();
                           stopNativeSmsOtpAutofill();
                           resetRecaptchaVerifier();
                           setOtpSent(false);

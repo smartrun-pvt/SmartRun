@@ -106,6 +106,9 @@
             <data android:scheme="credpay" />
         </intent>
 
+        <!-- Google Play Services (required on Android 11+ for SMS User Consent resolution) -->
+        <package android:name="com.google.android.gms" />
+
         <!-- Popular Indian UPI & Banking Apps so Razorpay can detect and display them -->
         <package android:name="com.google.android.apps.nbu.paisa.user" /> <!-- Google Pay -->
         <package android:name="net.one97.paytm" />                        <!-- Paytm -->

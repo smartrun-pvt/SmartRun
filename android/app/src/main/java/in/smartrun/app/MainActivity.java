@@ -41,7 +41,9 @@ public class MainActivity extends BridgeActivity {
     private volatile boolean hasMeasuredInsets = false;
     private boolean isSmsConsentReceiverRegistered = false;
     private Intent pendingConsentIntent = null;
+    private String pendingSmsOtpMessage = null;
     private boolean isLaunchingSmsConsent = false;
+    private volatile boolean isActivityResumed = false;
 
     private static final Pattern OTP_HASH_PATTERN = Pattern.compile("#(\\d{6})\\b");
     private static final Pattern OTP_KEYWORD_PATTERN =
@@ -62,7 +64,14 @@ public class MainActivity extends BridgeActivity {
                 if (result != null && result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                     String message = result.getData().getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE);
                     if (message != null && !message.isEmpty()) {
-                        dispatchSmsOtpToWebView(message);
+                        // ActivityResult callbacks run BEFORE onResume() finishes on Android.
+                        // Defer dispatching to WebView until MainActivity is fully resumed so
+                        // Android AutofillManager / InputMethodManager transitions never crash WebView.
+                        if (isActivityResumed && getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                            dispatchSmsOtpToWebView(message);
+                        } else {
+                            pendingSmsOtpMessage = message;
+                        }
                     }
                 }
             } catch (Throwable ignored) {}
@@ -139,7 +148,10 @@ public class MainActivity extends BridgeActivity {
 
         @JavascriptInterface
         public void stopListening() {
-            runOnUiThread(MainActivity.this::unregisterSmsConsentReceiver);
+            runOnUiThread(() -> {
+                pendingSmsOtpMessage = null;
+                unregisterSmsConsentReceiver();
+            });
         }
 
         @JavascriptInterface
@@ -173,7 +185,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void launchConsentIntentSafely(Intent consentIntent) {
-        if (consentIntent == null || isFinishing() || isDestroyed() || isLaunchingSmsConsent) {
+        if (consentIntent == null || isFinishing() || isDestroyed() || isLaunchingSmsConsent || !isSmsConsentReceiverRegistered) {
             return;
         }
         try {
@@ -186,7 +198,7 @@ public class MainActivity extends BridgeActivity {
             consentIntent.setFlags(consentIntent.getFlags() & ~Intent.FLAG_ACTIVITY_NEW_TASK);
 
             // On Android 14/15, never launch SMS consent while MainActivity is paused behind a Chrome Custom Tab / RecaptchaActivity
-            if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+            if (isActivityResumed && getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
                 isLaunchingSmsConsent = true;
                 smsConsentLauncher.launch(consentIntent);
             } else {
@@ -207,6 +219,7 @@ public class MainActivity extends BridgeActivity {
         if (isFinishing() || isDestroyed()) {
             return;
         }
+        pendingSmsOtpMessage = null;
         unregisterSmsConsentReceiver();
         try {
             IntentFilter intentFilter = new IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION);
@@ -270,7 +283,12 @@ public class MainActivity extends BridgeActivity {
             return;
         }
         final String otpCode = extractSixDigitOtp(rawMessage);
-        getBridge().getWebView().post(() -> {
+        if (otpCode.length() != 6) {
+            return;
+        }
+        // Delay slightly after resume so Chromium WebView & Android AutofillManager finish
+        // settling focus/window tokens before JS updates the OTP input or navigates.
+        getBridge().getWebView().postDelayed(() -> {
             if (isFinishing() || isDestroyed() || getBridge() == null || getBridge().getWebView() == null) {
                 return;
             }
@@ -283,14 +301,18 @@ public class MainActivity extends BridgeActivity {
                     payload.toString() +
                     " }));";
                 getBridge().getWebView().evaluateJavascript(js, null);
-            } catch (Exception ignored) {}
-        });
+            } catch (Throwable ignored) {}
+        }, 180L);
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        setIntent(intent);
+        try {
+            super.onNewIntent(intent);
+            if (intent != null) {
+                setIntent(intent);
+            }
+        } catch (Throwable ignored) {}
     }
 
     private void updateMeasuredInsets(WindowInsetsCompat windowInsets) {
@@ -478,17 +500,48 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onPause() {
+        isActivityResumed = false;
+        super.onPause();
+    }
+
+    @Override
     public void onResume() {
         super.onResume();
+        isActivityResumed = true;
         syncFromRootWindowInsets();
-        ViewCompat.requestApplyInsets(getWindow().getDecorView());
+        if (getWindow() != null && getWindow().getDecorView() != null) {
+            ViewCompat.requestApplyInsets(getWindow().getDecorView());
+        }
 
-        if (pendingConsentIntent != null && !isLaunchingSmsConsent) {
+        // Record native resume timestamp in WebView so stray back signals right after closing
+        // Google Autofill / SMS consent / Chrome Custom Tab overlays never trigger CapApp.exitApp().
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().post(() -> {
+                if (!isFinishing() && !isDestroyed() && getBridge() != null && getBridge().getWebView() != null) {
+                    try {
+                        getBridge().getWebView().evaluateJavascript(
+                            "window.__SMARTRUN_LAST_RESUME_TS__=Date.now();",
+                            null
+                        );
+                    } catch (Throwable ignored) {}
+                }
+            });
+        }
+
+        // Flush any SMS OTP captured via ActivityResult before onResume() completed
+        if (pendingSmsOtpMessage != null) {
+            final String msgToDispatch = pendingSmsOtpMessage;
+            pendingSmsOtpMessage = null;
+            dispatchSmsOtpToWebView(msgToDispatch);
+        }
+
+        if (pendingConsentIntent != null && !isLaunchingSmsConsent && isSmsConsentReceiverRegistered) {
             final Intent toLaunch = pendingConsentIntent;
             pendingConsentIntent = null;
             View decorView = getWindow() != null ? getWindow().getDecorView() : null;
             if (decorView != null) {
-                decorView.post(() -> launchConsentIntentSafely(toLaunch));
+                decorView.postDelayed(() -> launchConsentIntentSafely(toLaunch), 120L);
             } else {
                 launchConsentIntentSafely(toLaunch);
             }
@@ -505,6 +558,8 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onDestroy() {
+        isActivityResumed = false;
+        pendingSmsOtpMessage = null;
         unregisterSmsConsentReceiver();
         super.onDestroy();
     }
