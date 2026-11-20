@@ -57,6 +57,9 @@
 -keep class com.google.android.gms.internal.firebase-auth-api.** { *; }
 -keep class androidx.browser.customtabs.** { *; }
 -keep class io.capawesome.capacitorjs.plugins.firebase.authentication.** { *; }
+-keep class androidx.credentials.** { *; }
+-keep class com.google.android.gms.fido.** { *; }
+-keep class com.google.android.gms.auth.blockstore.** { *; }
 -keepclassmembers class * implements android.os.Parcelable {
     public static final ** CREATOR;
 }

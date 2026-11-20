@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Fingerprint, KeyRound, Plus, Trash2, CheckCircle2, AlertCircle, Loader2, Laptop, Smartphone } from 'lucide-react';
-import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser';
 import { UserProfile } from '../../types';
 import { apiUrl } from '../../lib/apiBase';
 import { supabase } from '../../lib/supabaseClient';
 import { ProfileSubPageNavbar } from './ProfileSubPageNavbar';
+import {
+  createPasskeyCredential,
+  getPasskeyPlatformTag,
+  isPasskeySupported
+} from '../../services/passkeyService';
+import { formatPasskeyError } from '../../utils/passkeyHelper';
+import { isNativePhoneApp } from '../../utils/platformDetection';
 
 interface PasskeyItem {
   id: string;
@@ -24,14 +30,15 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
   const [isRegistering, setIsRegistering] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isSupported, setIsSupported] = useState(true);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const userId = userProfile?.id || '';
+  const isNativeApp = isNativePhoneApp();
 
-  // Check WebAuthn support
+  // Check WebAuthn / Native Android Credential Manager support
   useEffect(() => {
     try {
-      const supported = browserSupportsWebAuthn();
-      setIsSupported(supported);
+      setIsSupported(isPasskeySupported());
     } catch {
       setIsSupported(false);
     }
@@ -89,7 +96,7 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
     loadPasskeys();
   }, [userId]);
 
-  // Create a new passkey on this device
+  // Create a new passkey on this device (WebAuthn Browser or Native Android Credential Manager)
   const handleCreatePasskey = async () => {
     if (!userId) {
       setMessage({ type: 'error', text: 'You must be signed in to set up a passkey.' });
@@ -97,17 +104,24 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
     }
     setMessage(null);
     setIsRegistering(true);
+    const platformTag = getPasskeyPlatformTag();
+    const startTs = Date.now();
 
     try {
       // 1. Get registration options from server
       const optRes = await fetch(apiUrl('/api/auth/passkey/register-options'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-smartrun-platform': platformTag
+        },
         body: JSON.stringify({
           userId,
           email: userProfile?.email || undefined,
           phone: userProfile?.phone || undefined,
-          fullName: userProfile?.name || 'Customer'
+          fullName: userProfile?.name || 'Customer',
+          platform: platformTag
         })
       });
 
@@ -116,14 +130,28 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
         throw new Error(optData?.error || 'Failed to start passkey setup.');
       }
 
-      // 2. Trigger native device biometric prompt (Touch ID, Windows Hello, Face ID, etc.)
-      const regResp = await startRegistration({
-        optionsJSON: optData.options
-      });
+      // 2. Trigger native device biometric prompt (Android Credential Manager, Touch ID, Windows Hello, Face ID)
+      const promptStartTs = Date.now();
+      let regResp;
+      try {
+        regResp = await createPasskeyCredential(optData.options);
+      } catch (promptErr: any) {
+        const formatted = formatPasskeyError(promptErr, {
+          isNativeApp,
+          mode: 'register',
+          elapsedMs: Date.now() - promptStartTs
+        });
+        if (formatted.message) {
+          setMessage({ type: 'error', text: formatted.message });
+        }
+        return;
+      }
 
       // 3. Determine device label
       let deviceLabel = 'This Device';
-      if (typeof navigator !== 'undefined') {
+      if (platformTag === 'android_native') {
+        deviceLabel = 'Android App (Biometric Passkey)';
+      } else if (typeof navigator !== 'undefined') {
         const ua = navigator.userAgent;
         if (/Android/i.test(ua)) deviceLabel = 'Android Phone / Tablet';
         else if (/iPhone|iPad/i.test(ua)) deviceLabel = 'Apple Device (Face ID / Touch ID)';
@@ -135,7 +163,11 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
       // 4. Verify on server
       const verifyRes = await fetch(apiUrl('/api/auth/passkey/register-verify'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-smartrun-platform': platformTag
+        },
         body: JSON.stringify({
           userId,
           response: regResp,
@@ -143,7 +175,8 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
           deviceName: deviceLabel,
           email: userProfile?.email || undefined,
           phone: userProfile?.phone || undefined,
-          fullName: userProfile?.name || 'Customer'
+          fullName: userProfile?.name || 'Customer',
+          platform: platformTag
         })
       });
 
@@ -154,23 +187,32 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
 
       setMessage({
         type: 'success',
-        text: 'Passkey saved! Next time you sign in, your browser will automatically offer this Passkey.'
+        text: isNativeApp
+          ? 'Passkey saved! Next time you sign in on SmartRun, tap Passkey to unlock instantly with your fingerprint or screen lock.'
+          : 'Passkey saved! Next time you sign in, tap Passkey or select it from your browser autofill bar.'
       });
-      loadPasskeys();
+      await loadPasskeys();
     } catch (err: any) {
-      if (err?.name === 'NotAllowedError') {
-        setMessage({ type: 'error', text: 'Passkey setup was cancelled or timed out.' });
-      } else {
-        setMessage({ type: 'error', text: err?.message || 'Could not register passkey on this device.' });
+      const formatted = formatPasskeyError(err, {
+        isNativeApp,
+        mode: 'register',
+        elapsedMs: Date.now() - startTs
+      });
+      if (formatted.message) {
+        setMessage({ type: 'error', text: formatted.message });
       }
     } finally {
       setIsRegistering(false);
     }
   };
 
-  // Delete a passkey
+  // Delete a passkey (inline two-tap confirmation — avoids blocked window.confirm in WebView/iframes)
   const handleDeletePasskey = async (id: string) => {
-    if (!window.confirm('Are you sure you want to remove this passkey?')) return;
+    if (confirmDeleteId !== id) {
+      setConfirmDeleteId(id);
+      return;
+    }
+    setConfirmDeleteId(null);
     try {
       try {
         if ((supabase.auth as any)?.passkey?.delete) {
@@ -180,9 +222,13 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
         console.debug('[Supabase Passkey Delete notice]:', sbErr);
       }
 
-      const res = await fetch(apiUrl(`/api/auth/passkey/${encodeURIComponent(id)}`), {
-        method: 'DELETE'
-      });
+      const res = await fetch(
+        apiUrl(`/api/auth/passkey/${encodeURIComponent(id)}?userId=${encodeURIComponent(userId)}`),
+        {
+          method: 'DELETE',
+          credentials: 'include'
+        }
+      );
       const data = await res.json().catch(() => null);
       if (data && data.success) {
         setPasskeys((prev) => prev.filter((p) => p.id !== id));
@@ -289,15 +335,34 @@ export const PasskeysSubPage: React.FC<PasskeysSubPageProps> = ({ userProfile, o
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeletePasskey(pk.id)}
-                      className="min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer shrink-0"
-                      title="Remove passkey"
-                      aria-label="Remove passkey"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {confirmDeleteId === pk.id ? (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePasskey(pk.id)}
+                          className="px-2.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePasskey(pk.id)}
+                        className="min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer shrink-0"
+                        title="Remove passkey"
+                        aria-label="Remove passkey"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 );
               })}

@@ -18,10 +18,12 @@ import {
 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import {
-  startAuthentication,
-  browserSupportsWebAuthnAutofill,
-  WebAuthnAbortService
-} from '@simplewebauthn/browser';
+  cancelPasskeyCeremony,
+  getPasskeyAssertion,
+  getPasskeyPlatformTag,
+  isBrowserPasskeyAutofillSupported
+} from '../services/passkeyService';
+import { formatPasskeyError } from '../utils/passkeyHelper';
 import { supabase } from '../lib/supabaseClient';
 import { apiUrl } from '../lib/apiBase';
 import { isAndroidAppEnvironment, isNativePhoneApp } from '../utils/platformDetection';
@@ -178,6 +180,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
   const secondInputRef = useRef<HTMLInputElement>(null);
   const isVerifyingOtpRef = useRef(false);
   const hasCompletedPhoneAuthRef = useRef(false);
+  const isManualPasskeyActiveRef = useRef(false);
   const latestVerifyPhoneOtpRef = useRef<(overrideOtp?: string) => Promise<void>>(async () => {});
 
   // Auto-focus second field when revealed (with animation-frame sync for Safari/Android Autofill bars)
@@ -433,42 +436,47 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
     };
   }, [isListeningForNativeSmsConsent, otpAttemptId, otpProvider]);
 
-  // WebAuthn Passkey Conditional Autofill (web browsers only; skipped in Capacitor WebView where origin is https://localhost)
+  // WebAuthn Passkey Conditional Autofill (web browsers only; skipped in Capacitor WebView where native Credential Manager handles passkeys)
   useEffect(() => {
     if (typeof window === 'undefined' || Capacitor.isNativePlatform()) return;
     let isCancelled = false;
 
     async function initPasskeyAutofill() {
       try {
-        const isAutofillAvailable = await browserSupportsWebAuthnAutofill();
-        if (!isAutofillAvailable || isCancelled) return;
+        const isAutofillAvailable = await isBrowserPasskeyAutofillSupported();
+        if (!isAutofillAvailable || isCancelled || isManualPasskeyActiveRef.current) return;
 
         const res = await fetch(apiUrl('/api/auth/passkey/login-options'), {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
+          body: JSON.stringify({ platform: 'web' })
         });
         const data = await res.json().catch(() => null);
-        if (!data || !data.success || !data.options || isCancelled) return;
+        if (!data || !data.success || !data.options || isCancelled || isManualPasskeyActiveRef.current) return;
 
-        // Start conditional mediation without prompt popup: waits for user to select from autofill
-        const authResp = await startAuthentication({
-          optionsJSON: data.options,
+        // Start conditional mediation without modal popup: waits for user to select from autofill
+        const authResp = await getPasskeyAssertion(data.options, {
           useBrowserAutofill: true
         });
 
-        if (authResp && !isCancelled) {
+        if (authResp && !isCancelled && !isManualPasskeyActiveRef.current) {
           setIsLoading(true);
           const verifyRes = await fetch(apiUrl('/api/auth/passkey/login-verify'), {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               response: authResp,
-              challengeToken: data.challengeToken
+              challengeToken: data.challengeToken,
+              platform: 'web'
             })
           });
           const verifyData = await verifyRes.json().catch(() => null);
           if (verifyData && verifyData.success && verifyData.user) {
+            if (verifyData.sessionToken) {
+              setServerAuthToken(verifyData.sessionToken);
+            }
             if (verifyData.session) {
               await supabase.auth.setSession(verifyData.session).catch(() => {});
             }
@@ -487,7 +495,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
           console.debug('[Passkey Autofill notice]:', e);
         }
       } finally {
-        if (!isCancelled) {
+        if (!isCancelled && !isManualPasskeyActiveRef.current) {
           setIsLoading(false);
         }
       }
@@ -497,9 +505,7 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
 
     return () => {
       isCancelled = true;
-      try {
-        WebAuthnAbortService.cancelCeremony();
-      } catch {}
+      cancelPasskeyCeremony();
     };
   }, []);
 
@@ -589,43 +595,77 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
     }
   };
 
-  // --- 1B. PASSKEY SIGN IN ---
+  // --- 1B. PASSKEY SIGN IN (WEB BROWSER + NATIVE ANDROID CREDENTIAL MANAGER) ---
   const handlePasskeySignIn = async () => {
     if (!termsAgreed) {
       setError('Please agree to the Privacy Policy and Terms of Service of SmartRun to continue.');
       return;
     }
+    isManualPasskeyActiveRef.current = true;
     setIsPasskeyLoading(true);
     resetMessages();
+    const platformTag = getPasskeyPlatformTag();
+    const promptStartTs = Date.now();
     try {
+      // Cancel any pending conditional WebAuthn autofill before starting explicit passkey sign-in
+      cancelPasskeyCeremony();
+
       // 1. Fetch passkey login options
+      const trimmedIdentifier = identifier.trim();
       const res = await fetch(apiUrl('/api/auth/passkey/login-options'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-smartrun-platform': platformTag
+        },
+        body: JSON.stringify({
+          identifier: trimmedIdentifier || undefined,
+          platform: platformTag
+        })
       });
       const data = await res.json().catch(() => null);
       if (!data || !data.success || !data.options) {
         throw new Error(data?.error || 'Failed to start passkey sign in.');
       }
 
-      // 2. Open biometric / security key prompt
-      const authResp = await startAuthentication({
-        optionsJSON: data.options
-      });
+      // 2. Open biometric / security key prompt (Browser WebAuthn or Android Credential Manager)
+      const promptTriggerTs = Date.now();
+      let authResp;
+      try {
+        authResp = await getPasskeyAssertion(data.options, { useBrowserAutofill: false });
+      } catch (promptErr: any) {
+        const formatted = formatPasskeyError(promptErr, {
+          isNativeApp,
+          mode: 'login',
+          elapsedMs: Date.now() - promptTriggerTs
+        });
+        if (formatted.message) {
+          setError(formatted.message);
+        }
+        return;
+      }
 
       // 3. Verify passkey on server
       const verifyRes = await fetch(apiUrl('/api/auth/passkey/login-verify'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-smartrun-platform': platformTag
+        },
         body: JSON.stringify({
           response: authResp,
-          challengeToken: data.challengeToken
+          challengeToken: data.challengeToken,
+          platform: platformTag
         })
       });
 
       const verifyData = await verifyRes.json().catch(() => null);
       if (verifyData && verifyData.success && verifyData.user) {
+        if (verifyData.sessionToken) {
+          setServerAuthToken(verifyData.sessionToken);
+        }
         if (verifyData.session) {
           await supabase.auth.setSession(verifyData.session).catch(() => {});
         }
@@ -658,10 +698,16 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
         setError(verifyData?.error || 'Passkey verification failed. Please try again or use another login method.');
       }
     } catch (e: any) {
-      if (e?.name !== 'NotAllowedError' && !e?.message?.includes('cancel') && !e?.message?.includes('aborted')) {
-        setError(e?.message || 'Could not complete passkey sign-in.');
+      const formatted = formatPasskeyError(e, {
+        isNativeApp,
+        mode: 'login',
+        elapsedMs: Date.now() - promptStartTs
+      });
+      if (formatted.message) {
+        setError(formatted.message);
       }
     } finally {
+      isManualPasskeyActiveRef.current = false;
       setIsPasskeyLoading(false);
     }
   };

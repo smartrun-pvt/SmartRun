@@ -38,6 +38,10 @@ import {
   normalizeProductForSeo,
   renderMarkdownRepresentation
 } from "./src/utils/seoHelper";
+import {
+  decodeBase64UrlToUtf8,
+  resolveWebAuthnRpConfig
+} from "./src/utils/passkeyHelper";
 
 dotenv.config();
 
@@ -2188,7 +2192,7 @@ async function startServer() {
     }
 
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-api-key, x-admin-key, x-admin-email, x-user-email, x-idempotency-key, if-none-match, Cache-Control, Pragma, Cookie, x-requested-with");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-api-key, x-admin-key, x-admin-email, x-user-email, x-idempotency-key, x-smartrun-platform, if-none-match, Cache-Control, Pragma, Cookie, x-requested-with");
     res.setHeader("Access-Control-Expose-Headers", "ETag, X-Cache, Content-Disposition, Set-Cookie");
 
     if (req.method === "OPTIONS") {
@@ -2226,7 +2230,10 @@ async function startServer() {
     res.removeHeader("X-Frame-Options");
     res.setHeader("X-XSS-Protection", "1; mode=block");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("Permissions-Policy", 'camera=(), microphone=(), payment=(self "https://api.razorpay.com"), geolocation=*');
+    res.setHeader(
+      "Permissions-Policy",
+      'camera=(), microphone=(), payment=(self "https://api.razorpay.com"), geolocation=*, publickey-credentials-get=*, publickey-credentials-create=*'
+    );
     if (req.secure || req.headers["x-forwarded-proto"] === "https") {
       res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     }
@@ -9518,7 +9525,7 @@ Knowledge Base & Service Details:
   });
 
   // =========================================================================
-  // WEBAUTHN PASSKEYS (FIDO2 BIOMETRIC AUTHENTICATION)
+  // WEBAUTHN PASSKEYS (FIDO2 BIOMETRIC AUTHENTICATION — WEB + ANDROID NATIVE)
   // =========================================================================
 
   interface PasskeyRecord {
@@ -9535,8 +9542,81 @@ Knowledge Base & Service Details:
     lastUsedAt?: string;
   }
 
+  interface PasskeyChallengePayload {
+    challenge: string;
+    rpID: string;
+    purpose: "login" | "register";
+    userId?: string;
+    nonce: string;
+    exp: number;
+  }
+
   const PASSKEYS_FILE = path.resolve(process.cwd(), "passkey_credentials.json");
-  const passkeyChallengeStore = new Map<string, { challenge: string; expiresAt: number; userId?: string }>();
+  const PASSKEY_CHALLENGE_SECRET =
+    process.env.PASSKEY_SECRET ||
+    process.env.SESSION_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.JWT_SECRET ||
+    "smartrun_passkey_hmac_fallback_2026";
+  const consumedPasskeyNonces = new Map<string, number>();
+
+  function signPasskeyChallenge(payload: Omit<PasskeyChallengePayload, "nonce" | "exp">): string {
+    const fullPayload: PasskeyChallengePayload = {
+      ...payload,
+      nonce: crypto.randomBytes(12).toString("base64url"),
+      exp: Date.now() + 5 * 60 * 1000
+    };
+    const encoded = Buffer.from(JSON.stringify(fullPayload), "utf8").toString("base64url");
+    const sig = crypto
+      .createHmac("sha256", PASSKEY_CHALLENGE_SECRET)
+      .update(encoded)
+      .digest("base64url");
+    return `${encoded}.${sig}`;
+  }
+
+  function verifyPasskeyChallenge(
+    token: string | undefined,
+    expectedPurpose: "login" | "register",
+    expectedUserId?: string
+  ): PasskeyChallengePayload | null {
+    if (!token || typeof token !== "string" || !token.includes(".")) return null;
+    const [encoded, sig] = token.split(".");
+    if (!encoded || !sig) return null;
+
+    const expectedSig = crypto
+      .createHmac("sha256", PASSKEY_CHALLENGE_SECRET)
+      .update(encoded)
+      .digest("base64url");
+
+    try {
+      const a = Buffer.from(sig);
+      const b = Buffer.from(expectedSig);
+      if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+        return null;
+      }
+      const parsed = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as PasskeyChallengePayload;
+      if (!parsed || !parsed.challenge || parsed.purpose !== expectedPurpose) return null;
+      if (!parsed.exp || parsed.exp < Date.now()) return null;
+      if (expectedUserId && parsed.userId && parsed.userId !== expectedUserId) return null;
+
+      // Single-use replay protection
+      if (parsed.nonce && consumedPasskeyNonces.has(parsed.nonce)) {
+        return null;
+      }
+      if (parsed.nonce) {
+        consumedPasskeyNonces.set(parsed.nonce, parsed.exp);
+        if (consumedPasskeyNonces.size > 500) {
+          const now = Date.now();
+          for (const [k, exp] of consumedPasskeyNonces.entries()) {
+            if (exp < now) consumedPasskeyNonces.delete(k);
+          }
+        }
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
 
   function loadPasskeyCredentials(): PasskeyRecord[] {
     try {
@@ -9555,44 +9635,162 @@ Knowledge Base & Service Details:
     try {
       fs.writeFileSync(PASSKEYS_FILE, JSON.stringify(creds, null, 2), "utf-8");
     } catch (e) {
-      console.error("[Passkeys] Failed to save credentials file:", e);
+      console.debug("[Passkeys] Disk cache write notice (non-fatal on read-only fs):", e);
     }
+  }
+
+  function loadExtraAssetLinksFingerprints(): string[] {
+    const candidates = [
+      path.join(process.cwd(), "public", ".well-known", "assetlinks.json"),
+      path.join(process.cwd(), "dist", ".well-known", "assetlinks.json"),
+      path.join(__dirnameResolved, "public", ".well-known", "assetlinks.json")
+    ];
+    for (const p of candidates) {
+      try {
+        if (fs.existsSync(p)) {
+          const parsed = JSON.parse(fs.readFileSync(p, "utf-8"));
+          if (Array.isArray(parsed)) {
+            const fps: string[] = [];
+            for (const entry of parsed) {
+              const list = entry?.target?.sha256_cert_fingerprints;
+              if (Array.isArray(list)) {
+                for (const fp of list) {
+                  if (typeof fp === "string" && fp.trim()) fps.push(fp.trim());
+                }
+              }
+            }
+            if (fps.length > 0) return fps;
+          }
+        }
+      } catch {}
+    }
+    return [];
   }
 
   function getWebAuthnRpConfig(req: express.Request) {
-    const rawHost = req.get("host") || "www.smartrun.in";
-    const host = rawHost.split(":")[0].toLowerCase();
-    let rpID = "smartrun.in";
-    const expectedOrigin: string[] = [
-      "https://www.smartrun.in",
-      "https://smartrun.in"
-    ];
+    const platformHint = String(
+      (req.body && req.body.platform) ||
+      req.headers["x-smartrun-platform"] ||
+      ""
+    ).toLowerCase();
+    const isNativeAndroid = platformHint === "android_native" || platformHint === "android";
 
-    if (host.endsWith("smartrun.in")) {
-      rpID = "smartrun.in";
-      expectedOrigin.push(`https://${rawHost}`);
-    } else if (host === "localhost" || host === "127.0.0.1") {
-      rpID = "localhost";
-      expectedOrigin.push(
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        `http://${host}:3000`,
-        `http://${rawHost}`
-      );
-    } else {
-      rpID = host;
-      expectedOrigin.push(`https://${host}`, `https://${rawHost}`, `http://${host}`, `http://${rawHost}`);
-    }
-
-    const reqOrigin = req.get("origin");
-    if (reqOrigin && !expectedOrigin.includes(reqOrigin)) {
-      expectedOrigin.push(reqOrigin);
-    }
-
-    return { rpID, expectedOrigin };
+    return resolveWebAuthnRpConfig({
+      host: req.get("host") || undefined,
+      forwardedHost: (req.headers["x-forwarded-host"] as string | undefined) || undefined,
+      origin: req.get("origin") || undefined,
+      isNativeAndroid,
+      extraAndroidFingerprints: loadExtraAssetLinksFingerprints()
+    });
   }
 
-  // 1. Passkey Login Options (supports Conditional UI autofill on laptop & phone)
+  async function loadUserPasskeysFromCloud(userId: string): Promise<PasskeyRecord[]> {
+    if (!userId) return [];
+    const results: PasskeyRecord[] = [];
+    const seen = new Set<string>();
+
+    const addUnique = (list: any) => {
+      if (!Array.isArray(list)) return;
+      for (const item of list) {
+        if (item && typeof item.id === "string" && typeof item.publicKey === "string" && !seen.has(item.id)) {
+          seen.add(item.id);
+          results.push(item as PasskeyRecord);
+        }
+      }
+    };
+
+    // 1. Firestore users/{userId}.passkeys (allowed by firestore.rules)
+    if (serverFirestore) {
+      try {
+        const userRef = firestoreDoc(serverFirestore, "users", userId);
+        const snap = await firestoreGetDoc(userRef);
+        if (snap.exists()) {
+          addUnique(snap.data()?.passkeys);
+        }
+      } catch (e) {
+        console.debug("[Passkeys] Firestore user read notice:", e);
+      }
+    }
+
+    // 2. Supabase Auth user_metadata.passkeys (when service role key is present)
+    const sb = getServerSupabase();
+    if (sb?.auth?.admin) {
+      try {
+        const { data: userRec } = await sb.auth.admin.getUserById(userId).catch(() => ({ data: null }));
+        if (userRec?.user?.user_metadata?.passkeys) {
+          addUnique(userRec.user.user_metadata.passkeys);
+        }
+      } catch (e) {
+        console.debug("[Passkeys] Supabase admin read notice:", e);
+      }
+    }
+
+    return results;
+  }
+
+  async function persistUserPasskeysToCloud(userId: string, userCreds: PasskeyRecord[]): Promise<void> {
+    if (!userId) return;
+
+    // 1. Firestore users/{userId}
+    if (serverFirestore) {
+      try {
+        const userRef = firestoreDoc(serverFirestore, "users", userId);
+        await firestoreSetDoc(
+          userRef,
+          {
+            passkeys: userCreds,
+            passkeysUpdatedAt: new Date().toISOString()
+          },
+          { merge: true }
+        );
+      } catch (fsErr) {
+        console.debug("[Passkeys] Firestore users sync notice:", fsErr);
+      }
+    }
+
+    // 2. Supabase Auth user_metadata.passkeys
+    const sb = getServerSupabase();
+    if (sb?.auth?.admin) {
+      try {
+        const { data: existing } = await sb.auth.admin.getUserById(userId).catch(() => ({ data: null }));
+        if (existing?.user) {
+          const prevMeta = existing.user.user_metadata || {};
+          await sb.auth.admin.updateUserById(userId, {
+            user_metadata: {
+              ...prevMeta,
+              passkeys: userCreds
+            }
+          });
+        }
+      } catch (sbErr) {
+        console.debug("[Passkeys] Supabase metadata sync notice:", sbErr);
+      }
+    }
+  }
+
+  async function findPasskeyForLogin(credentialId: string, userHandleBase64Url?: string): Promise<PasskeyRecord | null> {
+    // 1. Check local disk cache first
+    const localCreds = loadPasskeyCredentials();
+    const localMatch = localCreds.find((c) => c.id === credentialId);
+    if (localMatch) return localMatch;
+
+    // 2. Recover via WebAuthn discoverable userHandle -> userId from Firestore / Supabase
+    const decodedUserId = decodeBase64UrlToUtf8(userHandleBase64Url);
+    if (decodedUserId) {
+      const cloudCreds = await loadUserPasskeysFromCloud(decodedUserId);
+      const cloudMatch = cloudCreds.find((c) => c.id === credentialId);
+      if (cloudMatch) {
+        // Hydrate local cache so subsequent calls are instant
+        const merged = [...localCreds.filter((c) => c.id !== cloudMatch.id), cloudMatch];
+        savePasskeyCredentials(merged);
+        return cloudMatch;
+      }
+    }
+
+    return null;
+  }
+
+  // 1. Passkey Login Options (supports Conditional UI autofill on Web & Native Android Credential Manager)
   app.post("/api/auth/passkey/login-options", async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
@@ -9624,16 +9822,17 @@ Knowledge Base & Service Details:
         userVerification: "preferred"
       });
 
-      const challengeToken = crypto.randomUUID();
-      passkeyChallengeStore.set(challengeToken, {
+      const challengeToken = signPasskeyChallenge({
         challenge: options.challenge,
-        expiresAt: Date.now() + 5 * 60 * 1000
+        rpID,
+        purpose: "login"
       });
 
       return res.json({
         success: true,
         options,
-        challengeToken
+        challengeToken,
+        rpID
       });
     } catch (err: any) {
       console.error("[Passkey Login Options Error]:", err);
@@ -9650,45 +9849,34 @@ Knowledge Base & Service Details:
         return res.status(400).json({ success: false, error: "Missing authentication response." });
       }
 
-      const allCreds = loadPasskeyCredentials();
-      const cred = allCreds.find((c) => c.id === response.id);
-      if (!cred) {
-        return res.status(404).json({ success: false, error: "Passkey not recognized. Please sign in with OTP or password." });
-      }
-
-      const { rpID, expectedOrigin } = getWebAuthnRpConfig(req);
-      let expectedChallenge = "";
-
-      if (challengeToken && passkeyChallengeStore.has(challengeToken)) {
-        const item = passkeyChallengeStore.get(challengeToken);
-        if (item && item.expiresAt > Date.now()) {
-          expectedChallenge = item.challenge;
-        }
-        passkeyChallengeStore.delete(challengeToken);
-      } else {
-        // Fallback: match first unexpired challenge
-        for (const [key, item] of passkeyChallengeStore.entries()) {
-          if (item.expiresAt > Date.now()) {
-            expectedChallenge = item.challenge;
-            passkeyChallengeStore.delete(key);
-            break;
-          }
-        }
-      }
-
-      if (!expectedChallenge) {
+      const challengePayload = verifyPasskeyChallenge(challengeToken, "login");
+      if (!challengePayload) {
         return res.status(400).json({ success: false, error: "Passkey session expired. Please try again." });
       }
 
+      const userHandle = response?.response?.userHandle;
+      const cred = await findPasskeyForLogin(response.id, userHandle);
+      if (!cred) {
+        return res.status(404).json({
+          success: false,
+          error: "This passkey is not linked to an active SmartRun account. Please sign in with OTP or Google and re-add your passkey."
+        });
+      }
+
+      const { expectedOrigins, expectedRPIDs } = getWebAuthnRpConfig(req);
+      const allowedRpIds = Array.from(new Set([...expectedRPIDs, challengePayload.rpID]));
+
       const verification = await verifyAuthenticationResponse({
         response,
-        expectedChallenge,
-        expectedOrigin,
-        expectedRPID: rpID,
+        expectedChallenge: challengePayload.challenge,
+        expectedOrigin: expectedOrigins,
+        expectedRPID: allowedRpIds,
+        requireUserVerification: false,
         credential: {
           id: cred.id,
-          publicKey: Buffer.from(cred.publicKey, "base64url"),
-          counter: cred.counter
+          publicKey: new Uint8Array(Buffer.from(cred.publicKey, "base64url")),
+          counter: cred.counter,
+          transports: cred.transports as any
         }
       });
 
@@ -9696,21 +9884,30 @@ Knowledge Base & Service Details:
         return res.status(401).json({ success: false, error: "Passkey biometric verification failed." });
       }
 
-      // Update counter and last used timestamp
-      cred.counter = verification.authenticationInfo.newCounter;
-      cred.lastUsedAt = new Date().toISOString();
-      savePasskeyCredentials(allCreds);
+      // Update counter and last used timestamp across local cache + cloud
+      const updatedCred: PasskeyRecord = {
+        ...cred,
+        counter: verification.authenticationInfo.newCounter,
+        lastUsedAt: new Date().toISOString()
+      };
+      const allCreds = loadPasskeyCredentials();
+      const nextAll = [...allCreds.filter((c) => c.id !== updatedCred.id), updatedCred];
+      savePasskeyCredentials(nextAll);
+      const userCreds = nextAll.filter((c) => c.userId === updatedCred.userId);
+      persistUserPasskeysToCloud(updatedCred.userId, userCreds).catch(() => {});
 
-      // Resolve Supabase user and session
+      // Resolve Supabase user, profile & session
       const sb = getServerSupabase();
       let userSession: any = null;
       let authUser: any = null;
-      const cleanPhone10 = cred.userPhone ? cred.userPhone.replace(/\D/g, "").slice(-10) : "";
-      const canonicalEmail = cred.userEmail || (cleanPhone10 ? `p${cleanPhone10}@girirajpower.internal` : `user_${cred.userId.slice(0, 8)}@girirajpower.internal`);
+      const cleanPhone10 = updatedCred.userPhone ? updatedCred.userPhone.replace(/\D/g, "").slice(-10) : "";
+      const canonicalEmail =
+        updatedCred.userEmail ||
+        (cleanPhone10 ? `p${cleanPhone10}@girirajpower.internal` : `user_${updatedCred.userId.slice(0, 8)}@girirajpower.internal`);
 
       if (sb?.auth?.admin) {
         try {
-          const { data: userRecord } = await sb.auth.admin.getUserById(cred.userId).catch(() => ({ data: null }));
+          const { data: userRecord } = await sb.auth.admin.getUserById(updatedCred.userId).catch(() => ({ data: null }));
           if (userRecord?.user) {
             authUser = userRecord.user;
           }
@@ -9725,28 +9922,91 @@ Knowledge Base & Service Details:
               authUser = signInRes.data.user;
             }
           }
+          // Fallback for Google / Email-password users: generate a real one-time magiclink session
+          if (!userSession && authUser?.email) {
+            try {
+              const { data: linkData } = await sb.auth.admin.generateLink({
+                type: "magiclink",
+                email: authUser.email
+              });
+              const tokenHash = linkData?.properties?.hashed_token;
+              if (tokenHash) {
+                const { data: otpData } = await sb.auth.verifyOtp({
+                  token_hash: tokenHash,
+                  type: "magiclink"
+                });
+                if (otpData?.session) {
+                  userSession = otpData.session;
+                  authUser = otpData.user || authUser;
+                }
+              }
+            } catch (linkErr) {
+              console.debug("[Passkey Supabase Magiclink Notice]:", linkErr);
+            }
+          }
         } catch (adminErr) {
           console.warn("[Passkey Supabase Provisioning Notice]:", adminErr);
         }
       }
 
-      let profileData = null;
-      if (sb && cred.userId) {
+      let profileData: any = null;
+      if (sb && updatedCred.userId) {
         try {
-          const { data: p } = await sb.from("user_profiles").select("*").eq("user_id", cred.userId).single();
+          const { data: p } = await sb.from("user_profiles").select("*").eq("user_id", updatedCred.userId).single();
           if (p) profileData = p;
         } catch {}
       }
 
+      const resolvedName =
+        profileData?.full_name ||
+        profileData?.name ||
+        authUser?.user_metadata?.full_name ||
+        updatedCred.userName ||
+        "Customer";
+      const resolvedPhone =
+        profileData?.phone ||
+        authUser?.phone ||
+        updatedCred.userPhone ||
+        "";
+      const rawEmail =
+        profileData?.email ||
+        authUser?.email ||
+        updatedCred.userEmail ||
+        "";
+      const resolvedEmail = rawEmail && !rawEmail.includes("@girirajpower.internal") ? rawEmail : "";
+      const cleanDigits = resolvedPhone.replace(/\D/g, "").slice(-10);
+      const isUserAdmin = Boolean(
+        (resolvedEmail && ADMIN_EMAILS.includes(resolvedEmail.toLowerCase())) ||
+        cleanDigits === "8777400280"
+      );
+      const userRole: "admin" | "customer" = isUserAdmin ? "admin" : "customer";
+
+      // Mint authoritative server session token & httpOnly cookie (works on both Web & Android App)
+      const sessionToken = createServerSessionToken({
+        uid: updatedCred.userId,
+        phone: resolvedPhone || null,
+        email: resolvedEmail || null,
+        name: resolvedName,
+        role: userRole
+      });
+      setServerSessionCookie(req, res, sessionToken);
+
       return res.json({
         success: true,
-        user: authUser || { id: cred.userId, email: cred.userEmail, phone: cred.userPhone },
+        user: authUser || {
+          id: updatedCred.userId,
+          email: resolvedEmail || undefined,
+          phone: resolvedPhone || undefined
+        },
         session: userSession,
+        sessionToken,
         profile: profileData || {
-          id: cred.userId,
-          name: cred.userName || "Customer",
-          email: cred.userEmail,
-          phone: cred.userPhone
+          id: updatedCred.userId,
+          name: resolvedName,
+          full_name: resolvedName,
+          email: resolvedEmail || undefined,
+          phone: resolvedPhone || undefined,
+          role: userRole
         }
       });
     } catch (err: any) {
@@ -9765,16 +10025,23 @@ Knowledge Base & Service Details:
       }
 
       const { rpID } = getWebAuthnRpConfig(req);
-      const allCreds = loadPasskeyCredentials();
-      const existingCreds = allCreds.filter((c) => c.userId === userId);
+      const localCreds = loadPasskeyCredentials().filter((c) => c.userId === userId);
+      const cloudCreds = await loadUserPasskeysFromCloud(userId);
+      const byId = new Map<string, PasskeyRecord>();
+      for (const c of [...cloudCreds, ...localCreds]) {
+        byId.set(c.id, c);
+      }
+      const existingCreds = Array.from(byId.values());
 
       const cleanName = String(fullName || "Customer").trim();
-      const cleanEmailOrPhone = email || phone || `Customer-${userId.slice(0, 6)}`;
+      const cleanEmailOrPhone = email || phone || `Customer-${String(userId).slice(0, 6)}`;
+      // WebAuthn spec requires user.id to be <= 64 bytes
+      const userIdBytes = new Uint8Array(Buffer.from(String(userId).slice(0, 64), "utf8"));
 
       const options = await generateRegistrationOptions({
-        rpName: "SmartRun Express",
+        rpName: "SmartRun",
         rpID,
-        userID: Buffer.from(userId),
+        userID: userIdBytes,
         userName: cleanEmailOrPhone,
         userDisplayName: cleanName,
         attestationType: "none",
@@ -9783,22 +10050,24 @@ Knowledge Base & Service Details:
           transports: c.transports as any
         })),
         authenticatorSelection: {
-          residentKey: "preferred",
+          residentKey: "required",
+          requireResidentKey: true,
           userVerification: "preferred"
         }
       });
 
-      const challengeToken = crypto.randomUUID();
-      passkeyChallengeStore.set(challengeToken, {
+      const challengeToken = signPasskeyChallenge({
         challenge: options.challenge,
-        userId,
-        expiresAt: Date.now() + 5 * 60 * 1000
+        rpID,
+        purpose: "register",
+        userId: String(userId)
       });
 
       return res.json({
         success: true,
         options,
-        challengeToken
+        challengeToken,
+        rpID
       });
     } catch (err: any) {
       console.error("[Passkey Register Options Error]:", err);
@@ -9815,34 +10084,20 @@ Knowledge Base & Service Details:
         return res.status(400).json({ success: false, error: "Missing required registration parameters." });
       }
 
-      const { rpID, expectedOrigin } = getWebAuthnRpConfig(req);
-      let expectedChallenge = "";
-
-      if (challengeToken && passkeyChallengeStore.has(challengeToken)) {
-        const item = passkeyChallengeStore.get(challengeToken);
-        if (item && item.expiresAt > Date.now()) {
-          expectedChallenge = item.challenge;
-        }
-        passkeyChallengeStore.delete(challengeToken);
-      } else {
-        for (const [key, item] of passkeyChallengeStore.entries()) {
-          if (item.userId === userId && item.expiresAt > Date.now()) {
-            expectedChallenge = item.challenge;
-            passkeyChallengeStore.delete(key);
-            break;
-          }
-        }
-      }
-
-      if (!expectedChallenge) {
+      const challengePayload = verifyPasskeyChallenge(challengeToken, "register", String(userId));
+      if (!challengePayload) {
         return res.status(400).json({ success: false, error: "Registration session expired. Please try again." });
       }
 
+      const { expectedOrigins, expectedRPIDs } = getWebAuthnRpConfig(req);
+      const allowedRpIds = Array.from(new Set([...expectedRPIDs, challengePayload.rpID]));
+
       const verification = await verifyRegistrationResponse({
         response,
-        expectedChallenge,
-        expectedOrigin,
-        expectedRPID: rpID
+        expectedChallenge: challengePayload.challenge,
+        expectedOrigin: expectedOrigins,
+        expectedRPID: allowedRpIds,
+        requireUserVerification: false
       });
 
       if (!verification.verified || !verification.registrationInfo) {
@@ -9851,36 +10106,31 @@ Knowledge Base & Service Details:
 
       const { credential } = verification.registrationInfo;
       const allCreds = loadPasskeyCredentials();
+      const cloudCreds = await loadUserPasskeysFromCloud(String(userId));
 
       const newCred: PasskeyRecord = {
         id: credential.id,
         publicKey: Buffer.from(credential.publicKey).toString("base64url"),
-        userId,
+        userId: String(userId),
         userName: fullName || "Customer",
         userEmail: email || undefined,
         userPhone: phone || undefined,
         counter: credential.counter,
-        transports: (response.response as any)?.transports || credential.transports,
+        transports: (response.response as any)?.transports || credential.transports || ["internal"],
         deviceName: deviceName || "My Device",
         createdAt: new Date().toISOString(),
         lastUsedAt: new Date().toISOString()
       };
 
-      const filtered = allCreds.filter((c) => c.id !== newCred.id);
-      filtered.push(newCred);
-      savePasskeyCredentials(filtered);
+      const filteredAll = [...allCreds.filter((c) => c.id !== newCred.id), newCred];
+      savePasskeyCredentials(filteredAll);
 
-      if (serverFirestore) {
-        try {
-          const passkeyDoc = firestoreDoc(serverFirestore, "passkeys", newCred.id);
-          await firestoreSetDoc(passkeyDoc, {
-            ...newCred,
-            syncedAt: new Date().toISOString()
-          }, { merge: true });
-        } catch (fsErr) {
-          console.debug("[Passkey Firestore Sync Notice]:", fsErr);
-        }
+      const userCredMap = new Map<string, PasskeyRecord>();
+      for (const c of [...cloudCreds, ...filteredAll.filter((x) => x.userId === String(userId))]) {
+        userCredMap.set(c.id, c);
       }
+      userCredMap.set(newCred.id, newCred);
+      await persistUserPasskeysToCloud(String(userId), Array.from(userCredMap.values()));
 
       return res.json({
         success: true,
@@ -9893,23 +10143,48 @@ Knowledge Base & Service Details:
     }
   });
 
-  // 5. List Passkeys for User
-  app.get("/api/auth/passkey/list", (req, res) => {
-    const userId = req.query.userId as string;
+  // 5. List Passkeys for User (merges local disk cache + Firestore + Supabase metadata)
+  app.get("/api/auth/passkey/list", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    const userId = String(req.query.userId || "").trim();
     if (!userId) return res.status(400).json({ success: false, error: "User ID required." });
-    const allCreds = loadPasskeyCredentials();
-    const userCreds = allCreds
-      .filter((c) => c.userId === userId)
-      .map(({ id, deviceName, createdAt, lastUsedAt }) => ({ id, deviceName, createdAt, lastUsedAt }));
+
+    const localCreds = loadPasskeyCredentials().filter((c) => c.userId === userId);
+    const cloudCreds = await loadUserPasskeysFromCloud(userId);
+    const mergedMap = new Map<string, PasskeyRecord>();
+    for (const c of [...cloudCreds, ...localCreds]) {
+      mergedMap.set(c.id, c);
+    }
+
+    const userCreds = Array.from(mergedMap.values()).map(({ id, deviceName, createdAt, lastUsedAt }) => ({
+      id,
+      deviceName,
+      createdAt,
+      lastUsedAt
+    }));
     return res.json({ success: true, credentials: userCreds });
   });
 
-  // 6. Delete Passkey
-  app.delete("/api/auth/passkey/:id", (req, res) => {
+  // 6. Delete Passkey (removes from local disk cache + Firestore + Supabase metadata)
+  app.delete("/api/auth/passkey/:id", async (req, res) => {
     const { id } = req.params;
+    const queryUserId = String(req.query.userId || "").trim();
     const allCreds = loadPasskeyCredentials();
+    const matched = allCreds.find((c) => c.id === id);
+    const ownerUserId = queryUserId || matched?.userId || "";
+
     const next = allCreds.filter((c) => c.id !== id);
     savePasskeyCredentials(next);
+
+    if (ownerUserId) {
+      const cloudCreds = await loadUserPasskeysFromCloud(ownerUserId);
+      const nextUserCreds = [
+        ...cloudCreds,
+        ...next.filter((c) => c.userId === ownerUserId)
+      ].filter((c, idx, arr) => c.id !== id && arr.findIndex((x) => x.id === c.id) === idx);
+      await persistUserPasskeysToCloud(ownerUserId, nextUserCreds);
+    }
+
     return res.json({ success: true, message: "Passkey removed." });
   });
 

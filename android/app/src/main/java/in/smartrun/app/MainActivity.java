@@ -11,6 +11,7 @@ import android.content.pm.ApplicationInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CancellationSignal;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
@@ -25,6 +26,25 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
+import androidx.credentials.CreateCredentialResponse;
+import androidx.credentials.CreatePublicKeyCredentialRequest;
+import androidx.credentials.CreatePublicKeyCredentialResponse;
+import androidx.credentials.Credential;
+import androidx.credentials.CredentialManager;
+import androidx.credentials.CredentialManagerCallback;
+import androidx.credentials.GetCredentialRequest;
+import androidx.credentials.GetCredentialResponse;
+import androidx.credentials.GetPublicKeyCredentialOption;
+import androidx.credentials.PublicKeyCredential;
+import androidx.credentials.exceptions.CreateCredentialCancellationException;
+import androidx.credentials.exceptions.CreateCredentialException;
+import androidx.credentials.exceptions.CreateCredentialProviderConfigurationException;
+import androidx.credentials.exceptions.GetCredentialCancellationException;
+import androidx.credentials.exceptions.GetCredentialException;
+import androidx.credentials.exceptions.GetCredentialProviderConfigurationException;
+import androidx.credentials.exceptions.NoCredentialException;
+import androidx.credentials.exceptions.publickeycredential.CreatePublicKeyCredentialDomException;
+import androidx.credentials.exceptions.publickeycredential.GetPublicKeyCredentialDomException;
 import androidx.lifecycle.Lifecycle;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
@@ -32,6 +52,8 @@ import com.google.android.gms.auth.api.phone.SmsRetriever;
 import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.android.gms.common.api.Status;
 import com.google.firebase.auth.FirebaseAuth;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.json.JSONObject;
@@ -47,6 +69,8 @@ public class MainActivity extends BridgeActivity {
     private String pendingSmsOtpMessage = null;
     private boolean isLaunchingSmsConsent = false;
     private volatile boolean isActivityResumed = false;
+    private final ExecutorService passkeyExecutor = Executors.newSingleThreadExecutor();
+    private volatile CancellationSignal activePasskeyCancellationSignal = null;
 
     private static final Pattern OTP_HASH_PATTERN = Pattern.compile("#(\\d{6})\\b");
     private static final Pattern OTP_KEYWORD_PATTERN =
@@ -204,6 +228,234 @@ public class MainActivity extends BridgeActivity {
                     .apply();
             } catch (Throwable ignored) {}
         }
+    }
+
+    public class SmartRunPasskeyBridge {
+        @JavascriptInterface
+        public boolean isSupported() {
+            return Build.VERSION.SDK_INT >= Build.VERSION_CODES.N;
+        }
+
+        @JavascriptInterface
+        public void cancel() {
+            cancelActivePasskeyRequest();
+        }
+
+        @JavascriptInterface
+        public void createPasskey(final String requestId, final String optionsJson) {
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    dispatchPasskeyError(requestId, "ActivityUnavailable", "App is closing. Please try again.", null, true, false, "USER_CANCELLED");
+                    return;
+                }
+                try {
+                    cancelActivePasskeyRequest();
+                    CredentialManager credentialManager = CredentialManager.create(MainActivity.this);
+                    CreatePublicKeyCredentialRequest request = new CreatePublicKeyCredentialRequest(optionsJson);
+                    CancellationSignal cancellationSignal = new CancellationSignal();
+                    activePasskeyCancellationSignal = cancellationSignal;
+
+                    credentialManager.createCredentialAsync(
+                        MainActivity.this,
+                        request,
+                        cancellationSignal,
+                        passkeyExecutor,
+                        new CredentialManagerCallback<CreateCredentialResponse, CreateCredentialException>() {
+                            @Override
+                            public void onResult(@NonNull CreateCredentialResponse result) {
+                                activePasskeyCancellationSignal = null;
+                                try {
+                                    if (result instanceof CreatePublicKeyCredentialResponse) {
+                                        String regJson = ((CreatePublicKeyCredentialResponse) result).getRegistrationResponseJson();
+                                        dispatchPasskeySuccess(requestId, regJson);
+                                    } else {
+                                        dispatchPasskeyError(
+                                            requestId,
+                                            "UnexpectedResponse",
+                                            "Unexpected passkey creation response from Android.",
+                                            null,
+                                            false,
+                                            false,
+                                            "UNEXPECTED_RESPONSE"
+                                        );
+                                    }
+                                } catch (Throwable t) {
+                                    dispatchPasskeyError(requestId, t.getClass().getSimpleName(), t.getMessage(), null, false, false, null);
+                                }
+                            }
+
+                            @Override
+                            public void onError(@NonNull CreateCredentialException e) {
+                                activePasskeyCancellationSignal = null;
+                                boolean isCancelled = e instanceof CreateCredentialCancellationException;
+                                String domError = null;
+                                String code = isCancelled ? "USER_CANCELLED" : null;
+                                if (e instanceof CreateCredentialProviderConfigurationException) {
+                                    code = "PROVIDER_UNAVAILABLE";
+                                } else if (e instanceof CreatePublicKeyCredentialDomException) {
+                                    CreatePublicKeyCredentialDomException domEx = (CreatePublicKeyCredentialDomException) e;
+                                    domError = domEx.getDomError() != null ? domEx.getDomError().getType() : null;
+                                }
+                                dispatchPasskeyError(
+                                    requestId,
+                                    e.getClass().getSimpleName(),
+                                    e.getErrorMessage() != null ? e.getErrorMessage().toString() : e.getMessage(),
+                                    domError,
+                                    isCancelled,
+                                    false,
+                                    code
+                                );
+                            }
+                        }
+                    );
+                } catch (Throwable t) {
+                    activePasskeyCancellationSignal = null;
+                    dispatchPasskeyError(requestId, t.getClass().getSimpleName(), t.getMessage(), null, false, false, null);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void getPasskey(final String requestId, final String optionsJson) {
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    dispatchPasskeyError(requestId, "ActivityUnavailable", "App is closing. Please try again.", null, true, false, "USER_CANCELLED");
+                    return;
+                }
+                try {
+                    cancelActivePasskeyRequest();
+                    CredentialManager credentialManager = CredentialManager.create(MainActivity.this);
+                    GetPublicKeyCredentialOption publicKeyOption = new GetPublicKeyCredentialOption(optionsJson);
+                    GetCredentialRequest request = new GetCredentialRequest.Builder()
+                        .addCredentialOption(publicKeyOption)
+                        .build();
+                    CancellationSignal cancellationSignal = new CancellationSignal();
+                    activePasskeyCancellationSignal = cancellationSignal;
+
+                    credentialManager.getCredentialAsync(
+                        MainActivity.this,
+                        request,
+                        cancellationSignal,
+                        passkeyExecutor,
+                        new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
+                            @Override
+                            public void onResult(@NonNull GetCredentialResponse result) {
+                                activePasskeyCancellationSignal = null;
+                                try {
+                                    Credential credential = result.getCredential();
+                                    if (credential instanceof PublicKeyCredential) {
+                                        String authJson = ((PublicKeyCredential) credential).getAuthenticationResponseJson();
+                                        dispatchPasskeySuccess(requestId, authJson);
+                                    } else {
+                                        dispatchPasskeyError(
+                                            requestId,
+                                            "UnexpectedCredential",
+                                            "Selected credential is not a passkey.",
+                                            null,
+                                            false,
+                                            false,
+                                            "UNEXPECTED_CREDENTIAL"
+                                        );
+                                    }
+                                } catch (Throwable t) {
+                                    dispatchPasskeyError(requestId, t.getClass().getSimpleName(), t.getMessage(), null, false, false, null);
+                                }
+                            }
+
+                            @Override
+                            public void onError(@NonNull GetCredentialException e) {
+                                activePasskeyCancellationSignal = null;
+                                boolean isCancelled = e instanceof GetCredentialCancellationException;
+                                boolean noCredential = e instanceof NoCredentialException;
+                                String domError = null;
+                                String code = isCancelled
+                                    ? "USER_CANCELLED"
+                                    : (noCredential ? "NO_CREDENTIAL" : null);
+                                if (e instanceof GetCredentialProviderConfigurationException) {
+                                    code = "PROVIDER_UNAVAILABLE";
+                                } else if (e instanceof GetPublicKeyCredentialDomException) {
+                                    GetPublicKeyCredentialDomException domEx = (GetPublicKeyCredentialDomException) e;
+                                    domError = domEx.getDomError() != null ? domEx.getDomError().getType() : null;
+                                }
+                                dispatchPasskeyError(
+                                    requestId,
+                                    e.getClass().getSimpleName(),
+                                    e.getErrorMessage() != null ? e.getErrorMessage().toString() : e.getMessage(),
+                                    domError,
+                                    isCancelled,
+                                    noCredential,
+                                    code
+                                );
+                            }
+                        }
+                    );
+                } catch (Throwable t) {
+                    activePasskeyCancellationSignal = null;
+                    dispatchPasskeyError(requestId, t.getClass().getSimpleName(), t.getMessage(), null, false, false, null);
+                }
+            });
+        }
+    }
+
+    private void cancelActivePasskeyRequest() {
+        CancellationSignal sig = activePasskeyCancellationSignal;
+        activePasskeyCancellationSignal = null;
+        if (sig != null) {
+            try {
+                sig.cancel();
+            } catch (Throwable ignored) {}
+        }
+    }
+
+    private void dispatchPasskeySuccess(@NonNull String requestId, @Nullable String responseJson) {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("success", true);
+            payload.put("responseJson", responseJson != null ? responseJson : "");
+            deliverPasskeyCallbackToWebView(requestId, payload);
+        } catch (Throwable ignored) {}
+    }
+
+    private void dispatchPasskeyError(
+        @NonNull String requestId,
+        @Nullable String errorType,
+        @Nullable String errorMessage,
+        @Nullable String domError,
+        boolean isCancelled,
+        boolean noCredential,
+        @Nullable String code
+    ) {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("success", false);
+            payload.put("errorType", errorType != null ? errorType : "PasskeyError");
+            payload.put("errorMessage", errorMessage != null ? errorMessage : "Passkey operation failed.");
+            if (domError != null) payload.put("domError", domError);
+            payload.put("isCancelled", isCancelled);
+            payload.put("noCredential", noCredential);
+            if (code != null) payload.put("code", code);
+            deliverPasskeyCallbackToWebView(requestId, payload);
+        } catch (Throwable ignored) {}
+    }
+
+    private void deliverPasskeyCallbackToWebView(@NonNull String requestId, @NonNull JSONObject payload) {
+        runOnUiThread(() -> {
+            if (isFinishing() || isDestroyed() || getBridge() == null || getBridge().getWebView() == null) {
+                return;
+            }
+            try {
+                String safeRequestId = JSONObject.quote(requestId);
+                String safePayload = JSONObject.quote(payload.toString());
+                String js =
+                    "(function(){" +
+                    "  window.__SMARTRUN_LAST_RESUME_TS__=Date.now();" +
+                    "  if (typeof window.__smartrunPasskeyCallback === 'function') {" +
+                    "    window.__smartrunPasskeyCallback(" + safeRequestId + ", " + safePayload + ");" +
+                    "  }" +
+                    "})();";
+                getBridge().getWebView().evaluateJavascript(js, null);
+            } catch (Throwable ignored) {}
+        });
     }
 
     @SuppressWarnings("deprecation")
@@ -481,6 +733,7 @@ public class MainActivity extends BridgeActivity {
             WebView webView = getBridge().getWebView();
             webView.addJavascriptInterface(new SmartRunInsetsBridge(), "SmartRunInsets");
             webView.addJavascriptInterface(new SmartRunOtpBridge(), "SmartRunOtp");
+            webView.addJavascriptInterface(new SmartRunPasskeyBridge(), "SmartRunPasskey");
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 webView.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
             }
@@ -632,6 +885,10 @@ public class MainActivity extends BridgeActivity {
     public void onDestroy() {
         isActivityResumed = false;
         pendingSmsOtpMessage = null;
+        cancelActivePasskeyRequest();
+        try {
+            passkeyExecutor.shutdownNow();
+        } catch (Throwable ignored) {}
         unregisterSmsConsentReceiver();
         super.onDestroy();
     }
