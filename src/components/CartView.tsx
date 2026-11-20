@@ -72,6 +72,10 @@ import {
 } from '../services/cartService';
 import { launchRazorpayCheckout } from '../services/razorpayService';
 import { getInAppNavigationDepth, navigateBackSafely } from '../utils/navigationHistory';
+import {
+  isGuestSessionAuthenticated,
+  rememberAuthRedirectTarget
+} from '../utils/guestAccessPolicy';
 import confetti from 'canvas-confetti';
 
 interface CartViewProps {
@@ -426,8 +430,27 @@ export const CartView = ({
     }
   }, []);
 
-  // Handle Save for Later
+  const isCartUserLoggedIn = isGuestSessionAuthenticated({
+    userProfile,
+    userPhone
+  });
+
+  const redirectGuestToLogin = () => {
+    const loginUrl = rememberAuthRedirectTarget('/cart');
+    if (onOpenAuth) {
+      onOpenAuth();
+    } else {
+      navigate(loginUrl);
+    }
+  };
+
+  // Handle Save for Later (requires login across both native app and web browsers)
   const handleSaveForLater = async (product: Product) => {
+    if (!isCartUserLoggedIn) {
+      hapticWarning();
+      redirectGuestToLogin();
+      return;
+    }
     hapticWarning();
     const updated = await saveItemForLater(product);
     setSavedItems(updated);
@@ -456,17 +479,10 @@ export const CartView = ({
   // Handle Single Item "Buy this now"
   const handleBuyThisNow = (item: CartItem) => {
     hapticMedium();
-    // 1. Gated: Must be logged in first
-    const isLoggedIn = Boolean(
-      userProfile?.id ||
-      userProfile?.phone ||
-      userProfile?.email ||
-      userPhone
-    );
-
-    if (!isLoggedIn) {
-      hapticError();
-      setShowLoginRequiredModal(true);
+    // 1. Gated: Must be logged in first — redirect straight to login page
+    if (!isCartUserLoggedIn) {
+      hapticWarning();
+      redirectGuestToLogin();
       return;
     }
 
@@ -502,23 +518,16 @@ export const CartView = ({
   const handleOpenFullCheckout = () => {
     if (items.length === 0) return;
 
-    // 1. Gated: Delivery must be serviceable (Kolkata & Howrah)
-    if (!isDeliveryServiceable) {
-      hapticError();
+    // 1. Gated: Must be logged in first — send unauthenticated users directly to login page
+    if (!isCartUserLoggedIn) {
+      hapticWarning();
+      redirectGuestToLogin();
       return;
     }
 
-    // 2. Gated: Must be logged in first
-    const isLoggedIn = Boolean(
-      userProfile?.id ||
-      userProfile?.phone ||
-      userProfile?.email ||
-      userPhone
-    );
-
-    if (!isLoggedIn) {
+    // 2. Gated: Delivery must be serviceable (Kolkata & Howrah)
+    if (!isDeliveryServiceable) {
       hapticError();
-      setShowLoginRequiredModal(true);
       return;
     }
 
@@ -663,6 +672,12 @@ export const CartView = ({
   // Place Order Submission
   const handlePlaceOrder = async (e?: React.FormEvent, overrideOption?: typeof paymentMethod) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (!isCartUserLoggedIn) {
+      hapticWarning();
+      setIsCheckoutOpen(false);
+      redirectGuestToLogin();
+      return;
+    }
     const activeOption = overrideOption || paymentMethod;
     const rawOrderItems = checkoutMode === 'single' && singleCheckoutItem ? [singleCheckoutItem] : items;
     if (rawOrderItems.length === 0) return;
@@ -2111,11 +2126,7 @@ export const CartView = ({
                 type="button"
                 onClick={() => {
                   setShowLoginRequiredModal(false);
-                  if (onOpenAuth) {
-                    onOpenAuth();
-                  } else {
-                    navigate('/login');
-                  }
+                  redirectGuestToLogin();
                 }}
                 className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-black py-3.5 px-6 rounded-2xl shadow-md transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer text-sm sm:text-base"
               >

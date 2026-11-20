@@ -1,12 +1,55 @@
 import { describe, it, expect } from 'vitest';
 import {
+  PRODUCTION_APP_ORIGIN,
   PRODUCTION_FIREBASE_AUTH_DOMAIN,
+  normalizeAuthDomainHostname,
+  resolvePublicAppOrigin,
   resolveFirebaseAuthDomainForEnv,
+  normalizeNativeFirebaseAuthError,
   shouldArmNativeSmsConsent,
+  buildRecaptchaSlotId,
+  isRecaptchaAlreadyRenderedError,
 } from './firebaseAuthDomain';
 
 describe('firebaseAuthDomain helpers', () => {
-  it('uses smartrun.in on native Android/iOS builds instead of firebaseapp.com', () => {
+  it('defines canonical www.smartrun.in origin and authDomain', () => {
+    expect(PRODUCTION_APP_ORIGIN).toBe('https://www.smartrun.in');
+    expect(PRODUCTION_FIREBASE_AUTH_DOMAIN).toBe('www.smartrun.in');
+  });
+
+  it('normalizes authDomain hostnames by stripping protocol and paths', () => {
+    expect(normalizeAuthDomainHostname('https://www.smartrun.in/')).toBe('www.smartrun.in');
+    expect(normalizeAuthDomainHostname('http://www.smartrun.in/login')).toBe('www.smartrun.in');
+    expect(normalizeAuthDomainHostname('  WWW.SMARTRUN.IN  ')).toBe('www.smartrun.in');
+  });
+
+  it('always resolves canonical public app origin to https://www.smartrun.in', () => {
+    expect(
+      resolvePublicAppOrigin({
+        isNativePlatform: true,
+        windowOrigin: 'https://localhost',
+        windowHostname: 'localhost',
+      })
+    ).toBe('https://www.smartrun.in');
+
+    expect(
+      resolvePublicAppOrigin({
+        isNativePlatform: false,
+        windowOrigin: 'https://smartrun.in',
+        windowHostname: 'smartrun.in',
+      })
+    ).toBe('https://www.smartrun.in');
+
+    expect(
+      resolvePublicAppOrigin({
+        isNativePlatform: false,
+        windowOrigin: 'https://gen-lang-client-0708778333.firebaseapp.com',
+        windowHostname: 'gen-lang-client-0708778333.firebaseapp.com',
+      })
+    ).toBe('https://www.smartrun.in');
+  });
+
+  it('uses www.smartrun.in on native Android/iOS builds instead of firebaseapp.com', () => {
     expect(
       resolveFirebaseAuthDomainForEnv({
         configuredDomain: '',
@@ -14,13 +57,13 @@ describe('firebaseAuthDomain helpers', () => {
         windowHostname: 'localhost',
         fallbackAuthDomain: 'gen-lang-client-0708778333.firebaseapp.com',
       })
-    ).toBe(PRODUCTION_FIREBASE_AUTH_DOMAIN);
+    ).toBe('www.smartrun.in');
   });
 
-  it('respects explicit VITE_FIREBASE_AUTH_DOMAIN override', () => {
+  it('respects explicit VITE_FIREBASE_AUTH_DOMAIN override and strips protocol', () => {
     expect(
       resolveFirebaseAuthDomainForEnv({
-        configuredDomain: 'auth.smartrun.in',
+        configuredDomain: 'https://auth.smartrun.in/',
         isNativePlatform: true,
         windowHostname: 'localhost',
         fallbackAuthDomain: 'gen-lang-client-0708778333.firebaseapp.com',
@@ -28,7 +71,7 @@ describe('firebaseAuthDomain helpers', () => {
     ).toBe('auth.smartrun.in');
   });
 
-  it('uses smartrun.in / www.smartrun.in on production web', () => {
+  it('unifies smartrun.in and www.smartrun.in on production web to www.smartrun.in', () => {
     expect(
       resolveFirebaseAuthDomainForEnv({
         configuredDomain: '',
@@ -45,7 +88,7 @@ describe('firebaseAuthDomain helpers', () => {
         windowHostname: 'smartrun.in',
         fallbackAuthDomain: 'gen-lang-client-0708778333.firebaseapp.com',
       })
-    ).toBe('smartrun.in');
+    ).toBe('www.smartrun.in');
   });
 
   it('keeps fallback authDomain on local dev web preview', () => {
@@ -59,8 +102,40 @@ describe('firebaseAuthDomain helpers', () => {
     ).toBe('gen-lang-client-0708778333.firebaseapp.com');
   });
 
+  it('normalizes native Android Firebase Phone Auth error payloads into standard auth/* codes', () => {
+    expect(
+      normalizeNativeFirebaseAuthError({
+        message: 'This request is missing a valid app identifier, meaning that Play Integrity checks, and reCAPTCHA checks were unsuccessful.',
+      }).code
+    ).toBe('auth/missing-client-identifier');
+
+    expect(
+      normalizeNativeFirebaseAuthError({
+        message: 'This app is not authorized to use Firebase Authentication. Please verify that the correct package name and SHA-1 are configured.',
+      }).code
+    ).toBe('auth/app-not-authorized');
+
+    expect(
+      normalizeNativeFirebaseAuthError({
+        code: 'ERROR_INVALID_VERIFICATION_CODE',
+        message: 'The sms verification code used to create the phone auth credential is invalid.',
+      }).code
+    ).toBe('auth/invalid-verification-code');
+
+    expect(
+      normalizeNativeFirebaseAuthError({
+        message: 'The sms code has expired. Please re-send the verification code to try again.',
+      }).code
+    ).toBe('auth/code-expired');
+
+    expect(
+      normalizeNativeFirebaseAuthError({
+        message: 'We have blocked all requests from this device due to unusual activity. Try again later.',
+      }).code
+    ).toBe('auth/too-many-requests');
+  });
+
   it('arms native SMS User Consent ONLY after OTP is sent and OTP input is shown', () => {
-    // Before OTP is sent (e.g. while Firebase captcha/Play Integrity is still running) -> MUST NOT arm
     expect(
       shouldArmNativeSmsConsent({
         authStep: 'primary',
@@ -71,7 +146,6 @@ describe('firebaseAuthDomain helpers', () => {
       })
     ).toBe(false);
 
-    // After OTP is sent and OTP input is active on primary step -> ARM
     expect(
       shouldArmNativeSmsConsent({
         authStep: 'primary',
@@ -82,7 +156,6 @@ describe('firebaseAuthDomain helpers', () => {
       })
     ).toBe(true);
 
-    // Email login or post-login onboarding step -> MUST NOT arm
     expect(
       shouldArmNativeSmsConsent({
         authStep: 'personal_info',
@@ -100,6 +173,28 @@ describe('firebaseAuthDomain helpers', () => {
         showSecondField: true,
         otpAttemptId: 1,
       })
+    ).toBe(false);
+  });
+
+  it('generates distinct sequential DOM slot IDs so reCAPTCHA never reuses a rendered element', () => {
+    const slot1 = buildRecaptchaSlotId('recaptcha-container', 1);
+    const slot2 = buildRecaptchaSlotId('recaptcha-container', 2);
+    expect(slot1).toBe('recaptcha-container-slot-1');
+    expect(slot2).toBe('recaptcha-container-slot-2');
+    expect(slot1).not.toBe(slot2);
+  });
+
+  it('detects duplicate reCAPTCHA render errors accurately', () => {
+    expect(
+      isRecaptchaAlreadyRenderedError(
+        new Error('reCAPTCHA has already been rendered in this element')
+      )
+    ).toBe(true);
+    expect(
+      isRecaptchaAlreadyRenderedError('Firebase Phone Auth: reCAPTCHA has already been rendered in this element')
+    ).toBe(true);
+    expect(
+      isRecaptchaAlreadyRenderedError(new Error('auth/too-many-requests'))
     ).toBe(false);
   });
 });

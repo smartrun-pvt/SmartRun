@@ -35,31 +35,6 @@ export const PRODUCTION_WEB_DOMAIN = 'https://www.smartrun.in';
  * Never returns 'https://localhost', 'http://localhost', 'capacitor://', or 'ionic://'.
  */
 export function getPublicShareOrigin(): string {
-  if (typeof window === 'undefined') return PRODUCTION_WEB_DOMAIN;
-
-  const origin = window.location.origin || '';
-  const hostname = window.location.hostname || '';
-
-  // Inside Capacitor native Android app, origin is https://localhost
-  if (
-    Capacitor.isNativePlatform() ||
-    origin.startsWith('https://localhost') ||
-    origin.startsWith('http://localhost') ||
-    origin.startsWith('capacitor://') ||
-    origin.startsWith('ionic://') ||
-    origin.startsWith('file://') ||
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '10.0.2.2'
-  ) {
-    return PRODUCTION_WEB_DOMAIN;
-  }
-
-  // On production web or staging web, use the valid public origin
-  if (origin.startsWith('http://') || origin.startsWith('https://')) {
-    return origin;
-  }
-
   return PRODUCTION_WEB_DOMAIN;
 }
 

@@ -48,6 +48,11 @@ import { trackProductView } from '../../utils/analytics';
 import { hapticLight, hapticMedium } from '../../utils/haptics';
 import { SEOHead } from '../SEOHead';
 import { shareProductDetails } from '../../utils/shareProduct';
+import {
+  isGuestSessionAuthenticated,
+  hasBrowserStoredAuthSession,
+  rememberAuthRedirectTarget
+} from '../../utils/guestAccessPolicy';
 import { ZoomableImage } from '../ZoomableImage';
 import { FullscreenImageViewer } from '../FullscreenImageViewer';
 import { useEdgeSwipeBack } from '../../hooks/useEdgeSwipeBack';
@@ -186,6 +191,17 @@ export const ProductDetailPage = ({
   const handleToggleWishlist = () => {
     if (!product) return;
     hapticLight();
+    const isLoggedIn = isGuestSessionAuthenticated({
+      userProfile,
+      hasStoredSession: hasBrowserStoredAuthSession()
+    });
+    if (!isLoggedIn) {
+      rememberAuthRedirectTarget(
+        typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : undefined
+      );
+      onOpenAuth();
+      return;
+    }
     const newState = toggleProductFavorite(String(product.id));
     setIsWishlisted(newState);
     setWishlistToast(newState ? 'Added to wishlist!' : 'Removed from wishlist');

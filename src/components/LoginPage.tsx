@@ -1373,8 +1373,8 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
     try {
       const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
       const redirectTo = isNative
-        ? 'smartrun://reset-password'
-        : `${window.location.origin}/reset-password`;
+        ? 'https://www.smartrun.in/reset-password?target=app&source=android_app'
+        : 'https://www.smartrun.in/reset-password?client=web';
 
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo,
@@ -1435,28 +1435,26 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
       />
 
       {/* Top Back Navigation Arrow Button */}
-      {!isNativeApp && (
-        <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10">
-          <button
-            type="button"
-            onClick={() => {
-              if (authStep !== 'primary') {
-                setAuthStep('primary');
-                resetMessages();
-              } else if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
-                navigate(-1);
-              } else {
-                navigate('/');
-              }
-            }}
-            className="p-1.5 text-slate-700 hover:text-black hover:bg-slate-100 rounded-full transition-colors cursor-pointer flex items-center gap-1 active:scale-95 text-xs font-bold"
-            title="Back"
-          >
-            <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
-            <span>{authStep !== 'primary' ? 'Back' : 'Store'}</span>
-          </button>
-        </div>
-      )}
+      <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20">
+        <button
+          type="button"
+          onClick={() => {
+            if (authStep !== 'primary') {
+              setAuthStep('primary');
+              resetMessages();
+            } else {
+              resetRecaptchaVerifier();
+              stopNativeSmsOtpAutofill();
+              navigate('/', { replace: true });
+            }
+          }}
+          className="p-1.5 text-slate-700 hover:text-black hover:bg-slate-100 rounded-full transition-colors cursor-pointer flex items-center gap-1 active:scale-95 text-xs font-bold touch-manipulation"
+          title={authStep !== 'primary' ? 'Back' : 'Back to Store'}
+        >
+          <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
+          <span>{authStep !== 'primary' ? 'Back' : 'Store'}</span>
+        </button>
+      </div>
 
       {/* Main Login Container - Positioned towards bottom of screen across all devices */}
       <div

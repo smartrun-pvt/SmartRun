@@ -7,6 +7,8 @@ import { Capacitor } from '@capacitor/core';
  * to the production backend server (https://www.smartrun.in), while preserving standard local
  * relative paths during local development and cloud web deployments.
  */
+export const PRODUCTION_APP_ORIGIN = 'https://www.smartrun.in';
+
 export const API_BASE_URL: string = (() => {
   // 1. Prioritize explicit environment variables if set
   const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : (process.env as any || {});
@@ -45,10 +47,7 @@ export const API_BASE_URL: string = (() => {
     hostname === '10.0.2.2';
 
   if (isCapacitorNative) {
-    if (origin.includes('girirajpower') || hostname.includes('girirajpower')) {
-      return 'https://www.girirajpower.in';
-    }
-    return 'https://www.smartrun.in';
+    return PRODUCTION_APP_ORIGIN;
   }
 
   return '';

@@ -23,7 +23,13 @@ import firebaseConfig from '../../firebase-applet-config.json';
 import { apiUrl } from '../lib/apiBase';
 import { Capacitor } from '@capacitor/core';
 import { sanitizeCustomerName } from '../utils/nameHelper';
-import { resolveFirebaseAuthDomainForEnv } from '../utils/firebaseAuthDomain';
+import {
+  PRODUCTION_FIREBASE_AUTH_DOMAIN,
+  resolveFirebaseAuthDomainForEnv,
+  buildRecaptchaSlotId,
+  isRecaptchaAlreadyRenderedError,
+  normalizeNativeFirebaseAuthError
+} from '../utils/firebaseAuthDomain';
 import {
   getNativePendingPhoneVerification,
   clearNativePendingPhoneVerification
@@ -66,6 +72,10 @@ function getFallbackFirebaseAuth(): ReturnType<typeof getAuth> {
 let activeConfirmationResult: ConfirmationResult | null = null;
 let activeRecaptchaVerifier: RecaptchaVerifier | null = null;
 let activeRecaptchaAuthInstance: ReturnType<typeof getAuth> | null = null;
+let activeRecaptchaRenderPromise: Promise<number> | null = null;
+let activeRecaptchaConsumed = false;
+let activeRecaptchaHostId = 'recaptcha-container';
+let recaptchaSlotSeq = 0;
 let lastSentPhoneNumber: string | null = null;
 let activeBackendOtpToken: string | null = null;
 let activeBackendOtpPhone: string | null = null;
@@ -201,9 +211,13 @@ export interface FirebaseDiagnostic {
 }
 
 export function formatFirebasePhoneError(err: any): FirebaseDiagnostic {
-  const code = String(err?.code || '').trim();
-  const rawMsg = String(err?.message || '').trim();
-  const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'smartrun.in';
+  const normalized = normalizeNativeFirebaseAuthError(err);
+  const code = normalized.code;
+  const rawMsg = normalized.message;
+  const currentHost =
+    Capacitor.isNativePlatform()
+      ? PRODUCTION_FIREBASE_AUTH_DOMAIN
+      : (typeof window !== 'undefined' ? window.location.hostname : PRODUCTION_FIREBASE_AUTH_DOMAIN);
 
   // Check specifically for Hostname match not found
   if (rawMsg.toLowerCase().includes('hostname match not found')) {
@@ -230,9 +244,20 @@ export function formatFirebasePhoneError(err: any): FirebaseDiagnostic {
     case 'auth/operation-not-allowed':
       return {
         code,
-        userMessage: 'Firebase Error (auth/operation-not-allowed): Phone sign-in provider is disabled in Firebase Console.',
-        technicalCause: 'The Phone sign-in method is not enabled.',
-        resolution: 'Go to Firebase Console -> Authentication -> Sign-in method -> Phone -> Toggle "Enable" and click Save.'
+        userMessage: 'Firebase Error (auth/operation-not-allowed): Phone sign-in provider or SMS region is disabled in Firebase Console.',
+        technicalCause: 'The Phone sign-in method or India (+91) SMS region is not enabled.',
+        resolution: 'Go to Firebase Console -> Authentication -> Sign-in method -> Phone -> Enable Phone & allow India (+91).'
+      };
+
+    case 'auth/missing-client-identifier':
+      return {
+        code,
+        userMessage:
+          'Unable to verify Android app identity with Firebase (Play Integrity / SHA-256 mismatch). Add this build keystore SHA-1 & SHA-256 in Firebase Console.',
+        technicalCause:
+          'Play Integrity verification failed and the reCAPTCHA fallback could not validate this APK signature.',
+        resolution:
+          '1. Register your debug & release SHA-1 and SHA-256 fingerprints in Firebase Project Settings -> Android app (in.smartrun.app).\n2. Ensure www.smartrun.in is added to Firebase Authorized Domains and Play Integrity API is enabled in Google Cloud.'
       };
 
     case 'auth/invalid-app-credential':
@@ -240,16 +265,41 @@ export function formatFirebasePhoneError(err: any): FirebaseDiagnostic {
       return {
         code,
         userMessage: `Firebase Error (${code}): App credentials or reCAPTCHA check failed for "${currentHost}".`,
-        technicalCause: 'reCAPTCHA token or Android Play Integrity certificate is missing or invalid.',
-        resolution: `1. Ensure "${currentHost}" is in Firebase Authorized Domains.\n2. On Android, add your SHA-1 and SHA-256 fingerprint in Firebase Project Settings -> Your Apps.`
+        technicalCause: 'reCAPTCHA token or Android Play Integrity / SHA-256 certificate is missing or invalid.',
+        resolution: `1. Ensure "${currentHost}" is in Firebase Authorized Domains.\n2. On Android, add your debug & release SHA-1 and SHA-256 fingerprints in Firebase Project Settings -> Your Apps (in.smartrun.app).`
       };
 
     case 'auth/captcha-check-failed':
       return {
         code,
         userMessage: `Firebase Error (auth/captcha-check-failed): reCAPTCHA check failed for "${currentHost}".`,
-        technicalCause: 'The invisible reCAPTCHA challenge could not be resolved or domain is not authorized.',
-        resolution: `Go to Firebase Console -> Authentication -> Settings -> Authorized domains -> Add "${currentHost}".`
+        technicalCause: 'The reCAPTCHA challenge was cancelled, timed out, or the domain is not authorized.',
+        resolution: `Ensure "${currentHost}" is listed in Firebase Console -> Authentication -> Settings -> Authorized domains and retry.`
+      };
+
+    case 'auth/invalid-verification-code':
+      return {
+        code,
+        userMessage: 'Invalid 6-digit verification code. Please check and try again.',
+        technicalCause: 'The entered OTP did not match the Firebase verification session.',
+        resolution: 'Re-enter the 6-digit OTP from the latest SMS.'
+      };
+
+    case 'auth/code-expired':
+    case 'auth/session-expired':
+      return {
+        code,
+        userMessage: 'Verification code has expired. Please request a new OTP code.',
+        technicalCause: 'The Firebase verification session timed out before confirmation.',
+        resolution: 'Tap Resend OTP to receive a fresh 6-digit code.'
+      };
+
+    case 'auth/network-request-failed':
+      return {
+        code,
+        userMessage: 'Network error while contacting verification service. Please check your internet connection and try again.',
+        technicalCause: 'Device could not reach Firebase Auth or https://www.smartrun.in.',
+        resolution: 'Check mobile data / Wi-Fi connectivity and retry.'
       };
 
     case 'auth/quota-exceeded':
@@ -304,28 +354,31 @@ export function formatFirebasePhoneError(err: any): FirebaseDiagnostic {
 }
 
 /**
- * Clears and resets reCAPTCHA instance to avoid stale container/badge errors
+ * Clears and resets reCAPTCHA instance and removes any rendered child slot nodes
+ * so Google reCAPTCHA never encounters a previously rendered DOM element.
  */
-export function resetRecaptchaVerifier(): void {
+export function resetRecaptchaVerifier(containerId = activeRecaptchaHostId): void {
+  const prevVerifier = activeRecaptchaVerifier;
+  activeRecaptchaVerifier = null;
+  activeRecaptchaAuthInstance = null;
+  activeRecaptchaRenderPromise = null;
+  activeRecaptchaConsumed = false;
+
   try {
-    if (activeRecaptchaVerifier) {
-      activeRecaptchaVerifier.clear();
-      activeRecaptchaVerifier = null;
-      activeRecaptchaAuthInstance = null;
+    if (prevVerifier) {
+      prevVerifier.clear();
     }
   } catch (err) {
     console.debug('[Firebase Auth] Error clearing recaptcha verifier:', err);
-    activeRecaptchaVerifier = null;
-    activeRecaptchaAuthInstance = null;
   }
 
   if (typeof window !== 'undefined') {
     try {
       const badges = document.querySelectorAll('.grecaptcha-badge');
       badges.forEach((b) => b.remove());
-      const container = document.getElementById('recaptcha-container');
+      const container = document.getElementById(containerId);
       if (container) {
-        container.innerHTML = '';
+        container.replaceChildren();
         container.style.display = 'none';
       }
       // Hide any lingering invisible reCAPTCHA challenge wrapper overlays after login completes
@@ -343,53 +396,74 @@ export function resetRecaptchaVerifier(): void {
 }
 
 /**
- * Prepares the RecaptchaVerifier on the specified container (invisible by default).
- * Always restores container visibility after previous resets so web OTP retries never stall.
+ * Allocates a brand-new virgin child <div> slot inside the host container so
+ * grecaptcha.render() NEVER sees a previously rendered DOM node.
+ */
+function createFreshRecaptchaSlot(containerId: string): HTMLDivElement {
+  activeRecaptchaHostId = containerId;
+  let hostEl = document.getElementById(containerId);
+  if (!hostEl) {
+    hostEl = document.createElement('div');
+    hostEl.id = containerId;
+    hostEl.style.position = 'fixed';
+    hostEl.style.bottom = '0';
+    hostEl.style.right = '0';
+    hostEl.style.zIndex = '9999';
+    document.body.appendChild(hostEl);
+  }
+  hostEl.replaceChildren();
+  hostEl.style.display = 'block';
+  hostEl.style.visibility = 'visible';
+
+  const slotEl = document.createElement('div');
+  slotEl.id = buildRecaptchaSlotId(containerId, ++recaptchaSlotSeq);
+  slotEl.dataset.recaptchaSlot = 'true';
+  hostEl.appendChild(slotEl);
+  return slotEl;
+}
+
+/**
+ * Prepares the RecaptchaVerifier on a fresh virgin child DOM slot (invisible by default).
+ * Never reuses a consumed or previously rendered DOM node, eliminating
+ * "reCAPTCHA has already been rendered in this element".
  */
 export function getOrCreateRecaptchaVerifier(
   containerId = 'recaptcha-container',
-  authInstance: ReturnType<typeof getAuth> = firebaseAuth
+  authInstance: ReturnType<typeof getAuth> = firebaseAuth,
+  forceFresh = false
 ): RecaptchaVerifier {
   if (typeof window === 'undefined') {
     throw new Error('RecaptchaVerifier requires a browser window environment.');
   }
 
-  // Ensure container element exists in DOM and is NOT left hidden from a prior reset
-  let containerEl = document.getElementById(containerId);
-  if (!containerEl) {
-    containerEl = document.createElement('div');
-    containerEl.id = containerId;
-    containerEl.style.position = 'fixed';
-    containerEl.style.bottom = '0';
-    containerEl.style.right = '0';
-    containerEl.style.zIndex = '9999';
-    document.body.appendChild(containerEl);
-  }
-  containerEl.style.display = 'block';
-  containerEl.style.visibility = 'visible';
-
-  if (activeRecaptchaVerifier && activeRecaptchaAuthInstance === authInstance) {
-    return activeRecaptchaVerifier;
+  if (
+    !forceFresh &&
+    activeRecaptchaVerifier &&
+    !activeRecaptchaConsumed &&
+    activeRecaptchaAuthInstance === authInstance &&
+    activeRecaptchaHostId === containerId
+  ) {
+    const hostEl = document.getElementById(containerId);
+    if (hostEl && hostEl.querySelector('[data-recaptcha-slot="true"]')) {
+      hostEl.style.display = 'block';
+      hostEl.style.visibility = 'visible';
+      return activeRecaptchaVerifier;
+    }
   }
 
-  if (activeRecaptchaVerifier) {
-    try {
-      activeRecaptchaVerifier.clear();
-    } catch {}
-    activeRecaptchaVerifier = null;
-    activeRecaptchaAuthInstance = null;
-    containerEl.innerHTML = '';
-  }
+  resetRecaptchaVerifier(containerId);
+  const slotEl = createFreshRecaptchaSlot(containerId);
 
   activeRecaptchaAuthInstance = authInstance;
-  activeRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerEl, {
+  activeRecaptchaConsumed = false;
+  activeRecaptchaVerifier = new RecaptchaVerifier(authInstance, slotEl, {
     size: 'invisible',
     callback: () => {
       console.log('[Firebase Auth] Invisible reCAPTCHA verification passed');
     },
     'expired-callback': () => {
       console.warn('[Firebase Auth] Invisible reCAPTCHA expired, resetting...');
-      resetRecaptchaVerifier();
+      resetRecaptchaVerifier(containerId);
     }
   });
 
@@ -399,13 +473,30 @@ export function getOrCreateRecaptchaVerifier(
 /**
  * Pre-warms invisible reCAPTCHA on Web browsers while the user types their mobile number,
  * shaving 2-5 seconds off OTP send latency on mobile networks. No-op on native APK.
+ * Serialized via activeRecaptchaRenderPromise so clicking "Get OTP" never races render().
  */
 export function prewarmRecaptchaVerifier(containerId = 'recaptcha-container'): void {
   if (typeof window === 'undefined' || Capacitor.isNativePlatform()) return;
   try {
-    if (activeRecaptchaVerifier) return;
-    const verifier = getOrCreateRecaptchaVerifier(containerId, firebaseAuth);
-    verifier.render().catch(() => {});
+    if (activeRecaptchaRenderPromise) return;
+    if (activeRecaptchaVerifier && !activeRecaptchaConsumed && activeRecaptchaAuthInstance === firebaseAuth) {
+      return;
+    }
+    const verifier = getOrCreateRecaptchaVerifier(containerId, firebaseAuth, true);
+    const renderPromise = verifier
+      .render()
+      .catch(() => {
+        if (activeRecaptchaVerifier === verifier) {
+          resetRecaptchaVerifier(containerId);
+        }
+        return -1;
+      })
+      .finally(() => {
+        if (activeRecaptchaRenderPromise === renderPromise) {
+          activeRecaptchaRenderPromise = null;
+        }
+      });
+    activeRecaptchaRenderPromise = renderPromise;
   } catch {}
 }
 
@@ -606,10 +697,13 @@ export async function sendFirebasePhoneOtp(
             console.error('[Native Firebase Phone Auth] phoneVerificationFailed event:', event);
             cleanupWaiters();
             clearNativePhoneListeners();
+            const diagnostic = formatFirebasePhoneError(event);
             resolve({
               success: false,
               formattedPhone,
-              error: (event as any)?.message || 'Failed to dispatch SMS verification on device.'
+              isRateLimited: diagnostic.code === 'auth/too-many-requests' || diagnostic.code === 'auth/quota-exceeded',
+              error: diagnostic.userMessage || (event as any)?.message || 'Failed to dispatch SMS verification on device.',
+              diagnostic
             });
           }
         });
@@ -636,10 +730,13 @@ export async function sendFirebasePhoneOtp(
             cleanupWaiters();
             clearNativePhoneListeners();
             console.error('[Native Firebase Phone Auth] signInWithPhoneNumber invocation error:', nativeErr);
+            const diagnostic = formatFirebasePhoneError(nativeErr);
             resolve({
               success: false,
               formattedPhone,
-              error: nativeErr?.message || 'Failed to start phone verification on Android.'
+              isRateLimited: diagnostic.code === 'auth/too-many-requests' || diagnostic.code === 'auth/quota-exceeded',
+              error: diagnostic.userMessage || nativeErr?.message || 'Failed to start phone verification on Android.',
+              diagnostic
             });
           }
         }
@@ -653,6 +750,8 @@ export async function sendFirebasePhoneOtp(
       return {
         success: false,
         formattedPhone,
+        isRateLimited: nativeResult.isRateLimited,
+        diagnostic: nativeResult.diagnostic,
         error:
           nativeResult.error ||
           'Unable to complete native phone verification on this Android build. Please verify SHA-1/SHA-256 and Play Integrity in Firebase Console.',
@@ -671,8 +770,15 @@ export async function sendFirebasePhoneOtp(
   }
 
   // 2. Web Firebase Phone Auth SDK (Direct Google Firebase SMS Dispatch via invisible reCAPTCHA)
-  const attemptWebFirebaseSend = async (authInstance: ReturnType<typeof getAuth>) => {
-    const appVerifier = getOrCreateRecaptchaVerifier(containerId, authInstance);
+  const attemptWebFirebaseSend = async (
+    authInstance: ReturnType<typeof getAuth>,
+    forceFresh = false
+  ) => {
+    if (!forceFresh && activeRecaptchaRenderPromise && activeRecaptchaAuthInstance === authInstance) {
+      await activeRecaptchaRenderPromise.catch(() => {});
+    }
+    const appVerifier = getOrCreateRecaptchaVerifier(containerId, authInstance, forceFresh);
+    activeRecaptchaConsumed = true;
     console.log(`[Firebase Phone Auth] Requesting Web SDK OTP dispatch for ${formattedPhone}...`);
     const confirmationResult = await signInWithPhoneNumber(authInstance, formattedPhone, appVerifier);
     activeConfirmationResult = confirmationResult;
@@ -685,13 +791,24 @@ export async function sendFirebasePhoneOtp(
   };
 
   try {
-    return await attemptWebFirebaseSend(firebaseAuth);
+    return await attemptWebFirebaseSend(firebaseAuth, false);
   } catch (webErr: any) {
     console.warn('[Firebase Phone Auth] Web SDK primary attempt failed:', webErr);
-    resetRecaptchaVerifier();
+    resetRecaptchaVerifier(containerId);
+
+    // Self-heal immediately if a stale/prewarmed widget threw "already been rendered in this element"
+    if (isRecaptchaAlreadyRenderedError(webErr)) {
+      try {
+        console.log('[Firebase Phone Auth] Retrying Web SDK OTP on a brand-new virgin reCAPTCHA slot...');
+        return await attemptWebFirebaseSend(firebaseAuth, true);
+      } catch (freshErr: any) {
+        webErr = freshErr;
+        resetRecaptchaVerifier(containerId);
+      }
+    }
 
     // If custom authDomain (smartrun.in / www.smartrun.in) failed due to domain/reCAPTCHA config,
-    // automatically retry once with default Firebase authDomain so website users still receive their OTP.
+    // automatically retry once with default Firebase authDomain on a fresh virgin slot.
     const errCode = String(webErr?.code || '');
     const errMsg = String(webErr?.message || '').toLowerCase();
     const isDomainOrCaptchaErr =
@@ -705,10 +822,10 @@ export async function sendFirebasePhoneOtp(
     if (isDomainOrCaptchaErr && resolvedFirebaseConfig.authDomain !== firebaseConfig.authDomain) {
       try {
         console.log('[Firebase Phone Auth] Retrying Web SDK OTP with fallback Firebase authDomain...');
-        return await attemptWebFirebaseSend(getFallbackFirebaseAuth());
+        return await attemptWebFirebaseSend(getFallbackFirebaseAuth(), true);
       } catch (retryErr: any) {
         console.warn('[Firebase Phone Auth] Fallback authDomain retry also failed:', retryErr);
-        resetRecaptchaVerifier();
+        resetRecaptchaVerifier(containerId);
         const retryDiag = formatFirebasePhoneError(retryErr);
         return {
           success: false,
@@ -784,9 +901,10 @@ export async function verifyFirebaseOtpAndBridgeToSupabase(
       firebaseUser = signInResult.user as any;
     } catch (err: any) {
       console.error('[Native Firebase Phone Auth] OTP confirmation failed:', err);
+      const diagnostic = formatFirebasePhoneError(err);
       return {
         success: false,
-        error: err?.message || 'Invalid 6-digit verification code. Please check and try again.'
+        error: diagnostic.userMessage || err?.message || 'Invalid 6-digit verification code. Please check and try again.'
       };
     }
   } else if (activeConfirmationResult) {
@@ -902,9 +1020,10 @@ export async function verifyPhoneOtpOnly(
       return { success: true, formattedPhone };
     } catch (err: any) {
       console.error('[Native Firebase Phone Auth] Profile update OTP verification error:', err);
+      const diagnostic = formatFirebasePhoneError(err);
       return {
         success: false,
-        error: err?.message || 'Invalid 6-digit OTP code.'
+        error: diagnostic.userMessage || err?.message || 'Invalid 6-digit OTP code.'
       };
     }
   } else if (activeConfirmationResult) {

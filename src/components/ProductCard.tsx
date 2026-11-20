@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Plus, Minus, Star, Eye, Heart, Check, ShoppingCart } from 'lucide-react';
 import { Product } from '../types';
 import { isProductFavorite, toggleProductFavorite } from '../services/favorites';
@@ -12,6 +12,10 @@ import {
 } from '../data/wireColors';
 import { hapticLight, hapticMedium } from '../utils/haptics';
 import { NEUTRAL_PRODUCT_PLACEHOLDER } from '../data/productColorImages';
+import {
+  hasBrowserStoredAuthSession,
+  rememberAuthRedirectTarget
+} from '../utils/guestAccessPolicy';
 
 interface ProductCardProps {
   product: Product;
@@ -28,6 +32,8 @@ export const ProductCard = ({
   onUpdateQuantity,
   onOpenQuickView
 }: ProductCardProps) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isHovered, setIsHovered] = useState(false);
   const [isFav, setIsFav] = useState(() => isProductFavorite(product.id));
   const isWire = isWireProduct(product);
@@ -102,6 +108,11 @@ export const ProductCard = ({
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     hapticLight();
+    if (!hasBrowserStoredAuthSession()) {
+      const loginUrl = rememberAuthRedirectTarget(`${location.pathname}${location.search}`);
+      navigate(loginUrl);
+      return;
+    }
     const updatedState = toggleProductFavorite(product.id);
     setIsFav(updatedState);
   };

@@ -620,10 +620,10 @@ export async function resetPasswordForEmail(
   email: string
 ): Promise<{ error: Error | null; success: boolean }> {
   try {
-    const isApp = isAndroidAppEnvironment();
+    const isApp = isAndroidAppEnvironment() || Capacitor.isNativePlatform();
     const redirectTo = isApp
       ? 'https://www.smartrun.in/reset-password?target=app&source=android_app'
-      : (typeof window !== 'undefined' ? `${window.location.origin}/reset-password?client=web` : undefined);
+      : 'https://www.smartrun.in/reset-password?client=web';
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo
     });
@@ -805,8 +805,7 @@ export async function signInWithGoogle(): Promise<{ error: Error | null; url?: s
         localStorage.removeItem('giriraj_pending_native_oauth');
         localStorage.removeItem('giriraj_oauth_from_android_app');
       } catch {}
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.smartrun.in';
-      redirectTo = `${origin}/login?client=web`;
+      redirectTo = 'https://www.smartrun.in/login?client=web';
     }
 
     const { data, error } = await supabase.auth.signInWithOAuth({

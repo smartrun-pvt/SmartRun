@@ -20,6 +20,10 @@ import { getFlattenedSpecifications } from '../utils/productSpecifications';
 
 import { ProductReviewsSection } from './ProductReviewsSection';
 import { NEUTRAL_PRODUCT_PLACEHOLDER } from '../data/productColorImages';
+import {
+  hasBrowserStoredAuthSession,
+  rememberAuthRedirectTarget
+} from '../utils/guestAccessPolicy';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -328,6 +332,14 @@ export const ProductDetailModal = ({
 
   const handleToggleFav = () => {
     hapticLight();
+    if (!hasBrowserStoredAuthSession()) {
+      rememberAuthRedirectTarget(
+        typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : undefined
+      );
+      onClose();
+      onOpenAuth?.();
+      return;
+    }
     const updated = toggleProductFavorite(product.id);
     setIsFav(updated);
   };

@@ -2637,11 +2637,9 @@ async function startServer() {
           forwardHeaders[key] = v.join(", ");
         }
       }
-      const reqHost = req.get("host");
-      if (reqHost) {
-        forwardHeaders["x-forwarded-host"] = reqHost;
-        forwardHeaders["x-forwarded-proto"] = req.protocol || "https";
-      }
+      const reqHost = req.get("host") || "www.smartrun.in";
+      forwardHeaders["x-forwarded-host"] = reqHost;
+      forwardHeaders["x-forwarded-proto"] = "https";
 
       const hasBody = req.method !== "GET" && req.method !== "HEAD";
       let upstreamBody: string | undefined;
@@ -2670,10 +2668,26 @@ async function startServer() {
       });
 
       res.status(upstreamRes.status);
-      const publicOrigin = reqHost ? `https://${reqHost}` : "";
+      const lowerReqHost = reqHost.toLowerCase();
+      const publicOrigin =
+        lowerReqHost === "smartrun.in" || lowerReqHost === "www.smartrun.in"
+          ? "https://www.smartrun.in"
+          : `https://${reqHost}`;
+      const setCookies =
+        typeof (upstreamRes.headers as any).getSetCookie === "function"
+          ? (upstreamRes.headers as any).getSetCookie()
+          : [];
+      if (Array.isArray(setCookies) && setCookies.length > 0) {
+        res.setHeader("set-cookie", setCookies);
+      }
       upstreamRes.headers.forEach((value, key) => {
         const lower = key.toLowerCase();
-        if (lower === "content-encoding" || lower === "transfer-encoding" || lower === "content-length") {
+        if (
+          lower === "content-encoding" ||
+          lower === "transfer-encoding" ||
+          lower === "content-length" ||
+          (lower === "set-cookie" && Array.isArray(setCookies) && setCookies.length > 0)
+        ) {
           return;
         }
         if (lower === "location" && publicOrigin && value.startsWith(upstreamOrigin)) {
@@ -8261,7 +8275,7 @@ Knowledge Base & Service Details:
 
       // Secondary fallback: Quick SMS 'q' route ONLY if primary failed for a non-auth/non-IP-block reason
       if (!primaryOk && primaryStatusCode !== 414 && primaryStatusCode !== 411 && primaryStatusCode !== 412) {
-        const webOtpMessage = `${generatedOtp} is your SmartRun verification code. Valid for 10 minutes.\n\n@smartrun.in #${generatedOtp}`;
+        const webOtpMessage = `${generatedOtp} is your SmartRun verification code. Valid for 10 minutes.\n\n@www.smartrun.in #${generatedOtp}`;
         const quickRes = await dispatchFast2Sms({
           route: "q",
           message: webOtpMessage,
@@ -9546,14 +9560,12 @@ Knowledge Base & Service Details:
   }
 
   function getWebAuthnRpConfig(req: express.Request) {
-    const rawHost = req.get("host") || "smartrun.in";
+    const rawHost = req.get("host") || "www.smartrun.in";
     const host = rawHost.split(":")[0].toLowerCase();
     let rpID = "smartrun.in";
     const expectedOrigin: string[] = [
       "https://www.smartrun.in",
-      "https://smartrun.in",
-      "https://girirajpower.in",
-      "https://www.girirajpower.in"
+      "https://smartrun.in"
     ];
 
     if (host.endsWith("smartrun.in")) {

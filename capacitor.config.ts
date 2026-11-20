@@ -11,14 +11,11 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
     cleartext: false,
     allowNavigation: [
-      'smartrun.in',
       'www.smartrun.in',
-      'www.girirajpower.in',
-      'girirajpower.in',
+      'smartrun.in',
       '*.razorpay.com',
       'api.razorpay.com',
       'checkout.razorpay.com',
-      '*.run.app',
       '*.supabase.co',
       '*.googleapis.com',
       '*.gstatic.com',
@@ -35,6 +32,7 @@ const config: CapacitorConfig = {
     FirebaseAuthentication: {
       skipNativeAuth: false,
       providers: ['google.com', 'phone'],
+      authDomain: 'www.smartrun.in',
     },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],

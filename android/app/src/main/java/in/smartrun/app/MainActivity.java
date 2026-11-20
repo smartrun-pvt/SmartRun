@@ -31,6 +31,7 @@ import com.getcapacitor.BridgeWebViewClient;
 import com.google.android.gms.auth.api.phone.SmsRetriever;
 import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.android.gms.common.api.Status;
+import com.google.firebase.auth.FirebaseAuth;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.json.JSONObject;
@@ -449,6 +450,12 @@ public class MainActivity extends BridgeActivity {
         androidx.activity.EdgeToEdge.enable(this);
 
         super.onCreate(savedInstanceState);
+
+        // Bind native Android FirebaseAuth to our real custom domain (www.smartrun.in)
+        // so Phone Auth reCAPTCHA fallback & verification handlers never use *.firebaseapp.com.
+        try {
+            FirebaseAuth.getInstance().setCustomAuthDomain("www.smartrun.in");
+        } catch (Throwable ignored) {}
 
         // Enforce WebView debugging strictly OFF in release builds (Play Console security compliance)
         boolean isDebuggableApp = (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;

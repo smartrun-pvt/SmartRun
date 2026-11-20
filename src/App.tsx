@@ -94,6 +94,7 @@ import { isNativePhoneApp } from './utils/platformDetection';
 import { fetchServerCurrentUser, syncServerSession, serverLogout } from './services/serverAuthService';
 import { attachSafeAreaListeners, syncSafeAreaCssVariables } from './utils/safeArea';
 import { navigateBackSafely, recordAppRouteVisit } from './utils/navigationHistory';
+import { buildLoginRedirectUrl } from './utils/guestAccessPolicy';
 
 export default function App() {
   const navigate = useNavigate();
@@ -133,7 +134,6 @@ export default function App() {
 
   // State Management (Only real data fetched from Supabase)
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const isNativeApp = isNativePhoneApp();
   const [products, setProducts] = useState<Product[]>([]);
   const [currentArea, setCurrentArea] = useState<KolkataArea>(() => {
     try {
@@ -1202,10 +1202,10 @@ export default function App() {
       return;
     }
 
-    // 4. Login Page: Return to previous browsing page; never exit immediately after returning
+    // 4. Login Page: Return to previous browsing page; never leave immediately after returning
     // from an Android Autofill sheet, SMS consent dialog, or Firebase captcha overlay.
     if (currentPath === '/login' || currentPath === '/auth') {
-      if (!isAuthenticated && Capacitor.isNativePlatform()) {
+      if (Capacitor.isNativePlatform()) {
         const lastFocusTs = Number((window as any).__SMARTRUN_LAST_RESUME_TS__ || 0);
         if (lastFocusTs && Date.now() - lastFocusTs < 3500) {
           return;
@@ -1223,13 +1223,11 @@ export default function App() {
           try { (document.activeElement as HTMLElement).blur(); } catch {}
           return;
         }
-        CapApp.exitApp();
-        return;
       }
       if (typeof window !== 'undefined' && window.history.state && window.history.state.idx > 0) {
         navigate(-1);
       } else {
-        navigate('/');
+        navigate('/', { replace: true });
       }
       return;
     }
@@ -1365,41 +1363,9 @@ export default function App() {
     }
   }, [userProfile?.id]);
 
-  // Phone Native App Mandatory Login Guard:
-  // When running inside the native mobile app, users must log in first before seeing products & details.
-  // On public website (www.smartrun.in), visitors can freely browse all products without logging in.
-  useEffect(() => {
-    if (isAuthLoading) return;
-    if (isNativeApp && !isAuthenticated) {
-      const p = location.pathname;
-      const isPublicExemptPath =
-        p === '/login' ||
-        p === '/auth' ||
-        p === '/reset-password' ||
-        p === '/privacy' ||
-        p === '/privacy-policy' ||
-        p === '/terms' ||
-        p === '/terms-of-service' ||
-        p === '/refund' ||
-        p === '/refund-policy' ||
-        p === '/refunds' ||
-        p === '/return' ||
-        p === '/return-policy' ||
-        p === '/returns' ||
-        p === '/shipping-policy' ||
-        p === '/shipping' ||
-        p === '/shipping-and-return-policy' ||
-        p === '/how-to-use' ||
-        p === '/guide' ||
-        p === '/faq' ||
-        p === '/faqs' ||
-        p === '/delete' ||
-        p === '/account-deletion';
-      if (!isPublicExemptPath) {
-        navigate('/login', { replace: true });
-      }
-    }
-  }, [isNativeApp, isAuthenticated, isAuthLoading, location.pathname, navigate]);
+  // Guest Browsing Parity (Native Phone App & Web Browsers):
+  // Users can freely browse all products, details, and cart on launch without logging in.
+  // Login is only requested when saving items for later/wishlist, placing an order, or opening Profile/Orders.
 
   // Reset scroll strictly when navigating to a new page (pathname change), avoiding jitter when typing search queries
   useEffect(() => {
@@ -1852,24 +1818,6 @@ export default function App() {
     serverLogout().catch(() => {});
   };
 
-  // Branded Splash Loader for Native Phone App while restoring authentication
-  if (isNativeApp && isAuthLoading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-white text-center">
-        <div className="mb-4 animate-pulse flex items-center justify-center">
-          <img src="/SmartRun.png" alt="SmartRun" className="w-20 h-20 object-contain" />
-        </div>
-        <h1 className="text-2xl font-black font-baloo tracking-tight text-white mb-1">SmartRun</h1>
-        <p className="text-xs text-slate-400 font-medium tracking-wide">Kolkata&apos;s 60-Min Express Electrical Hub</p>
-        <div className="mt-6 flex items-center justify-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-amber-400 animate-bounce" />
-          <div className="w-2 h-2 rounded-full bg-amber-400 animate-bounce [animation-delay:0.2s]" />
-          <div className="w-2 h-2 rounded-full bg-amber-400 animate-bounce [animation-delay:0.4s]" />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <MotionConfig reducedMotion="user" transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900 selection:bg-yellow-400 selection:text-black">
@@ -1938,18 +1886,14 @@ export default function App() {
           <Route
             path="/electrical"
             element={
-              isNativeApp && !isAuthenticated ? (
-                <Navigate to="/login" replace />
-              ) : (
-                <ElectricalListingPage
-                  onAddToCart={handleAddToCart}
-                  onUpdateQuantity={handleUpdateCartQuantity}
-                  cartItems={cartItems}
-                  onOpenCart={() => navigate('/cart')}
-                  searchQuery={searchQuery}
-                  onSearchChange={handleSearchChange}
-                />
-              )
+              <ElectricalListingPage
+                onAddToCart={handleAddToCart}
+                onUpdateQuantity={handleUpdateCartQuantity}
+                cartItems={cartItems}
+                onOpenCart={() => navigate('/cart')}
+                searchQuery={searchQuery}
+                onSearchChange={handleSearchChange}
+              />
             }
           />
 
@@ -1957,55 +1901,43 @@ export default function App() {
           <Route
             path="/electrical/product/:id"
             element={
-              isNativeApp && !isAuthenticated ? (
-                <Navigate to="/login" replace />
-              ) : (
-                <ProductDetailPage
-                  onAddToCart={handleAddToCart}
-                  cartItems={cartItems}
-                  onOpenCart={() => navigate('/cart')}
-                  userProfile={userProfile}
-                  onOpenAuth={() => navigate('/login')}
-                  currentArea={currentArea}
-                  activeAddress={activeSavedAddress}
-                />
-              )
+              <ProductDetailPage
+                onAddToCart={handleAddToCart}
+                cartItems={cartItems}
+                onOpenCart={() => navigate('/cart')}
+                userProfile={userProfile}
+                onOpenAuth={() => navigate(buildLoginRedirectUrl(location.pathname + location.search))}
+                currentArea={currentArea}
+                activeAddress={activeSavedAddress}
+              />
             }
           />
           <Route
             path="/construction/product/:id"
             element={
-              isNativeApp && !isAuthenticated ? (
-                <Navigate to="/login" replace />
-              ) : (
-                <ProductDetailPage
-                  onAddToCart={handleAddToCart}
-                  cartItems={cartItems}
-                  onOpenCart={() => navigate('/cart')}
-                  userProfile={userProfile}
-                  onOpenAuth={() => navigate('/login')}
-                  currentArea={currentArea}
-                  activeAddress={activeSavedAddress}
-                />
-              )
+              <ProductDetailPage
+                onAddToCart={handleAddToCart}
+                cartItems={cartItems}
+                onOpenCart={() => navigate('/cart')}
+                userProfile={userProfile}
+                onOpenAuth={() => navigate(buildLoginRedirectUrl(location.pathname + location.search))}
+                currentArea={currentArea}
+                activeAddress={activeSavedAddress}
+              />
             }
           />
           <Route
             path="/product/:id"
             element={
-              isNativeApp && !isAuthenticated ? (
-                <Navigate to="/login" replace />
-              ) : (
-                <ProductDetailPage
-                  onAddToCart={handleAddToCart}
-                  cartItems={cartItems}
-                  onOpenCart={() => navigate('/cart')}
-                  userProfile={userProfile}
-                  onOpenAuth={() => navigate('/login')}
-                  currentArea={currentArea}
-                  activeAddress={activeSavedAddress}
-                />
-              )
+              <ProductDetailPage
+                onAddToCart={handleAddToCart}
+                cartItems={cartItems}
+                onOpenCart={() => navigate('/cart')}
+                userProfile={userProfile}
+                onOpenAuth={() => navigate(buildLoginRedirectUrl(location.pathname + location.search))}
+                currentArea={currentArea}
+                activeAddress={activeSavedAddress}
+              />
             }
           />
 
@@ -2013,23 +1945,19 @@ export default function App() {
           <Route
             path="/construction"
             element={
-              isNativeApp && !isAuthenticated ? (
-                <Navigate to="/login" replace />
-              ) : (
-                <ConstructionPage
-                  onAddToCart={handleAddToCart}
-                  onUpdateQuantity={handleUpdateCartQuantity}
-                  cartItems={cartItems}
-                  onOpenCart={() => navigate('/cart')}
-                  searchQuery={searchQuery}
-                  onSearchChange={handleSearchChange}
-                  products={products}
-                  onOpenProductQuickView={(prod) => {
-                    setSelectedProductQuickView(prod);
-                    trackProductView(prod);
-                  }}
-                />
-              )
+              <ConstructionPage
+                onAddToCart={handleAddToCart}
+                onUpdateQuantity={handleUpdateCartQuantity}
+                cartItems={cartItems}
+                onOpenCart={() => navigate('/cart')}
+                searchQuery={searchQuery}
+                onSearchChange={handleSearchChange}
+                products={products}
+                onOpenProductQuickView={(prod) => {
+                  setSelectedProductQuickView(prod);
+                  trackProductView(prod);
+                }}
+              />
             }
           />
 
@@ -2037,29 +1965,25 @@ export default function App() {
           <Route
             path="/cart"
             element={
-              isNativeApp && !isAuthenticated ? (
-                <Navigate to="/login?redirect=/cart" replace />
-              ) : (
-                <CartView
-                  items={cartItems}
-                  onUpdateQuantity={handleUpdateCartQuantity}
-                  onUpdateItemColor={handleUpdateItemColor}
-                  onRemoveItem={handleRemoveCartItem}
-                  onClearCart={handleClearCart}
-                  currentArea={currentArea}
-                  activeAddress={activeSavedAddress}
-                  savedAddresses={savedAddresses}
-                  onOpenLocationModal={() => setIsLocationModalOpen(true)}
-                  userPhone={userPhone}
-                  userProfile={userProfile}
-                  onOpenAuth={() => navigate('/login')}
-                  onAddToCart={handleAddToCart}
-                  onOrderPlaced={(newOrder) => {
-                    navigate('/orders');
-                  }}
-                  onContinueShopping={() => navigate('/electrical')}
-                />
-              )
+              <CartView
+                items={cartItems}
+                onUpdateQuantity={handleUpdateCartQuantity}
+                onUpdateItemColor={handleUpdateItemColor}
+                onRemoveItem={handleRemoveCartItem}
+                onClearCart={handleClearCart}
+                currentArea={currentArea}
+                activeAddress={activeSavedAddress}
+                savedAddresses={savedAddresses}
+                onOpenLocationModal={() => setIsLocationModalOpen(true)}
+                userPhone={userPhone}
+                userProfile={userProfile}
+                onOpenAuth={() => navigate(buildLoginRedirectUrl('/cart'))}
+                onAddToCart={handleAddToCart}
+                onOrderPlaced={(newOrder) => {
+                  navigate('/orders');
+                }}
+                onContinueShopping={() => navigate('/electrical')}
+              />
             }
           />
 
@@ -2115,25 +2039,15 @@ export default function App() {
           <Route
             path="/technicians"
             element={
-              isNativeApp && !isAuthenticated ? (
-                <Navigate to="/login" replace />
-              ) : (
-                <TechniciansPage
-                  searchQuery={searchQuery}
-                  onSearchChange={handleSearchChange}
-                />
-              )
+              <TechniciansPage
+                searchQuery={searchQuery}
+                onSearchChange={handleSearchChange}
+              />
             }
           />
           <Route
             path="/technicians/:id"
-            element={
-              isNativeApp && !isAuthenticated ? (
-                <Navigate to="/login" replace />
-              ) : (
-                <TechnicianDetailPage />
-              )
-            }
+            element={<TechnicianDetailPage />}
           />
 
           {/* REDIRECT LEGACY WIRING ROUTES TO ELECTRICAL */}
@@ -2454,19 +2368,15 @@ export default function App() {
           <Route
             path="/"
             element={
-              isNativeApp && !isAuthenticated ? (
-                <Navigate to="/login" replace />
-              ) : (
-                <HomePage
-                  products={products}
-                  onAddToCart={handleAddToCart}
-                  onUpdateQuantity={handleUpdateCartQuantity}
-                  cartItems={cartItems}
-                  onRefresh={handleRefreshAll}
-                  onNavigateCategory={handleNavigateHomeCategory}
-                  onOpenProductQuickView={handleOpenQuickView}
-                />
-              )
+              <HomePage
+                products={products}
+                onAddToCart={handleAddToCart}
+                onUpdateQuantity={handleUpdateCartQuantity}
+                cartItems={cartItems}
+                onRefresh={handleRefreshAll}
+                onNavigateCategory={handleNavigateHomeCategory}
+                onOpenProductQuickView={handleOpenQuickView}
+              />
             }
           />
 
@@ -2583,7 +2493,7 @@ export default function App() {
             }
             onAddToCart={handleAddToCart}
             onUpdateQuantity={handleUpdateCartQuantity}
-            onOpenAuth={() => navigate('/auth')}
+            onOpenAuth={() => navigate(buildLoginRedirectUrl(location.pathname + location.search))}
             currentArea={currentArea}
             activeAddress={activeSavedAddress}
           />

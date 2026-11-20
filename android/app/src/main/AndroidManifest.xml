@@ -94,8 +94,18 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!-- Android 11+ (API 30+) Package Visibility Queries for Razorpay UPI & Banking Apps -->
+    <!-- Android 11+ (API 30+) Package Visibility Queries for Firebase Auth Custom Tabs & Razorpay UPI Apps -->
     <queries>
+        <!-- Required on Android 11-15 so Firebase Phone Auth RecaptchaActivity & OAuth can resolve Chrome Custom Tabs -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
+
         <!-- Generic UPI payment scheme query (enables detecting any installed UPI app) -->
         <intent>
             <action android:name="android.intent.action.VIEW" />

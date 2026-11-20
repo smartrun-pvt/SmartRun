@@ -166,7 +166,7 @@ const phoneHandlerPath = path.join(
   'PhoneAuthProviderHandler.java'
 );
 
-const PHONE_PATCH_MARKER = '// [SmartRun PhoneAuth Persistence & Crash-Safety Patch]';
+const PHONE_PATCH_MARKER = '// [SmartRun PhoneAuth Persistence, CustomDomain & UI-Thread Safety Patch v2]';
 
 function patchPhoneAuthProviderHandler() {
   if (!fs.existsSync(phoneHandlerPath)) {
@@ -176,7 +176,7 @@ function patchPhoneAuthProviderHandler() {
 
   const content = fs.readFileSync(phoneHandlerPath, 'utf8');
   if (content.includes(PHONE_PATCH_MARKER)) {
-    console.log('[patch-capacitor-android] PhoneAuthProviderHandler.java already patched.');
+    console.log('[patch-capacitor-android] PhoneAuthProviderHandler.java already patched (v2).');
     return;
   }
 
@@ -188,6 +188,7 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.google.firebase.FirebaseException;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.PhoneAuthCredential;
 import com.google.firebase.auth.PhoneAuthOptions;
 import com.google.firebase.auth.PhoneAuthProvider;
@@ -208,6 +209,7 @@ public class PhoneAuthProviderHandler {
     private static final String KEY_VERIFICATION_ID = "verification_id";
     private static final String KEY_PHONE_NUMBER = "phone_number";
     private static final String KEY_TIMESTAMP = "timestamp";
+    private static final String SMARTRUN_AUTH_DOMAIN = "www.smartrun.in";
 
     private FirebaseAuthentication pluginImplementation;
 
@@ -288,11 +290,16 @@ public class PhoneAuthProviderHandler {
     }
 
     private void verifyPhoneNumber(@NonNull SignInWithPhoneNumberOptions options, boolean isLink) throws Exception {
-        Activity activity = pluginImplementation.getPlugin().getActivity();
+        final Activity activity = pluginImplementation.getPlugin().getActivity();
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
             throw new Exception("App activity is not ready for phone verification. Please try again.");
         }
-        PhoneAuthOptions.Builder builder = PhoneAuthOptions.newBuilder(pluginImplementation.getFirebaseAuthInstance())
+        final FirebaseAuth firebaseAuth = pluginImplementation.getFirebaseAuthInstance();
+        try {
+            firebaseAuth.setCustomAuthDomain(SMARTRUN_AUTH_DOMAIN);
+        } catch (Throwable ignored) {}
+
+        PhoneAuthOptions.Builder builder = PhoneAuthOptions.newBuilder(firebaseAuth)
             .setPhoneNumber(options.getPhoneNumber())
             .setTimeout(options.getTimeout(), TimeUnit.SECONDS)
             .setActivity(activity)
@@ -303,8 +310,27 @@ public class PhoneAuthProviderHandler {
             }
             builder.setForceResendingToken(forceResendingToken);
         }
-        PhoneAuthOptions phoneAuthOptions = builder.build();
-        PhoneAuthProvider.verifyPhoneNumber(phoneAuthOptions);
+        final PhoneAuthOptions phoneAuthOptions = builder.build();
+        // Capacitor executes @PluginMethod calls on a background HandlerThread.
+        // Dispatching verifyPhoneNumber on the Android UI thread prevents Activity / RecaptchaActivity
+        // launch issues and ensures Play Integrity + Custom Tabs callbacks bind cleanly.
+        activity.runOnUiThread(() -> {
+            if (activity.isFinishing() || activity.isDestroyed()) {
+                pluginImplementation.handlePhoneVerificationFailed(
+                    new Exception("App activity closed before phone verification could start.")
+                );
+                return;
+            }
+            try {
+                PhoneAuthProvider.verifyPhoneNumber(phoneAuthOptions);
+            } catch (Exception ex) {
+                pluginImplementation.handlePhoneVerificationFailed(ex);
+            } catch (Throwable t) {
+                pluginImplementation.handlePhoneVerificationFailed(
+                    new Exception(t.getMessage() != null ? t.getMessage() : "Failed to start phone verification.", t)
+                );
+            }
+        });
     }
 
     private PhoneAuthProvider.OnVerificationStateChangedCallbacks createCallbacks(
@@ -378,9 +404,84 @@ public class PhoneAuthProviderHandler {
 `;
 
   fs.writeFileSync(phoneHandlerPath, patchedFile, 'utf8');
-  console.log('[patch-capacitor-android] Successfully patched PhoneAuthProviderHandler.java with SharedPreferences persistence and crash guards.');
+  console.log('[patch-capacitor-android] Successfully patched PhoneAuthProviderHandler.java (v2: www.smartrun.in custom authDomain + UI-thread safety + persistence).');
+}
+
+const pluginJavaPath = path.join(
+  projectRoot,
+  'node_modules',
+  '@capacitor-firebase',
+  'authentication',
+  'android',
+  'src',
+  'main',
+  'java',
+  'io',
+  'capawesome',
+  'capacitorjs',
+  'plugins',
+  'firebase',
+  'authentication',
+  'FirebaseAuthenticationPlugin.java'
+);
+
+const PLUGIN_AUTHDOMAIN_MARKER = '// [SmartRun Custom AuthDomain Config Patch]';
+
+function patchFirebaseAuthenticationPlugin() {
+  if (!fs.existsSync(pluginJavaPath)) {
+    console.log('[patch-capacitor-android] FirebaseAuthenticationPlugin.java not found (skipping).');
+    return;
+  }
+
+  let content = fs.readFileSync(pluginJavaPath, 'utf8');
+  if (content.includes(PLUGIN_AUTHDOMAIN_MARKER)) {
+    console.log('[patch-capacitor-android] FirebaseAuthenticationPlugin.java already patched.');
+    return;
+  }
+
+  const targetBlock = `    private FirebaseAuthenticationConfig getFirebaseAuthenticationConfig() {
+        FirebaseAuthenticationConfig config = new FirebaseAuthenticationConfig();
+
+        boolean skipNativeAuth = getConfig().getBoolean("skipNativeAuth", config.getSkipNativeAuth());
+        config.setSkipNativeAuth(skipNativeAuth);
+        String[] providers = getConfig().getArray("providers", config.getProviders());
+        config.setProviders(providers);
+
+        return config;
+    }`;
+
+  const patchedBlock = `    ${PLUGIN_AUTHDOMAIN_MARKER}
+    private FirebaseAuthenticationConfig getFirebaseAuthenticationConfig() {
+        FirebaseAuthenticationConfig config = new FirebaseAuthenticationConfig();
+
+        boolean skipNativeAuth = getConfig().getBoolean("skipNativeAuth", config.getSkipNativeAuth());
+        config.setSkipNativeAuth(skipNativeAuth);
+        String[] providers = getConfig().getArray("providers", config.getProviders());
+        config.setProviders(providers);
+        String authDomain = getConfig().getString("authDomain", "www.smartrun.in");
+        if (authDomain != null) {
+            authDomain = authDomain.trim().replaceFirst("^https?://", "").replaceFirst("/.*$", "");
+        }
+        if (authDomain == null || authDomain.isEmpty()) {
+            authDomain = "www.smartrun.in";
+        }
+        config.setAuthDomain(authDomain);
+
+        return config;
+    }`;
+
+  if (!content.includes(targetBlock)) {
+    console.warn('[patch-capacitor-android] Could not locate getFirebaseAuthenticationConfig() in FirebaseAuthenticationPlugin.java.');
+    return;
+  }
+
+  content = content.replace(targetBlock, patchedBlock);
+  fs.writeFileSync(pluginJavaPath, content, 'utf8');
+  console.log('[patch-capacitor-android] Successfully patched FirebaseAuthenticationPlugin.java to read authDomain (www.smartrun.in).');
 }
 
 patchBridgeJava();
 patchPhoneAuthProviderHandler();
+patchFirebaseAuthenticationPlugin();
+
 
