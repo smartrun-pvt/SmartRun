@@ -362,11 +362,17 @@ button[aria-label^="Previous product image"] {
   left: -9999px !important;
 }
 
+/* Keep invisible reCAPTCHA host in layout (never display: none !important) so Google grecaptcha.render() executes cleanly */
 #recaptcha-container {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
 }
 
 /* Delivery Motorcycle & Gate Button Animations */

@@ -2,7 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Smartphone, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { saveUserProfile, cleanPhoneAutofill } from '../../services/supabaseService';
-import { sendFirebasePhoneOtp, verifyPhoneOtpOnly } from '../../services/firebaseAuthService';
+import {
+  sendFirebasePhoneOtp,
+  verifyPhoneOtpOnly,
+  resetRecaptchaVerifier,
+  clearPendingPhoneOtpSession
+} from '../../services/firebaseAuthService';
+import { parseIndianMobileNumber } from '../../utils/firebaseAuthDomain';
+import { extractOtpDigits } from '../../utils/otpAutofill';
 import { showToast } from '../../utils/toast';
 import { ProfileSubPageNavbar } from './ProfileSubPageNavbar';
 
@@ -21,6 +28,8 @@ export const UpdateMobileSubPage: React.FC<UpdateMobileSubPageProps> = ({
   const [newPhone, setNewPhone] = useState('');
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const digitInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const isMountedRef = useRef(true);
+  const isVerifyingRef = useRef(false);
 
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isOtpSent, setIsOtpSent] = useState(false);
@@ -30,9 +39,20 @@ export const UpdateMobileSubPage: React.FC<UpdateMobileSubPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const cleanNewPhone = cleanPhoneAutofill(newPhone.trim());
-  const isValidLength = cleanNewPhone.length === 10;
-  const isSameAsCurrent = cleanNewPhone === currentPhone;
+  const parsedNewPhone = parseIndianMobileNumber(newPhone);
+  const cleanNewPhone = parsedNewPhone.valid ? parsedNewPhone.clean10 : cleanPhoneAutofill(newPhone.trim());
+  const isValidLength = parsedNewPhone.valid;
+  const isSameAsCurrent = Boolean(cleanNewPhone && cleanNewPhone === currentPhone);
+
+  // Clean up reCAPTCHA and pending profile-update OTP session on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      resetRecaptchaVerifier('recaptcha-container');
+      clearPendingPhoneOtpSession();
+    };
+  }, []);
 
   // Countdown timer for OTP
   useEffect(() => {
@@ -43,67 +63,17 @@ export const UpdateMobileSubPage: React.FC<UpdateMobileSubPageProps> = ({
     return () => clearTimeout(t);
   }, [timer]);
 
-  // Dispatch OTP via Google Firebase Phone Auth
-  const handleSendOtp = async () => {
-    if (!isValidLength) {
-      setError('Please enter a valid 10-digit mobile number.');
-      return;
-    }
-    if (isSameAsCurrent) {
-      setError('New mobile number cannot be the same as your current number.');
-      return;
-    }
-
-    setError(null);
-    setIsSendingOtp(true);
+  const persistVerifiedPhone = async (verifiedClean10: string) => {
+    if (!isMountedRef.current) return;
+    setIsVerified(true);
+    setIsSaving(true);
+    clearPendingPhoneOtpSession();
+    resetRecaptchaVerifier('recaptcha-container');
 
     try {
-      // Use Firebase OTP exclusively
-      const res = await sendFirebasePhoneOtp(cleanNewPhone);
-      if (!res.success) {
-        setError(res.error || 'Failed to dispatch verification code via Firebase. Please try again.');
-      } else {
-        setIsOtpSent(true);
-        setTimer(60);
-        setOtpDigits(['', '', '', '', '', '']);
-        showToast(`Firebase OTP sent to +91 ${cleanNewPhone}`, 'info');
-        setTimeout(() => digitInputRefs.current[0]?.focus(), 150);
-      }
-    } catch (err: any) {
-      setError(err?.message || 'Could not send Firebase OTP.');
-    } finally {
-      setIsSendingOtp(false);
-    }
-  };
-
-  // Verify OTP via Firebase Phone Auth
-  const handleVerifyOtp = async (codeOverride?: string) => {
-    const code = (codeOverride || otpDigits.join('')).trim();
-    if (code.length !== 6) {
-      setError('Please enter the full 6-digit OTP code.');
-      return;
-    }
-
-    setError(null);
-    setIsVerifying(true);
-    const fullPhone = `+91${cleanNewPhone}`;
-
-    try {
-      // Verify exclusively via Firebase Phone Auth
-      const res = await verifyPhoneOtpOnly(code, fullPhone);
-      if (!res.success) {
-        setError(res.error || 'Invalid or expired Firebase OTP. Please check the code.');
-        setIsVerifying(false);
-        return;
-      }
-
-      setIsVerified(true);
-      setIsSaving(true);
-
-      // Save verified mobile number to Profile in Supabase & Firestore
       await saveUserProfile({
         name: userProfile?.name,
-        phone: cleanNewPhone,
+        phone: verifiedClean10,
         phoneVerified: true,
         email: userProfile?.email,
         dob: userProfile?.dob,
@@ -113,7 +83,7 @@ export const UpdateMobileSubPage: React.FC<UpdateMobileSubPageProps> = ({
       const updatedProfile: UserProfile = {
         ...userProfile,
         name: userProfile?.name || 'Customer',
-        phone: cleanNewPhone,
+        phone: verifiedClean10,
         phoneVerified: true,
         email: userProfile?.email || '',
         refundBalance: userProfile?.refundBalance || 0,
@@ -126,14 +96,146 @@ export const UpdateMobileSubPage: React.FC<UpdateMobileSubPageProps> = ({
       }
       showToast('Mobile number updated successfully!', 'success');
       setTimeout(() => {
-        onBack();
+        if (isMountedRef.current) {
+          onBack();
+        }
       }, 1200);
-    } catch (err: any) {
-      setError(err?.message || 'Firebase verification failed. Please try again.');
     } finally {
-      setIsVerifying(false);
-      setIsSaving(false);
+      if (isMountedRef.current) {
+        setIsSaving(false);
+      }
     }
+  };
+
+  // Dispatch OTP via Google Firebase Phone Auth
+  const handleSendOtp = async () => {
+    if (!parsedNewPhone.valid) {
+      setError(parsedNewPhone.error || 'Please enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+    if (isSameAsCurrent) {
+      setError('New mobile number cannot be the same as your current number.');
+      return;
+    }
+
+    const targetClean10 = parsedNewPhone.clean10;
+    setError(null);
+    setIsSendingOtp(true);
+
+    try {
+      const res = await sendFirebasePhoneOtp(targetClean10, 'recaptcha-container', {
+        purpose: 'profile_update',
+        onAutoFillOtp: (autoCode) => {
+          if (!isMountedRef.current || isVerifyingRef.current) return;
+          const six = extractOtpDigits(autoCode).slice(0, 6);
+          if (six.length === 6) {
+            setIsOtpSent(true);
+            setOtpDigits(six.split(''));
+            handleVerifyOtp(six, targetClean10);
+          }
+        },
+        onNativeVerificationCompleted: async () => {
+          if (!isMountedRef.current || isVerifyingRef.current) return;
+          isVerifyingRef.current = true;
+          setIsVerifying(true);
+          try {
+            await persistVerifiedPhone(targetClean10);
+          } catch (saveErr: any) {
+            if (isMountedRef.current) {
+              setIsVerified(false);
+              setError(saveErr?.message || 'Failed to save verified mobile number.');
+            }
+          } finally {
+            isVerifyingRef.current = false;
+            if (isMountedRef.current) {
+              setIsVerifying(false);
+            }
+          }
+        }
+      });
+
+      if (!isMountedRef.current) return;
+
+      if (!res.success) {
+        setError(res.error || 'Failed to dispatch verification code via Firebase. Please try again.');
+      } else if (res.autoVerified) {
+        setIsOtpSent(true);
+        setTimer(60);
+      } else {
+        setIsOtpSent(true);
+        setTimer(60);
+        setOtpDigits(['', '', '', '', '', '']);
+        showToast(`OTP sent to +91 ${targetClean10}`, 'info');
+        setTimeout(() => digitInputRefs.current[0]?.focus(), 150);
+      }
+    } catch (err: any) {
+      if (isMountedRef.current) {
+        setError(err?.message || 'Could not send Firebase OTP.');
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsSendingOtp(false);
+      }
+    }
+  };
+
+  // Verify OTP via Firebase Phone Auth
+  const handleVerifyOtp = async (codeOverride?: string, phoneOverride?: string) => {
+    if (isVerifyingRef.current) return;
+    const code = extractOtpDigits(codeOverride || otpDigits.join(''));
+    if (code.length !== 6) {
+      setError('Please enter the full 6-digit OTP code.');
+      return;
+    }
+
+    const targetClean10 = phoneOverride || cleanNewPhone;
+    const parsedTarget = parseIndianMobileNumber(targetClean10);
+    if (!parsedTarget.valid) {
+      setError(parsedTarget.error || 'Please enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+
+    setError(null);
+    isVerifyingRef.current = true;
+    setIsVerifying(true);
+
+    try {
+      const res = await verifyPhoneOtpOnly(code, parsedTarget.e164);
+      if (!isMountedRef.current) return;
+
+      if (!res.success) {
+        setError(res.error || 'Invalid or expired OTP. Please check the code.');
+        return;
+      }
+
+      await persistVerifiedPhone(parsedTarget.clean10);
+    } catch (err: any) {
+      if (isMountedRef.current) {
+        setIsVerified(false);
+        setError(err?.message || 'Firebase verification failed. Please try again.');
+      }
+    } finally {
+      isVerifyingRef.current = false;
+      if (isMountedRef.current) {
+        setIsVerifying(false);
+      }
+    }
+  };
+
+  const applyPastedOrAutofilledDigits = (raw: string) => {
+    const cleaned = extractOtpDigits(raw);
+    if (!cleaned) return false;
+    const six = cleaned.slice(0, 6).split('');
+    const next = ['', '', '', '', '', ''];
+    for (let i = 0; i < six.length; i++) next[i] = six[i];
+    setOtpDigits(next);
+    setError(null);
+    if (six.length === 6) {
+      handleVerifyOtp(six.join(''));
+    } else {
+      digitInputRefs.current[Math.min(six.length, 5)]?.focus();
+    }
+    return true;
   };
 
   const handleDigitChange = (index: number, val: string) => {
@@ -146,22 +248,14 @@ export const UpdateMobileSubPage: React.FC<UpdateMobileSubPageProps> = ({
     }
 
     if (cleaned.length > 1) {
-      // Pasted full code
-      const six = cleaned.slice(0, 6).split('');
-      const next = ['', '', '', '', '', ''];
-      for (let i = 0; i < six.length; i++) next[i] = six[i];
-      setOtpDigits(next);
-      if (six.length === 6) {
-        handleVerifyOtp(cleaned.slice(0, 6));
-      } else {
-        digitInputRefs.current[Math.min(six.length, 5)]?.focus();
-      }
+      applyPastedOrAutofilledDigits(cleaned);
       return;
     }
 
     const next = [...otpDigits];
     next[index] = cleaned;
     setOtpDigits(next);
+    setError(null);
 
     if (index < 5) {
       digitInputRefs.current[index + 1]?.focus();
@@ -171,6 +265,15 @@ export const UpdateMobileSubPage: React.FC<UpdateMobileSubPageProps> = ({
       if (full.every((d) => d.length === 1)) {
         handleVerifyOtp(full.join(''));
       }
+    }
+  };
+
+  const handleDigitPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData?.getData('text') || '';
+    const digits = extractOtpDigits(pasted);
+    if (digits.length >= 2) {
+      e.preventDefault();
+      applyPastedOrAutofilledDigits(digits);
     }
   };
 
@@ -279,7 +382,10 @@ export const UpdateMobileSubPage: React.FC<UpdateMobileSubPageProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      clearPendingPhoneOtpSession();
+                      resetRecaptchaVerifier('recaptcha-container');
                       setIsOtpSent(false);
+                      setTimer(0);
                       setOtpDigits(['', '', '', '', '', '']);
                       setError(null);
                     }}
@@ -297,9 +403,11 @@ export const UpdateMobileSubPage: React.FC<UpdateMobileSubPageProps> = ({
                       ref={(el) => { digitInputRefs.current[idx] = el; }}
                       type="text"
                       inputMode="numeric"
-                      maxLength={1}
+                      autoComplete={idx === 0 ? 'one-time-code' : 'off'}
+                      maxLength={idx === 0 ? 6 : 1}
                       value={digit}
                       onChange={(e) => handleDigitChange(idx, e.target.value)}
+                      onPaste={handleDigitPaste}
                       onKeyDown={(e) => handleKeyDown(idx, e)}
                       aria-label={`OTP digit ${idx + 1}`}
                       className="w-full h-11 sm:h-12 text-center text-base sm:text-lg font-black tabular-nums rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white shadow-2xs"

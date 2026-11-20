@@ -238,3 +238,137 @@ export function isRecaptchaAlreadyRenderedError(err: unknown): boolean {
     msg.includes('recaptcha-already-rendered')
   );
 }
+
+export interface ParsedIndianMobile {
+  valid: boolean;
+  clean10: string;
+  e164: string;
+  error?: string;
+}
+
+/**
+ * Strictly parses and validates an Indian mobile number.
+ * Accepts 10 digits ([6-9]XXXXXXXXX), 11 digits with leading 0, or 12 digits with 91/+91.
+ * Rejects overlong numbers (e.g. 13+ digits) and non-Indian prefixes instead of silently
+ * truncating to a different user's phone number.
+ */
+export function parseIndianMobileNumber(raw: string): ParsedIndianMobile {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) {
+    return {
+      valid: false,
+      clean10: '',
+      e164: '',
+      error: 'Please enter your 10-digit mobile number.',
+    };
+  }
+
+  // Reject strings containing letters (e.g. emails or malformed input)
+  if (/[a-zA-Z@]/.test(trimmed)) {
+    return {
+      valid: false,
+      clean10: '',
+      e164: '',
+      error: 'Please enter a valid 10-digit Indian mobile number.',
+    };
+  }
+
+  const digits = trimmed.replace(/\D/g, '');
+  let clean10 = '';
+
+  if (digits.length === 10) {
+    clean10 = digits;
+  } else if (digits.length === 11 && digits.startsWith('0')) {
+    clean10 = digits.slice(1);
+  } else if (digits.length === 12 && digits.startsWith('91')) {
+    clean10 = digits.slice(2);
+  } else {
+    return {
+      valid: false,
+      clean10: '',
+      e164: '',
+      error: 'Please enter a valid 10-digit Indian mobile number.',
+    };
+  }
+
+  if (!/^[6-9]\d{9}$/.test(clean10)) {
+    return {
+      valid: false,
+      clean10: '',
+      e164: '',
+      error: 'Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.',
+    };
+  }
+
+  return {
+    valid: true,
+    clean10,
+    e164: `+91${clean10}`,
+  };
+}
+
+/**
+ * Returns true if an active OTP session must be invalidated because the user edited
+ * the login identifier away from the phone number the OTP was originally sent to.
+ */
+export function shouldResetOtpSessionOnIdentifierChange(params: {
+  otpSent: boolean;
+  sentToPhone: string;
+  nextIdentifier: string;
+}): boolean {
+  if (!params.otpSent) return false;
+  const sentClean10 = String(params.sentToPhone || '').replace(/\D/g, '').slice(-10);
+  const nextParsed = parseIndianMobileNumber(params.nextIdentifier);
+  if (!nextParsed.valid || !sentClean10) {
+    return true;
+  }
+  return nextParsed.clean10 !== sentClean10;
+}
+
+/**
+ * Determines whether a persisted pending OTP session (from localStorage or native
+ * SharedPreferences) should be restored into LoginPage UI.
+ * Prevents background window.focus events from clobbering active verification,
+ * overriding a different identifier the user typed, or leaking profile-update OTPs.
+ */
+export function shouldRestorePendingOtpSession(params: {
+  authStep: string;
+  hasCompletedAuth: boolean;
+  isBusy: boolean;
+  currentIdentifier: string;
+  pendingPhone: string;
+  pendingPurpose?: 'login' | 'profile_update';
+}): boolean {
+  if (params.authStep !== 'primary') return false;
+  if (params.hasCompletedAuth || params.isBusy) return false;
+  if (params.pendingPurpose === 'profile_update') return false;
+
+  const pendingParsed = parseIndianMobileNumber(params.pendingPhone);
+  if (!pendingParsed.valid) return false;
+
+  const trimmedCurrent = String(params.currentIdentifier || '').trim();
+  if (!trimmedCurrent) {
+    return true;
+  }
+
+  // Never hijack if the user has started typing an email or a different phone number
+  if (trimmedCurrent.includes('@')) {
+    return false;
+  }
+  const currentParsed = parseIndianMobileNumber(trimmedCurrent);
+  if (!currentParsed.valid) {
+    return false;
+  }
+  return currentParsed.clean10 === pendingParsed.clean10;
+}
+
+export function isExpiredOtpErrorCode(code: string): boolean {
+  const c = String(code || '').toLowerCase();
+  return c === 'auth/code-expired' || c === 'auth/session-expired';
+}
+
+export function isRateLimitErrorCode(code: string): boolean {
+  const c = String(code || '').toLowerCase();
+  return c === 'auth/too-many-requests' || c === 'auth/quota-exceeded';
+}
+

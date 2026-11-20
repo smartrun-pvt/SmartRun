@@ -55,6 +55,9 @@ const __dirnameResolved = typeof __dirname !== "undefined" ? __dirname : path.di
 let serverFirebaseApp: any = null;
 let serverFirestore: any = null;
 let serverFirebaseProjectId: string = "";
+let serverFirebaseApiKey: string = String(
+  process.env.FIREBASE_WEB_API_KEY || process.env.VITE_FIREBASE_API_KEY || ""
+).trim();
 
 try {
   const possiblePaths = [
@@ -67,6 +70,9 @@ try {
   if (firebaseConfigPath) {
     const configData = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf-8"));
     serverFirebaseProjectId = String(configData.projectId || "").trim();
+    if (!serverFirebaseApiKey && configData.apiKey) {
+      serverFirebaseApiKey = String(configData.apiKey).trim();
+    }
     serverFirebaseApp = !getFirebaseApps().length ? initFirebaseApp(configData) : getFirebaseApp();
     if (configData.firestoreDatabaseId) {
       serverFirestore = getServerFirestore(serverFirebaseApp, configData.firestoreDatabaseId);
@@ -79,6 +85,55 @@ try {
   }
 } catch (fbErr: any) {
   console.warn("[Firebase Backend] Initialization warning:", fbErr?.message || fbErr);
+}
+
+/**
+ * Verifies a Firebase Auth ID token via Google Identity Toolkit REST (`accounts:lookup`)
+ * and confirms the authenticated Firebase user owns `expectedClean10`.
+ */
+async function verifyFirebasePhoneIdToken(
+  idToken: string,
+  expectedClean10: string
+): Promise<{ valid: boolean; firebaseUid?: string; phoneNumber?: string; error?: string }> {
+  const tokenStr = String(idToken || "").trim();
+  if (!tokenStr) {
+    return { valid: false, error: "Missing Firebase ID token." };
+  }
+  if (!serverFirebaseApiKey) {
+    return { valid: false, error: "Firebase API key is not configured on the server." };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const resp = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(serverFirebaseApiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: tokenStr }),
+        signal: controller.signal
+      }
+    );
+    const data: any = await resp.json().catch(() => null);
+    if (!resp.ok || !Array.isArray(data?.users) || data.users.length === 0) {
+      return { valid: false, error: data?.error?.message || "Invalid or expired Firebase ID token." };
+    }
+    const fbUser = data.users[0];
+    const fbPhoneClean10 = String(fbUser?.phoneNumber || "").replace(/\D/g, "").slice(-10);
+    if (!fbPhoneClean10 || fbPhoneClean10 !== expectedClean10) {
+      return { valid: false, error: "Firebase token phone number does not match requested phone number." };
+    }
+    return {
+      valid: true,
+      firebaseUid: String(fbUser?.localId || ""),
+      phoneNumber: String(fbUser?.phoneNumber || "")
+    };
+  } catch (err: any) {
+    return { valid: false, error: err?.message || "Failed to verify Firebase ID token." };
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 // Server-authoritative helper to sync user profile to Firebase Firestore in backend
@@ -1850,6 +1905,20 @@ const smsOtpLimiter = rateLimit({
   message: {
     success: false,
     error: "Too many SMS requests from this network. Please wait a few minutes before trying again."
+  }
+});
+
+// otpVerifyLimiter: 20 OTP verification attempts per 10 minutes per IP to block automated brute-force guessing
+const otpVerifyLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false, forwardedHeader: false, default: false },
+  keyGenerator: getClientIp,
+  message: {
+    success: false,
+    error: "Too many OTP verification attempts from this network. Please wait a few minutes before trying again."
   }
 });
 
@@ -8201,6 +8270,23 @@ Knowledge Base & Service Details:
     }
   });
 
+  // Per-phone / per-token OTP verification attempt cap & consumed HMAC token replay guard
+  const otpVerifyFailureTracker = new Map<string, { attempts: number; resetAt: number }>();
+  const consumedOtpTokens = new Map<string, number>();
+
+  const pruneOtpVerifyGuards = (now: number) => {
+    if (otpVerifyFailureTracker.size > 500) {
+      for (const [key, val] of otpVerifyFailureTracker.entries()) {
+        if (val.resetAt <= now) otpVerifyFailureTracker.delete(key);
+      }
+    }
+    if (consumedOtpTokens.size > 500) {
+      for (const [key, exp] of consumedOtpTokens.entries()) {
+        if (exp <= now) consumedOtpTokens.delete(key);
+      }
+    }
+  };
+
   /**
    * Fast Pan-India DLT SMS OTP Dispatch Endpoint (Fast2SMS Dev API bulkV2)
    * Dispatches real transactional OTP SMS in 2-5 seconds across ALL 22 Indian telecom circles
@@ -8329,6 +8415,7 @@ Knowledge Base & Service Details:
         attempts: 0,
         phone: cleanPhone
       });
+      otpVerifyFailureTracker.delete(`ph:${cleanPhone}`);
 
       // Log verification dispatch to Firebase Firestore on backend (non-blocking)
       if (serverFirestore) {
@@ -8372,23 +8459,61 @@ Knowledge Base & Service Details:
    * POST /api/auth/verify-phone-otp
    * Request Body: { phone: "9876543210", otp: "123456", token?: "...", fullName?: "..." }
    */
-  app.post("/api/auth/verify-phone-otp", async (req, res) => {
+  app.post("/api/auth/verify-phone-otp", otpVerifyLimiter, async (req, res) => {
     try {
       const { phone, otp, token, fullName } = req.body || {};
       const cleanPhone = String(phone || "").replace(/\D/g, "").slice(-10);
-      const cleanOtp = String(otp || "").trim();
+      const cleanOtp = String(otp || "").replace(/\D/g, "").trim();
 
-      if (!cleanPhone || cleanPhone.length !== 10) {
+      if (!cleanPhone || cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
         return res.status(400).json({ success: false, error: "Invalid phone number." });
       }
       if (!cleanOtp || cleanOtp.length !== 6) {
         return res.status(400).json({ success: false, error: "Please enter a valid 6-digit OTP." });
       }
 
+      const now = Date.now();
+      pruneOtpVerifyGuards(now);
+
+      const tokenStr = typeof token === "string" ? token.trim() : "";
+      const tokenHashKey = tokenStr
+        ? `tok:${crypto.createHash("sha256").update(tokenStr).digest("hex").slice(0, 24)}`
+        : "";
+      const phoneFailKey = `ph:${cleanPhone}`;
+
+      // Reject immediately if this HMAC token was already consumed (prevents replay attacks)
+      if (tokenHashKey) {
+        const consumedExp = consumedOtpTokens.get(tokenHashKey);
+        if (consumedExp && consumedExp > now) {
+          return res.status(400).json({
+            success: false,
+            expired: true,
+            error: "This verification code has already been used. Please request a new OTP."
+          });
+        }
+      }
+
+      // Enforce 5-attempt cap BEFORE checking HMAC or store to defeat brute-force guessing
+      const phoneFailures = otpVerifyFailureTracker.get(phoneFailKey);
+      const tokenFailures = tokenHashKey ? otpVerifyFailureTracker.get(tokenHashKey) : undefined;
+      if (
+        (phoneFailures && phoneFailures.resetAt > now && phoneFailures.attempts >= 5) ||
+        (tokenFailures && tokenFailures.resetAt > now && tokenFailures.attempts >= 5)
+      ) {
+        serverPhoneOtpStore.delete(cleanPhone);
+        return res.status(429).json({
+          success: false,
+          expired: true,
+          error: "Too many incorrect OTP attempts. Please request a fresh verification code."
+        });
+      }
+
       const secrets = [
         (process.env.SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || SERVER_AUTH_SECRET).slice(0, 32),
       ].filter(Boolean);
       let isCodeValid = false;
+      let isCodeExpired = false;
+      let matchedTokenExpiresAt = 0;
 
       // 1. Check test OTP codes (strictly restricted: only allowed in non-production on dedicated virtual sandbox number 9999900000)
       const isNonProd = process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "prod";
@@ -8396,45 +8521,93 @@ Knowledge Base & Service Details:
         isCodeValid = true;
       }
 
-      // 2. Check cryptographic HMAC token
-      if (!isCodeValid && token && typeof token === "string" && token.includes(".")) {
-        const [expiresAtStr, sig] = token.split(".");
-        const expiresAt = Number(expiresAtStr);
-        if (!isNaN(expiresAt) && Date.now() <= expiresAt) {
-          for (const sec of secrets) {
-            const expectedSig = crypto
-              .createHmac("sha256", sec)
-              .update(`${cleanPhone}:${cleanOtp}:${expiresAt}`)
-              .digest("hex");
-            if (expectedSig === sig) {
-              isCodeValid = true;
-              break;
+      // 2. Check cryptographic HMAC token with constant-time comparison
+      if (!isCodeValid && tokenStr && tokenStr.includes(".")) {
+        const parts = tokenStr.split(".");
+        const expiresAt = Number(parts[0]);
+        const sig = parts[1] || "";
+        if (!isNaN(expiresAt) && expiresAt > 0) {
+          if (now > expiresAt) {
+            isCodeExpired = true;
+          } else if (sig && /^[a-f0-9]{64}$/i.test(sig)) {
+            const sigBuf = Buffer.from(sig.toLowerCase(), "hex");
+            for (const sec of secrets) {
+              const expectedBuf = crypto
+                .createHmac("sha256", sec)
+                .update(`${cleanPhone}:${cleanOtp}:${expiresAt}`)
+                .digest();
+              if (sigBuf.length === expectedBuf.length && crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+                isCodeValid = true;
+                matchedTokenExpiresAt = expiresAt;
+                break;
+              }
             }
           }
         }
       }
 
-      // 3. Check server store
+      // 3. Check server in-memory OTP store
       if (!isCodeValid) {
         const entry = serverPhoneOtpStore.get(cleanPhone);
-        if (entry && entry.expiresAt >= Date.now()) {
-          entry.attempts += 1;
-          if (entry.attempts <= 5 && entry.otp === cleanOtp) {
-            isCodeValid = true;
+        if (entry) {
+          if (entry.expiresAt < now) {
+            isCodeExpired = true;
             serverPhoneOtpStore.delete(cleanPhone);
+          } else {
+            entry.attempts += 1;
+            const entryBuf = Buffer.from(String(entry.otp), "utf-8");
+            const inputBuf = Buffer.from(cleanOtp, "utf-8");
+            if (
+              entry.attempts <= 5 &&
+              entryBuf.length === inputBuf.length &&
+              crypto.timingSafeEqual(entryBuf, inputBuf)
+            ) {
+              isCodeValid = true;
+              serverPhoneOtpStore.delete(cleanPhone);
+            } else if (entry.attempts >= 5) {
+              isCodeExpired = true;
+              serverPhoneOtpStore.delete(cleanPhone);
+            }
           }
         }
       }
 
       if (!isCodeValid) {
-        return res.status(400).json({
+        const windowResetAt = now + 10 * 60 * 1000;
+        const nextPhoneAttempts = (phoneFailures && phoneFailures.resetAt > now ? phoneFailures.attempts : 0) + 1;
+        otpVerifyFailureTracker.set(phoneFailKey, {
+          attempts: nextPhoneAttempts,
+          resetAt: phoneFailures && phoneFailures.resetAt > now ? phoneFailures.resetAt : windowResetAt
+        });
+        if (tokenHashKey) {
+          const nextTokenAttempts = (tokenFailures && tokenFailures.resetAt > now ? tokenFailures.attempts : 0) + 1;
+          otpVerifyFailureTracker.set(tokenHashKey, {
+            attempts: nextTokenAttempts,
+            resetAt: tokenFailures && tokenFailures.resetAt > now ? tokenFailures.resetAt : windowResetAt
+          });
+        }
+        const nowLocked = nextPhoneAttempts >= 5;
+        if (nowLocked) {
+          serverPhoneOtpStore.delete(cleanPhone);
+        }
+        return res.status(nowLocked ? 429 : 400).json({
           success: false,
-          error: "Invalid or expired verification code. Please check the code and try again."
+          expired: isCodeExpired || nowLocked,
+          error: nowLocked
+            ? "Too many incorrect OTP attempts. Please request a fresh verification code."
+            : isCodeExpired
+              ? "This verification code has expired. Please tap Resend OTP for a new code."
+              : "Invalid or expired verification code. Please check the code and try again."
         });
       }
 
-      // Validated! Remove from in-memory store
+      // Validated! Clear failure tracking, remove from in-memory store, and mark token consumed
       serverPhoneOtpStore.delete(cleanPhone);
+      otpVerifyFailureTracker.delete(phoneFailKey);
+      if (tokenHashKey) {
+        otpVerifyFailureTracker.delete(tokenHashKey);
+        consumedOtpTokens.set(tokenHashKey, matchedTokenExpiresAt || now + 10 * 60 * 1000);
+      }
 
       // Pre-resolve existing user account or create clean user profile
       const existing = await resolvePhoneUser(cleanPhone);
@@ -8950,10 +9123,29 @@ Knowledge Base & Service Details:
   app.post("/api/auth/phone-login-session", phoneResolveLimiter, async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     try {
-      const { phone, fullName, preResolvedUserId } = req.body || {};
+      const { phone, fullName, preResolvedUserId, firebaseIdToken } = req.body || {};
       const cleanPhone = String(phone || "").replace(/\D/g, "").slice(-10);
-      if (!cleanPhone || cleanPhone.length !== 10) {
+      if (!cleanPhone || cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
         return res.status(400).json({ success: false, error: "Invalid 10-digit mobile number." });
+      }
+
+      // Require verified proof of phone ownership: either a valid server OTP session cookie/token
+      // for this exact phone number OR a valid Firebase Auth ID token for this phone number.
+      const existingSession = extractServerSession(req);
+      const sessionPhone10 = String(existingSession?.session?.phone || "").replace(/\D/g, "").slice(-10);
+      const hasValidServerSession = Boolean(existingSession?.valid && sessionPhone10 === cleanPhone);
+
+      let hasValidFirebaseProof = false;
+      if (!hasValidServerSession && typeof firebaseIdToken === "string" && firebaseIdToken.trim()) {
+        const fbProof = await verifyFirebasePhoneIdToken(firebaseIdToken, cleanPhone);
+        hasValidFirebaseProof = fbProof.valid;
+      }
+
+      if (!hasValidServerSession && !hasValidFirebaseProof) {
+        return res.status(401).json({
+          success: false,
+          error: "Phone verification proof is missing or expired. Please verify your OTP again."
+        });
       }
 
       const formattedE164 = `+91${cleanPhone}`;
@@ -8966,11 +9158,15 @@ Knowledge Base & Service Details:
       const effectiveUserId = preResolvedUserId || existing?.user_id || `uid_${cleanPhone}`;
       const resolvedName = existing?.full_name || existing?.name || fullName || "Customer";
       const resolvedEmail = existing?.email && !existing.email.includes("@girirajpower.internal") ? existing.email : "";
+      const isUserAdmin = Boolean(
+        (resolvedEmail && ADMIN_EMAILS.includes(resolvedEmail.toLowerCase())) || cleanPhone === "8777400280"
+      );
+      const userRole = isUserAdmin ? "admin" : "customer";
 
       if (sb?.auth?.admin) {
         try {
           // Attempt to create canonical user with confirmed email
-          const { data: createData, error: createErr } = await sb.auth.admin.createUser({
+          const { error: createErr } = await sb.auth.admin.createUser({
             email: canonicalEmail,
             password: deterministicPassword,
             email_confirm: true,
@@ -8984,12 +9180,21 @@ Knowledge Base & Service Details:
             }
           });
 
-          // If user already exists in Supabase Auth, update their password and metadata
+          // If canonical phone user already exists in Supabase Auth, locate ONLY that exact
+          // canonical internal email across paginated listUsers() pages (never overwrite a real
+          // email/Google user's password).
           if (createErr) {
-            const { data: listRes } = await sb.auth.admin.listUsers();
-            const existingAuthUser = listRes?.users?.find(
-              (u: any) => u.email === canonicalEmail || (u.phone && u.phone.includes(cleanPhone))
-            );
+            let existingAuthUser: any = null;
+            for (let page = 1; page <= 10; page++) {
+              const { data: listRes } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
+              const users = listRes?.users || [];
+              existingAuthUser = users.find(
+                (u: any) => String(u?.email || "").trim().toLowerCase() === canonicalEmail
+              );
+              if (existingAuthUser || users.length < 1000) {
+                break;
+              }
+            }
             if (existingAuthUser) {
               await sb.auth.admin.updateUserById(existingAuthUser.id, {
                 password: deterministicPassword,
@@ -9025,12 +9230,32 @@ Knowledge Base & Service Details:
         } catch {}
       }
 
+      if (serverFirestore) {
+        syncUserToBackendFirestore(effectiveUserId, {
+          phone: formattedE164,
+          name: resolvedName,
+          full_name: resolvedName,
+          email: resolvedEmail || ""
+        }).catch(() => {});
+      }
+
+      // Mint and attach server-authoritative session token & httpOnly cookie
+      const sessionToken = createServerSessionToken({
+        uid: effectiveUserId,
+        phone: formattedE164,
+        email: resolvedEmail || null,
+        name: resolvedName,
+        role: userRole
+      });
+      setServerSessionCookie(req, res, sessionToken);
+
       return res.json({
         success: true,
         email: canonicalEmail,
         effectiveUserId,
         resolvedName,
         resolvedEmail,
+        sessionToken,
         profile: existing || null
       });
     } catch (err: any) {

@@ -53,7 +53,12 @@ import {
   stopNativeSmsOtpAutofill,
   subscribeNativeSmsOtpAutofill
 } from '../utils/otpAutofill';
-import { shouldArmNativeSmsConsent } from '../utils/firebaseAuthDomain';
+import {
+  shouldArmNativeSmsConsent,
+  parseIndianMobileNumber,
+  shouldResetOtpSessionOnIdentifierChange,
+  shouldRestorePendingOtpSession
+} from '../utils/firebaseAuthDomain';
 
 interface LoginPageProps {
   onAuthSuccess: (phone: string, name: string, email?: string, userObj?: any, options?: { isNewRegistration?: boolean }) => void;
@@ -178,6 +183,9 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
   const [termsAgreed, setTermsAgreed] = useState<boolean>(() => isTermsAgreedSaved());
 
   const secondInputRef = useRef<HTMLInputElement>(null);
+  const identifierRef = useRef(identifier);
+  identifierRef.current = identifier;
+  const isSendingOtpRef = useRef(false);
   const isVerifyingOtpRef = useRef(false);
   const hasCompletedPhoneAuthRef = useRef(false);
   const isManualPasskeyActiveRef = useRef(false);
@@ -376,14 +384,24 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
   // from Firebase RecaptchaActivity / Chrome Custom Tab with an already-dispatched OTP SMS.
   useEffect(() => {
     const restorePendingSession = () => {
-      if (authStep !== 'primary' || hasCompletedPhoneAuthRef.current) return;
       const pending = getPendingPhoneOtpSession();
       if (!pending || !pending.phone) return;
-      const clean10 = pending.phone.replace(/\D/g, '').slice(-10);
-      if (clean10.length !== 10) return;
 
-      setIdentifier((prev) => (prev.trim() ? prev : clean10));
-      setSentToPhone(pending.phone);
+      const shouldRestore = shouldRestorePendingOtpSession({
+        authStep,
+        hasCompletedAuth: hasCompletedPhoneAuthRef.current,
+        isBusy: isSendingOtpRef.current || isVerifyingOtpRef.current,
+        currentIdentifier: identifierRef.current,
+        pendingPhone: pending.phone,
+        pendingPurpose: pending.purpose
+      });
+      if (!shouldRestore) return;
+
+      const parsedPending = parseIndianMobileNumber(pending.phone);
+      if (!parsedPending.valid) return;
+
+      setIdentifier((prev) => (prev.trim() ? prev : parsedPending.clean10));
+      setSentToPhone(parsedPending.e164);
       setOtpProvider(pending.provider);
       setOtpSent(true);
       setShowSecondField(true);
@@ -782,26 +800,28 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
 
   // --- 2. SEND PHONE OTP ---
   const handleSendPhoneOtp = async () => {
+    if (isSendingOtpRef.current) return;
     resetMessages();
-    let rawDigits = identifier.replace(/[^0-9]/g, '');
-    if (rawDigits.length === 11 && rawDigits.startsWith('0')) {
-      rawDigits = rawDigits.slice(1);
-    }
-    const clean10 = rawDigits.slice(-10);
 
-    if (clean10.length !== 10) {
-      setError('Please enter a valid 10-digit mobile number.');
+    const parsedPhone = parseIndianMobileNumber(identifier);
+    if (!parsedPhone.valid) {
+      setError(parsedPhone.error || 'Please enter a valid 10-digit Indian mobile number.');
       return;
     }
+    const clean10 = parsedPhone.clean10;
 
     hasCompletedPhoneAuthRef.current = false;
     isVerifyingOtpRef.current = false;
+    isSendingOtpRef.current = true;
     setIsLoading(true);
     setIsWaitingOtp(true);
     setOtpAttemptId((prev) => prev + 1);
 
+    let keepLoadingForAutoVerify = false;
+
     try {
       const res = await sendFirebasePhoneOtp(clean10, 'recaptcha-container', {
+        purpose: 'login',
         onAutoFillOtp: (autoCode) => {
           if (hasCompletedPhoneAuthRef.current) return;
           setShowSecondField(true);
@@ -814,6 +834,9 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
           setIsLoading(true);
           try {
             await completeVerifiedPhoneLogin(nativeResult, clean10);
+          } catch (nativeErr: unknown) {
+            const msg = nativeErr instanceof Error ? nativeErr.message : 'Automatic OTP verification failed. Please try again.';
+            setError(msg);
           } finally {
             isVerifyingOtpRef.current = false;
             setIsLoading(false);
@@ -830,6 +853,9 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
         setSentToPhone(phone);
         setOtpProvider(res.provider || 'firebase');
         setOtpCooldown(60);
+        if (isVerifyingOtpRef.current && !hasCompletedPhoneAuthRef.current) {
+          keepLoadingForAutoVerify = true;
+        }
       } else {
         const phone = res.formattedPhone || formatToE164Phone(clean10);
         setSentToPhone(phone);
@@ -846,7 +872,10 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
       const msg = err instanceof Error ? err.message : 'Failed to send OTP.';
       setError(msg);
     } finally {
-      setIsLoading(false);
+      isSendingOtpRef.current = false;
+      if (!keepLoadingForAutoVerify) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -1465,6 +1494,17 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
           navigate(getPostAuthRedirect(), { replace: true });
         }}
         onBack={() => {
+          hasCompletedPhoneAuthRef.current = false;
+          isVerifyingOtpRef.current = false;
+          clearPendingPhoneOtpSession();
+          stopNativeSmsOtpAutofill();
+          setOtpSent(false);
+          setShowSecondField(false);
+          setOtpCode('');
+          setSentToPhone('');
+          setOtpProvider(null);
+          setOtpCooldown(0);
+          setIsWaitingOtp(false);
           setAuthStep('primary');
           resetMessages();
         }}
@@ -1618,10 +1658,23 @@ export const LoginPage = ({ onAuthSuccess }: LoginPageProps) => {
                       }
                       setIdentifier(val);
                       resetMessages();
-                      if (otpSent && !isPhoneInput(val)) {
+                      if (
+                        shouldResetOtpSessionOnIdentifierChange({
+                          otpSent,
+                          sentToPhone,
+                          nextIdentifier: val
+                        })
+                      ) {
                         cancelScheduledAutoVerify();
+                        stopNativeSmsOtpAutofill();
+                        clearPendingPhoneOtpSession();
                         setOtpSent(false);
                         setShowSecondField(false);
+                        setOtpCode('');
+                        setSentToPhone('');
+                        setOtpProvider(null);
+                        setOtpCooldown(0);
+                        setIsWaitingOtp(false);
                       }
                       if (!isPhoneInput(val) && val.includes('@')) {
                         setShowSecondField(true);

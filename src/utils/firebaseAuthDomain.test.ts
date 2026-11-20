@@ -9,6 +9,11 @@ import {
   shouldArmNativeSmsConsent,
   buildRecaptchaSlotId,
   isRecaptchaAlreadyRenderedError,
+  parseIndianMobileNumber,
+  shouldResetOtpSessionOnIdentifierChange,
+  shouldRestorePendingOtpSession,
+  isExpiredOtpErrorCode,
+  isRateLimitErrorCode,
 } from './firebaseAuthDomain';
 
 describe('firebaseAuthDomain helpers', () => {
@@ -196,5 +201,127 @@ describe('firebaseAuthDomain helpers', () => {
     expect(
       isRecaptchaAlreadyRenderedError(new Error('auth/too-many-requests'))
     ).toBe(false);
+  });
+
+  it('strictly parses Indian mobile numbers and rejects overlong or invalid prefixes', () => {
+    expect(parseIndianMobileNumber('9876543210')).toEqual({
+      valid: true,
+      clean10: '9876543210',
+      e164: '+919876543210',
+    });
+    expect(parseIndianMobileNumber('09876543210').e164).toBe('+919876543210');
+    expect(parseIndianMobileNumber('+91 98765-43210').e164).toBe('+919876543210');
+
+    // Must reject 13-digit input instead of silently slicing last 10 digits
+    expect(parseIndianMobileNumber('9876543210123').valid).toBe(false);
+    // Must reject invalid Indian mobile starting digit (1-5)
+    expect(parseIndianMobileNumber('1234567890').valid).toBe(false);
+    expect(parseIndianMobileNumber('5123456789').valid).toBe(false);
+    // Must reject emails
+    expect(parseIndianMobileNumber('user9876543210@example.com').valid).toBe(false);
+  });
+
+  it('resets active OTP session when user edits phone number away from sentToPhone', () => {
+    expect(
+      shouldResetOtpSessionOnIdentifierChange({
+        otpSent: true,
+        sentToPhone: '+919876543210',
+        nextIdentifier: '9876543210',
+      })
+    ).toBe(false);
+
+    expect(
+      shouldResetOtpSessionOnIdentifierChange({
+        otpSent: true,
+        sentToPhone: '+919876543210',
+        nextIdentifier: '9876543211',
+      })
+    ).toBe(true);
+
+    expect(
+      shouldResetOtpSessionOnIdentifierChange({
+        otpSent: true,
+        sentToPhone: '+919876543210',
+        nextIdentifier: '987654321',
+      })
+    ).toBe(true);
+
+    expect(
+      shouldResetOtpSessionOnIdentifierChange({
+        otpSent: false,
+        sentToPhone: '+919876543210',
+        nextIdentifier: '9876543211',
+      })
+    ).toBe(false);
+  });
+
+  it('guards pending OTP restoration against active requests, different identifiers, and profile_update OTPs', () => {
+    expect(
+      shouldRestorePendingOtpSession({
+        authStep: 'primary',
+        hasCompletedAuth: false,
+        isBusy: false,
+        currentIdentifier: '',
+        pendingPhone: '+919876543210',
+        pendingPurpose: 'login',
+      })
+    ).toBe(true);
+
+    // Must NOT clobber mid-send or mid-verify
+    expect(
+      shouldRestorePendingOtpSession({
+        authStep: 'primary',
+        hasCompletedAuth: false,
+        isBusy: true,
+        currentIdentifier: '9876543210',
+        pendingPhone: '+919876543210',
+        pendingPurpose: 'login',
+      })
+    ).toBe(false);
+
+    // Must NOT leak profile_update OTP into LoginPage
+    expect(
+      shouldRestorePendingOtpSession({
+        authStep: 'primary',
+        hasCompletedAuth: false,
+        isBusy: false,
+        currentIdentifier: '',
+        pendingPhone: '+919876543210',
+        pendingPurpose: 'profile_update',
+      })
+    ).toBe(false);
+
+    // Must NOT hijack when user typed an email or another number
+    expect(
+      shouldRestorePendingOtpSession({
+        authStep: 'primary',
+        hasCompletedAuth: false,
+        isBusy: false,
+        currentIdentifier: 'alice@smartrun.in',
+        pendingPhone: '+919876543210',
+        pendingPurpose: 'login',
+      })
+    ).toBe(false);
+
+    expect(
+      shouldRestorePendingOtpSession({
+        authStep: 'primary',
+        hasCompletedAuth: false,
+        isBusy: false,
+        currentIdentifier: '9123456789',
+        pendingPhone: '+919876543210',
+        pendingPurpose: 'login',
+      })
+    ).toBe(false);
+  });
+
+  it('identifies expired OTP and rate-limit Firebase error codes', () => {
+    expect(isExpiredOtpErrorCode('auth/code-expired')).toBe(true);
+    expect(isExpiredOtpErrorCode('auth/session-expired')).toBe(true);
+    expect(isExpiredOtpErrorCode('auth/invalid-verification-code')).toBe(false);
+
+    expect(isRateLimitErrorCode('auth/too-many-requests')).toBe(true);
+    expect(isRateLimitErrorCode('auth/quota-exceeded')).toBe(true);
+    expect(isRateLimitErrorCode('auth/network-request-failed')).toBe(false);
   });
 });
