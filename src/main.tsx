@@ -17,6 +17,11 @@ registerSmartRunWebMcpTools();
 // Register Service Worker for offline resilience and product image caching
 registerServiceWorker();
 
+// Signal to index.html boot watchdog that the React bundle loaded and mounted cleanly
+if (typeof window !== 'undefined') {
+  (window as any).__SMARTRUN_APP_MOUNTED__ = true;
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>

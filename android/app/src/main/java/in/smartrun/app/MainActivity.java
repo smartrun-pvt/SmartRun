@@ -17,6 +17,8 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -255,34 +257,54 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    private String extractSixDigitOtp(String rawMessage) {
+    @NonNull
+    private String extractSixDigitOtp(@Nullable String rawMessage) {
         if (rawMessage == null) return "";
-        String text = rawMessage.trim();
+        final String text = rawMessage.trim();
         if (text.isEmpty()) return "";
 
-        Matcher hashMatcher = OTP_HASH_PATTERN.matcher(text);
-        if (hashMatcher.find()) return hashMatcher.group(1);
+        try {
+            Matcher hashMatcher = OTP_HASH_PATTERN.matcher(text);
+            if (hashMatcher.find()) {
+                String code = hashMatcher.group(1);
+                if (code != null && !code.isEmpty()) return code;
+            }
 
-        Matcher keywordMatcher = OTP_KEYWORD_PATTERN.matcher(text);
-        if (keywordMatcher.find()) return keywordMatcher.group(1);
+            Matcher keywordMatcher = OTP_KEYWORD_PATTERN.matcher(text);
+            if (keywordMatcher.find()) {
+                String code = keywordMatcher.group(1);
+                if (code != null && !code.isEmpty()) return code;
+            }
 
-        Matcher googleMatcher = OTP_GOOGLE_PATTERN.matcher(text);
-        if (googleMatcher.find()) return googleMatcher.group(1);
+            Matcher googleMatcher = OTP_GOOGLE_PATTERN.matcher(text);
+            if (googleMatcher.find()) {
+                String code = googleMatcher.group(1);
+                if (code != null && !code.isEmpty()) return code;
+            }
 
-        Matcher isolatedMatcher = OTP_ISOLATED_PATTERN.matcher(text);
-        if (isolatedMatcher.find()) return isolatedMatcher.group(1);
+            Matcher isolatedMatcher = OTP_ISOLATED_PATTERN.matcher(text);
+            if (isolatedMatcher.find()) {
+                String code = isolatedMatcher.group(1);
+                if (code != null && !code.isEmpty()) return code;
+            }
 
-        Matcher splitMatcher = OTP_SPLIT_PATTERN.matcher(text);
-        if (splitMatcher.find()) return splitMatcher.group(1) + splitMatcher.group(2);
+            Matcher splitMatcher = OTP_SPLIT_PATTERN.matcher(text);
+            if (splitMatcher.find()) {
+                String part1 = splitMatcher.group(1);
+                String part2 = splitMatcher.group(2);
+                if (part1 != null && part2 != null) return part1 + part2;
+            }
+        } catch (Throwable ignored) {}
 
         return "";
     }
 
-    private void dispatchSmsOtpToWebView(String rawMessage) {
-        if (isFinishing() || isDestroyed() || getBridge() == null || getBridge().getWebView() == null) {
+    private void dispatchSmsOtpToWebView(@Nullable String rawMessage) {
+        if (rawMessage == null || rawMessage.isEmpty() || isFinishing() || isDestroyed() || getBridge() == null || getBridge().getWebView() == null) {
             return;
         }
-        final String otpCode = extractSixDigitOtp(rawMessage);
+        final String safeMessage = rawMessage;
+        final String otpCode = extractSixDigitOtp(safeMessage);
         if (otpCode.length() != 6) {
             return;
         }
@@ -295,7 +317,7 @@ public class MainActivity extends BridgeActivity {
             try {
                 JSONObject payload = new JSONObject();
                 payload.put("code", otpCode);
-                payload.put("rawMessage", rawMessage);
+                payload.put("rawMessage", safeMessage);
                 String js =
                     "window.dispatchEvent(new CustomEvent('smartrun:sms-otp', { detail: " +
                     payload.toString() +

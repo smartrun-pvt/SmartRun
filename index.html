@@ -2,6 +2,8 @@
 <html lang="en" prefix="og: https://ogp.me/ns#">
   <head>
     <script>
+      // Mark JS-enabled browsers synchronously before first paint so the non-JS crawler shell (#ssr-seo-shell) stays hidden from users
+      document.documentElement.classList.add('smartrun-js');
       // Gracefully silence benign [vite] websocket connection errors in AI Studio iframe/sandboxed environments
       (function() {
         const origWarn = console.warn;
@@ -518,6 +520,10 @@
         0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
         40% { transform: scale(1); opacity: 1; }
       }
+      /* Keep non-JS crawler SEO shell completely hidden in JS-enabled browsers while preserving full DOM for search/AI bots */
+      html.smartrun-js #ssr-seo-shell {
+        display: none !important;
+      }
     </style>
   </head>
   <body class="bg-white text-slate-900 font-sans antialiased selection:bg-yellow-400 selection:text-black">
@@ -538,21 +544,42 @@
       <!-- SSR_SEO_SHELL_SLOT -->
     </div>
     <script>
-      // Watchdog: Ensure preloader element is gracefully dismissed once React mounts or after 1.5s max
-      setTimeout(function() {
-        var loader = document.getElementById('initial-smartrun-loader');
-        if (loader && loader.parentNode) {
-          loader.style.transition = 'opacity 0.25s ease';
-          loader.style.opacity = '0';
-          setTimeout(function() {
-            try { if (loader && loader.parentNode) loader.parentNode.removeChild(loader); } catch(e) {}
-          }, 250);
+      // Recovery Watchdog: Keep the branded loader visible until React mounts (never expose #ssr-seo-shell).
+      // If module loading stalls (e.g., transient Vite dep re-optimization or network drop), recover once automatically.
+      (function() {
+        var RELOAD_KEY = 'smartrun_boot_retry_ts';
+        function triggerSafeRecovery() {
+          if (window.__SMARTRUN_APP_MOUNTED__) return;
+          try {
+            var lastTry = Number(sessionStorage.getItem(RELOAD_KEY) || 0);
+            if (!lastTry || Date.now() - lastTry > 20000) {
+              sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+              window.location.reload();
+              return;
+            }
+          } catch (e) {}
+          var loader = document.getElementById('initial-smartrun-loader');
+          if (loader && !document.getElementById('smartrun-boot-retry-btn')) {
+            var btn = document.createElement('button');
+            btn.id = 'smartrun-boot-retry-btn';
+            btn.type = 'button';
+            btn.textContent = 'Tap to Reload SmartRun';
+            btn.style.cssText = 'margin-top:20px;padding:10px 20px;border-radius:12px;border:none;background:#f59e0b;color:#0f172a;font-weight:800;font-size:13px;cursor:pointer;';
+            btn.onclick = function() { window.location.reload(); };
+            loader.appendChild(btn);
+          }
         }
-      }, 1500);
+        window.__SMARTRUN_TRIGGER_BOOT_RECOVERY__ = triggerSafeRecovery;
+        setTimeout(function() {
+          if (!window.__SMARTRUN_APP_MOUNTED__) {
+            triggerSafeRecovery();
+          }
+        }, 8000);
+      })();
     </script>
     <!-- Container for Firebase Phone Auth reCAPTCHA verification -->
     <div id="recaptcha-container"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx" onerror="window.__SMARTRUN_TRIGGER_BOOT_RECOVERY__ && window.__SMARTRUN_TRIGGER_BOOT_RECOVERY__()"></script>
   </body>
 </html>
 

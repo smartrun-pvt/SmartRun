@@ -28,3 +28,61 @@ allprojects {
 tasks.register('clean', Delete) {
     delete rootProject.layout.buildDirectory
 }
+
+// Automatically enforce null-safety in Capacitor's Bridge.isMinimumWebViewInstalled()
+// before Java compilation so WebView.getCurrentWebViewPackage().versionName == null
+// can never trigger NullPointerException inside java.util.regex.Matcher.reset(CharSequence).
+tasks.register('patchCapacitorBridgeNullSafety') {
+    doLast {
+        def bridgeFile = file('../node_modules/@capacitor/android/capacitor/src/main/java/com/getcapacitor/Bridge.java')
+        if (!bridgeFile.exists()) return
+        def marker = '// [SmartRun Null-Safety Patch] Guard null PackageInfo / versionName before Pattern.matcher'
+        def text = bridgeFile.getText('UTF-8')
+        if (text.contains(marker)) return
+        def targetPattern = ~/(?s)\/\/ Check getCurrentWebViewPackage\(\) directly if above Android 8.*?if \(Build\.VERSION\.SDK_INT >= Build\.VERSION_CODES\.O\) \{.*?Matcher matcher = pattern\.matcher\(info\.versionName\);.*?return false;\s*\}\s*\}/
+        if (targetPattern.matcher(text).find()) {
+            def replacement = """// [SmartRun Null-Safety Patch] Guard null PackageInfo / versionName before Pattern.matcher
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            PackageInfo info = null;
+            try {
+                info = WebView.getCurrentWebViewPackage();
+            } catch (Throwable ignored) {}
+            if (info == null) {
+                try {
+                    info = WebViewCompat.getCurrentWebViewPackage(getContext());
+                } catch (Throwable ignored) {}
+            }
+            String safeVersionName = (info != null && info.versionName != null) ? info.versionName : "";
+            if (!safeVersionName.isEmpty()) {
+                Pattern pattern = Pattern.compile("(\\\\d+)");
+                Matcher matcher = pattern.matcher(safeVersionName);
+                if (matcher.find()) {
+                    String majorVersionStr = matcher.group(0);
+                    if (majorVersionStr != null && !majorVersionStr.isEmpty()) {
+                        try {
+                            int majorVersion = Integer.parseInt(majorVersionStr);
+                            if ("com.huawei.webview".equals(info.packageName)) {
+                                return majorVersion >= config.getMinHuaweiWebViewVersion();
+                            }
+                            return majorVersion >= config.getMinWebViewVersion();
+                        } catch (NumberFormatException ignored) {}
+                    }
+                }
+                return false;
+            }
+        }"""
+            def updated = targetPattern.matcher(text).replaceFirst(java.util.regex.Matcher.quoteReplacement(replacement))
+            bridgeFile.setText(updated, 'UTF-8')
+        }
+    }
+}
+
+gradle.projectsEvaluated {
+    def capAndroid = rootProject.findProject(':capacitor-android')
+    if (capAndroid != null) {
+        capAndroid.tasks.matching { it.name == 'preBuild' }.configureEach {
+            dependsOn rootProject.tasks.named('patchCapacitorBridgeNullSafety')
+        }
+    }
+}
+
